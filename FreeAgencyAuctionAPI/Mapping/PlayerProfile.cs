@@ -8,14 +8,24 @@ namespace FreeAgencyAuctionAPI.Mapping
         public PlayerProfile()
         {
             CreateMap<PlayerEntity, PlayerDTO>();
-                // .ForMember(dest => dest.length,
-                //     opts => opts.MapFrom(src => src.length))
-                // .ForMember(dest => dest.position,
-                //     opts => opts.MapFrom(src => src.position))
-                // .ForMember(dest => dest.salary,
-                //     opts => opts.MapFrom(src => src.salary))
-               
-            
+            CreateMap<PlayerDTO, PlayerEntity>();
+        }
+    }
+
+    public class BidProfile : Profile
+    {
+        public BidProfile()
+        {
+            CreateMap<BidEntity, BidDTO>();
+            CreateMap<BidDTO, BidEntity>();
+        }
+    }
+    public class OwnerProfile : Profile
+    {
+        public OwnerProfile()
+        {
+            CreateMap<OwnerEntity, OwnerDTO>();
+            CreateMap<OwnerDTO, OwnerEntity>();
         }
     }
 }

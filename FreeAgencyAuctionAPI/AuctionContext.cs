@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,8 @@ namespace FreeAgencyAuctionAPI
     public class AuctionContext : DbContext
     {
         public DbSet<PlayerEntity> Players { get; set; }
+        public DbSet<BidEntity> Bids { get; set; }
+        public DbSet<OwnerEntity> Owners { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -23,7 +26,7 @@ namespace FreeAgencyAuctionAPI
         }
     }
 
-    [Table("player")]
+        [Table("player")]
         public class PlayerEntity
         {
             [Key] 
@@ -38,5 +41,27 @@ namespace FreeAgencyAuctionAPI
             public int? length { get; set; }
             public int? contractvalue { get; set; }
             
+        }
+
+        [Table("bidledger")]
+        public class BidEntity
+        {
+            [Key] 
+            public int bidid { get; set; }
+            public int? playerid { get; set; }
+            public string? ownername { get; set; }
+            public int? bidlength { get; set; }
+            public int? bidsalary { get; set; }
+            public DateTime? expires { get; set; }
+        }
+        [Table("owner")]
+        public class OwnerEntity
+        {
+            public int ownerid { get; set; }
+            public string ownername { get; set; }
+            public string passwordhash { get; set; }
+            public string email { get; set; }
+            public int caproom { get; set; }
+            public int yearsleft { get; set; }
         }
 }

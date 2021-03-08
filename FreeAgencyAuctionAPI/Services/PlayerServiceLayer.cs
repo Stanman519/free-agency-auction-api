@@ -10,7 +10,9 @@ namespace FreeAgencyAuctionAPI.Services
     {
         public Task<PlayerDTO> GetPlayerById(int id);
         public Task<List<PlayerDTO>> GetRosteredPlayers();
-        public Task<PlayerDTO> NominatePlayer();
+        public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
+        public Task<PlayerDTO> WinPlayer(BidDTO bid);
+        public Task<List<PlayerDTO>> GetAllFreeAgents();
     }
     public class PlayerServiceLayer : IPlayerServiceLayer
     {
@@ -40,7 +42,20 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<PlayerDTO> NominatePlayer(PlayerDTO player)
         {
             var owned = _mapper.Map<PlayerDTO, PlayerEntity>(player);
-            var entity = await _repo.SetPlayerOwner(owned);
+            var ret = await _repo.SetPlayerOwner(owned);
+            return _mapper.Map<PlayerEntity, PlayerDTO>(ret);
+        }
+
+        public async Task<PlayerDTO> WinPlayer(BidDTO bid)
+        {
+            var owned = await _repo.WinPlayer(_mapper.Map<BidDTO, BidEntity>(bid));
+            return _mapper.Map<PlayerEntity, PlayerDTO>(owned);
+        }
+
+        public async Task<List<PlayerDTO>> GetAllFreeAgents()
+        {
+            var freeAgents = await _repo.GetAllFreeAgents();
+            return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
         }
     }
 }

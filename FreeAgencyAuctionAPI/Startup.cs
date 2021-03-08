@@ -43,7 +43,9 @@ namespace FreeAgencyAuctionAPI
             //services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
             //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
+            services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
             services.AddScoped<IPlayerRepo, PlayerRepo>();
+            services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddAutoMapper(typeof(Startup));
 
             var databaseUrl =
