@@ -15,11 +15,13 @@ namespace FreeAgencyAuctionAPI
     {
         private readonly IPlayerServiceLayer _pService;
         private readonly IOwnerServiceLayer _oService;
+        private readonly IBidLotService _bService;
 
-        public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer)
+        public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer, IBidLotService bService)
         {
             _pService = pService;
             _oService = ownerServiceLayer;
+            _bService = bService;
         }
 
         /// <summary>
@@ -56,7 +58,7 @@ namespace FreeAgencyAuctionAPI
         /// get all players who don't have owners or nominations - for nomination
         /// </summary>
         /// <returns></returns>
-        [HttpGet("players/rostered")]
+        [HttpGet("players/nominate")]
         [Produces("application/json", Type = typeof(PlayerDTO))]
         [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -96,6 +98,70 @@ namespace FreeAgencyAuctionAPI
             var ret = await _pService.WinPlayer(bid);
             var ownerRet = await _oService.WinPlayer(bid);
             if (ret != null && ownerRet != null) return Ok(ret);
+            return BadRequest();
+        }
+        
+        /// <summary>
+        /// active bids for all lots
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("lots")]
+        [Produces("application/json", Type = typeof(PlayerDTO))]
+        [ProducesResponseType(typeof(List<BidDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetBidsForAllLots()
+
+        {
+            var ret = await _bService.GetActiveBids();
+            if (ret != null) return Ok(ret);
+            return BadRequest();
+        }
+        
+        /// <summary>
+        /// clear this lot after auction ends
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("lots/clear/{lotId}")]
+        [Produces("application/json", Type = typeof(LotDTO))]
+        [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ClearThisLot(int lotId)
+
+        {
+            var ret = await _bService.ClearThisLot(lotId);
+            if (ret != null) return Ok(ret);
+            return BadRequest();
+        }
+        
+        /// <summary>
+        /// assign new bid to lot after bid
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("lots")]
+        [Produces("application/json", Type = typeof(LotDTO))]
+        [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateLotWithBid([FromBody] LotDTO lot)
+
+        {
+            var ret = await _bService.UpdateLotWithBid(lot);
+            if (ret != null) return Ok(ret);
+            return BadRequest();
+        }
+        
+        /// <summary>
+        /// get all owners for budget scoreboard
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("owners")]
+        [Produces("application/json", Type = typeof(List<OwnerDTO>))]
+        [ProducesResponseType(typeof(List<OwnerDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetAllOwners()
+
+        {
+            var ret = await _oService.GetAllOwners();
+            if (ret != null) return Ok(ret);
             return BadRequest();
         }
     }

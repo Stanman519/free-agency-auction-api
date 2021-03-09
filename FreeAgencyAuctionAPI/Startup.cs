@@ -44,8 +44,10 @@ namespace FreeAgencyAuctionAPI
             //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
+            services.AddScoped<IBidLotService, BidLotService>();
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
+            services.AddScoped<IBidLotRepo, BidLotRepo>();
             services.AddAutoMapper(typeof(Startup));
 
             var databaseUrl =

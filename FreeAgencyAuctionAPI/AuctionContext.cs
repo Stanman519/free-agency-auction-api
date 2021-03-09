@@ -10,6 +10,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<PlayerEntity> Players { get; set; }
         public DbSet<BidEntity> Bids { get; set; }
         public DbSet<OwnerEntity> Owners { get; set; }
+        public DbSet<LotEntity> Lots { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -46,22 +47,31 @@ namespace FreeAgencyAuctionAPI
         [Table("bidledger")]
         public class BidEntity
         {
-            [Key] 
             public int bidid { get; set; }
-            public int? playerid { get; set; }
-            public string? ownername { get; set; }
-            public int? bidlength { get; set; }
-            public int? bidsalary { get; set; }
-            public DateTime? expires { get; set; }
+            public int playerid { get; set; }
+            [Key] 
+            public string ownername { get; set; }
+            public int bidlength { get; set; }
+            public int bidsalary { get; set; }
+            public DateTime expires { get; set; }
         }
         [Table("owner")]
         public class OwnerEntity
         {
+            [Key]
             public int ownerid { get; set; }
             public string ownername { get; set; }
-            public string passwordhash { get; set; }
+            public string password_hash { get; set; }
             public string email { get; set; }
             public int caproom { get; set; }
             public int yearsleft { get; set; }
+        }
+        [Table("lot")]
+        public class LotEntity
+        {
+            [Key]
+            public int lotid { get; set; }
+            public int? bidid { get; set; }
+            public int passes { get; set; }
         }
 }

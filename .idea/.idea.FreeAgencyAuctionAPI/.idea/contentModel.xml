@@ -13,6 +13,9 @@
           <e p="PlayerProfile.cs" t="Include" />
         </e>
         <e p="Models" t="Include">
+          <e p="BidDTO.cs" t="Include" />
+          <e p="LotDTO.cs" t="Include" />
+          <e p="OwnerDTO.cs" t="Include" />
           <e p="PlayerDTO.cs" t="Include" />
         </e>
         <e p="obj" t="ExcludeRecursive">
@@ -30,9 +33,13 @@
           <e p="launchSettings.json" t="Include" />
         </e>
         <e p="Repos" t="Include">
+          <e p="IBidLotRepo.cs" t="Include" />
+          <e p="IOwnerRepo.cs" t="Include" />
           <e p="IPlayerRepo.cs" t="Include" />
         </e>
         <e p="Services" t="Include">
+          <e p="BidLotService.cs" t="Include" />
+          <e p="OwnerServiceLayer.cs" t="Include" />
           <e p="PlayerServiceLayer.cs" t="Include" />
         </e>
         <e p="Startup.cs" t="Include" />

@@ -9,9 +9,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/LotDTO.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,14 +33,21 @@
       <list>
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Program.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/Player.cs" />
-        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/ServiceLayer.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerDTO.cs" />
-        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" />
-        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/LotDTO.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
         <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
+        <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
       </list>
     </option>
   </component>
@@ -97,7 +111,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1615150049760</updated>
-      <workItem from="1615150062173" duration="17769000" />
+      <workItem from="1615150062173" duration="33094000" />
     </task>
     <servers />
   </component>
@@ -121,26 +135,30 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state width="1224" height="376" key="GridCell.Tab.0.bottom" timestamp="1615215758597">
-      <screen x="-1760" y="-1417" width="3440" height="1417" />
+    <state width="1090" height="147" key="GridCell.Tab.0.bottom" timestamp="1615231472457">
+      <screen x="0" y="23" width="1680" height="952" />
     </state>
     <state width="1742" height="376" key="GridCell.Tab.0.bottom/-1760.-1417.3440.1417/0.23.1680.949@-1760.-1417.3440.1417" timestamp="1615168049550" />
-    <state width="1224" height="376" key="GridCell.Tab.0.bottom/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615215758597" />
-    <state width="1224" height="376" key="GridCell.Tab.0.center" timestamp="1615215758596">
-      <screen x="-1760" y="-1417" width="3440" height="1417" />
+    <state width="1224" height="376" key="GridCell.Tab.0.bottom/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615218901002" />
+    <state width="1090" height="147" key="GridCell.Tab.0.bottom/-1760.-1417.3440.1417/0.23.1680.952@0.23.1680.952" timestamp="1615231472457" />
+    <state width="1090" height="147" key="GridCell.Tab.0.center" timestamp="1615231472456">
+      <screen x="0" y="23" width="1680" height="952" />
     </state>
     <state width="1742" height="376" key="GridCell.Tab.0.center/-1760.-1417.3440.1417/0.23.1680.949@-1760.-1417.3440.1417" timestamp="1615168049548" />
-    <state width="1224" height="376" key="GridCell.Tab.0.center/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615215758596" />
-    <state width="1224" height="376" key="GridCell.Tab.0.left" timestamp="1615215758595">
-      <screen x="-1760" y="-1417" width="3440" height="1417" />
+    <state width="1224" height="376" key="GridCell.Tab.0.center/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615218901001" />
+    <state width="1090" height="147" key="GridCell.Tab.0.center/-1760.-1417.3440.1417/0.23.1680.952@0.23.1680.952" timestamp="1615231472456" />
+    <state width="1090" height="147" key="GridCell.Tab.0.left" timestamp="1615231472455">
+      <screen x="0" y="23" width="1680" height="952" />
     </state>
     <state width="1742" height="376" key="GridCell.Tab.0.left/-1760.-1417.3440.1417/0.23.1680.949@-1760.-1417.3440.1417" timestamp="1615168049548" />
-    <state width="1224" height="376" key="GridCell.Tab.0.left/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615215758595" />
-    <state width="1224" height="376" key="GridCell.Tab.0.right" timestamp="1615215758597">
-      <screen x="-1760" y="-1417" width="3440" height="1417" />
+    <state width="1224" height="376" key="GridCell.Tab.0.left/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615218901000" />
+    <state width="1090" height="147" key="GridCell.Tab.0.left/-1760.-1417.3440.1417/0.23.1680.952@0.23.1680.952" timestamp="1615231472455" />
+    <state width="1090" height="147" key="GridCell.Tab.0.right" timestamp="1615231472457">
+      <screen x="0" y="23" width="1680" height="952" />
     </state>
     <state width="1742" height="376" key="GridCell.Tab.0.right/-1760.-1417.3440.1417/0.23.1680.949@-1760.-1417.3440.1417" timestamp="1615168049549" />
-    <state width="1224" height="376" key="GridCell.Tab.0.right/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615215758597" />
+    <state width="1224" height="376" key="GridCell.Tab.0.right/-1760.-1417.3440.1417/0.23.1680.952@-1760.-1417.3440.1417" timestamp="1615218901001" />
+    <state width="1090" height="147" key="GridCell.Tab.0.right/-1760.-1417.3440.1417/0.23.1680.952@0.23.1680.952" timestamp="1615231472457" />
     <state width="1742" height="489" key="GridCell.Tab.1.bottom" timestamp="1615210254556">
       <screen x="-1760" y="-1417" width="3440" height="1417" />
     </state>

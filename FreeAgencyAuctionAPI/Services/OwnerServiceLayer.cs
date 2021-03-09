@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
@@ -8,6 +9,7 @@ namespace FreeAgencyAuctionAPI.Services
     public interface IOwnerServiceLayer
     {
         public Task<OwnerDTO> WinPlayer(BidDTO bid);
+        public Task<List<OwnerDTO>> GetAllOwners();
     }
     public class OwnerServiceLayer : IOwnerServiceLayer
     {
@@ -23,6 +25,12 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var ret = await _repo.WinPlayer(bid);
             return _mapper.Map<OwnerEntity, OwnerDTO>(ret);
+        }
+
+        public async Task<List<OwnerDTO>> GetAllOwners()
+        {
+            var ret = await _repo.GetAllOwners();
+            return _mapper.Map<List<OwnerEntity>, List<OwnerDTO>>(ret);
         }
     }
 }

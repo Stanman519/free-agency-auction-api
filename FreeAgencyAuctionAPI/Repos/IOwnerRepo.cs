@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace FreeAgencyAuctionAPI.Repos
     public interface IOwnerRepo
     {
         public Task<OwnerEntity> WinPlayer(BidDTO bid);
+        public Task<List<OwnerEntity>> GetAllOwners();
     }
 
     public class OwnerRepo : IOwnerRepo
@@ -29,6 +31,19 @@ namespace FreeAgencyAuctionAPI.Repos
                 owner.caproom -= bid.BidSalary;
                 _db.SaveChangesAsync();
                 return owner;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
+
+        public async Task<List<OwnerEntity>> GetAllOwners()
+        {
+            try
+            {
+                return await _db.Owners.ToListAsync();
             }
             catch (Exception e)
             {

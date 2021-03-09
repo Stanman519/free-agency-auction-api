@@ -10,5 +10,6 @@ namespace FreeAgencyAuctionAPI.Models
         public int PlayerId { set; get; }
         public string Bidder { set; get; }
         public DateTime Expires { set; get; }
+        public int? LotId { get; set; }
     }
 }

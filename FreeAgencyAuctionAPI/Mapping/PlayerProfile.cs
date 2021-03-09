@@ -28,4 +28,13 @@ namespace FreeAgencyAuctionAPI.Mapping
             CreateMap<OwnerDTO, OwnerEntity>();
         }
     }
+
+    public class LotProfile : Profile
+    {
+        public LotProfile()
+        {
+            CreateMap<LotEntity, LotDTO>();
+            CreateMap<LotDTO, LotEntity>();
+        }
+    }
 }
