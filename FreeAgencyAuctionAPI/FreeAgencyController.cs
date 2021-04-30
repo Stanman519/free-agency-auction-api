@@ -97,8 +97,8 @@ namespace FreeAgencyAuctionAPI
             if (addPlayerResp.Length > 0 || contractResponse.Length > 0)
             {
                 //TODO: tell groupme it didnt work
-            }
-    if (ret != null && ownerRet != null && lotRet != null) return Ok(ret);
+            } 
+            if (ret != null && ownerRet != null && lotRet != null) return Ok(ret);
             return BadRequest();
         }
         
