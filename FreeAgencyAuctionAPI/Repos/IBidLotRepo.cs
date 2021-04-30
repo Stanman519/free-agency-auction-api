@@ -12,6 +12,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<BidDTO>> GetActiveBids();
         Task<LotEntity> ClearThisLot(int lotId);
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
+        Task<BidDTO> AddBid(BidEntity newBid);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -27,18 +28,22 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var activeBids = await _db.Lots
-                    .Join(_db.Bids, l => l.bidid, b => b.bidid, (l, b) => new BidDTO
+                var activeBids = from l in _db.Lots
+                    join b in _db.Bids on l.bidid equals b.bidid
+                    join p in _db.Players on b.playerid equals p.playerid
+                    select new BidDTO
                     {
                         PlayerId = b.playerid,
                         Expires = b.expires,
                         BidSalary = b.bidsalary,
                         BidLength = b.bidlength,
-                        Bidder = b.ownername,
+                        Ownername = b.ownername,
                         BidId = b.bidid,
-                        LotId = l.lotid
-                    }).ToListAsync();
-                return activeBids;
+                        LotId = l.lotid,
+                        PlayerFirstName = p.firstname,
+                        PlayerLastName = p.lastname
+                    };
+                return activeBids.ToList();
             }
             catch (Exception e)
             {
@@ -71,6 +76,32 @@ namespace FreeAgencyAuctionAPI.Repos
                 lotToUpdate.bidid = lot.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
+
+        public async Task<BidDTO> AddBid(BidEntity newBid)
+        {
+            try
+            {
+                await _db.Bids.AddAsync(newBid);
+                await _db.SaveChangesAsync();
+                var player = await _db.Players.FirstOrDefaultAsync(p => p.playerid == newBid.playerid);
+                return new BidDTO
+                {
+                    BidId = newBid.bidid,
+                    BidLength = newBid.bidlength,
+                    BidSalary = newBid.bidsalary,
+                    PlayerId = newBid.playerid,
+                    Ownername = newBid.ownername,
+                    Expires = newBid.expires,
+                    PlayerFirstName = player.firstname,
+                    PlayerLastName = player.lastname
+                };
             }
             catch (Exception e)
             {

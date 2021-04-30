@@ -9,6 +9,9 @@
         <e p="bin" t="ExcludeRecursive" />
         <e p="FreeAgencyAuctionAPI.csproj" t="IncludeRecursive" />
         <e p="FreeAgencyController.cs" t="Include" />
+        <e p="Hub" t="Include">
+          <e p="AuctionHub.cs" t="Include" />
+        </e>
         <e p="Mapping" t="Include">
           <e p="PlayerProfile.cs" t="Include" />
         </e>
@@ -34,11 +37,14 @@
         </e>
         <e p="Repos" t="Include">
           <e p="IBidLotRepo.cs" t="Include" />
+          <e p="IGlobalMflApi.cs" t="Include" />
+          <e p="IMflApi.cs" t="Include" />
           <e p="IOwnerRepo.cs" t="Include" />
           <e p="IPlayerRepo.cs" t="Include" />
         </e>
         <e p="Services" t="Include">
           <e p="BidLotService.cs" t="Include" />
+          <e p="MflService.cs" t="Include" />
           <e p="OwnerServiceLayer.cs" t="Include" />
           <e p="PlayerServiceLayer.cs" t="Include" />
         </e>

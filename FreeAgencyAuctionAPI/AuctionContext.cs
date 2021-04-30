@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FreeAgencyAuctionAPI
@@ -25,6 +26,7 @@ namespace FreeAgencyAuctionAPI
                     @"Server=ec2-54-161-150-170.compute-1.amazonaws.com;Port=5432;Database=dacgk47k91p2vs;User Id=REDACTED_HEROKU_PG_USER;Password=REDACTED_HEROKU_PG_PW");
             }
         }
+        
     }
 
         [Table("player")]
@@ -47,13 +49,14 @@ namespace FreeAgencyAuctionAPI
         [Table("bidledger")]
         public class BidEntity
         {
+            [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public int bidid { get; set; }
             public int playerid { get; set; }
             [Key] 
             public string ownername { get; set; }
             public int bidlength { get; set; }
             public int bidsalary { get; set; }
-            public DateTime expires { get; set; }
+            public string expires { get; set; }
         }
         [Table("owner")]
         public class OwnerEntity

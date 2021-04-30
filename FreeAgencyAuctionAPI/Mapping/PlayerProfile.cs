@@ -9,6 +9,7 @@ namespace FreeAgencyAuctionAPI.Mapping
         {
             CreateMap<PlayerEntity, PlayerDTO>();
             CreateMap<PlayerDTO, PlayerEntity>();
+
         }
     }
 
@@ -16,16 +17,24 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public BidProfile()
         {
-            CreateMap<BidEntity, BidDTO>();
-            CreateMap<BidDTO, BidEntity>();
+            CreateMap<BidEntity, BidDTO>()
+                .ForMember(dest => dest.LotId, opt => opt.Ignore())
+                .ForMember(dest => dest.PlayerLastName, opt => opt.Ignore())
+                .ForMember(dest => dest.PlayerFirstName, opt => opt.Ignore());
+            CreateMap<BidDTO, BidEntity>()
+                .ForSourceMember(src => src.LotId, opt => opt.DoNotValidate())
+                .ForSourceMember(src => src.PlayerFirstName, opt => opt.DoNotValidate())
+                .ForSourceMember(src => src.PlayerLastName, opt => opt.DoNotValidate());
         }
     }
     public class OwnerProfile : Profile
     {
         public OwnerProfile()
         {
-            CreateMap<OwnerEntity, OwnerDTO>();
-            CreateMap<OwnerDTO, OwnerEntity>();
+            CreateMap<OwnerEntity, OwnerDTO>()
+                .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.password_hash));
+            CreateMap<OwnerDTO, OwnerEntity>()
+                .ForMember(dest => dest.password_hash, opt => opt.MapFrom(src => src.Password));
         }
     }
 

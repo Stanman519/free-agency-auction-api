@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,6 +12,8 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         public Task<OwnerEntity> WinPlayer(BidDTO bid);
         public Task<List<OwnerEntity>> GetAllOwners();
+        public Task<OwnerDTO> Login(OwnerDTO owner);
+        public Task<OwnerEntity> Register(OwnerEntity newUser);
     }
 
     public class OwnerRepo : IOwnerRepo
@@ -20,16 +23,41 @@ namespace FreeAgencyAuctionAPI.Repos
         public OwnerRepo(AuctionContext db)
         {
             _db = db;
+
+        }
+
+        public async Task<OwnerDTO> Login(OwnerDTO owner)
+        {
+            try
+            {
+                var ret = await _db.Owners.FirstOrDefaultAsync(o => 
+                                                                        o.ownername.ToUpper() == owner.Ownername.ToUpper() &&
+                                                                   o.password_hash == owner.Password);
+                if (ret == null) return null;
+                return new OwnerDTO
+                {
+                    OwnerId = ret.ownerid,
+                    Ownername = ret.ownername,
+                    CapRoom = ret.caproom,
+                    YearsLeft = ret.yearsleft,
+                    Password = ret.password_hash
+                };
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
         }
 
         public async Task<OwnerEntity> WinPlayer(BidDTO bid)
         {
             try
             {
-                var owner = await _db.Owners.FirstAsync(o => o.ownername == bid.Bidder);
+                var owner = await _db.Owners.FirstAsync(o => o.ownername == bid.Ownername);
                 owner.yearsleft -= bid.BidLength;
                 owner.caproom -= bid.BidSalary;
-                _db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
                 return owner;
             }
             catch (Exception e)
@@ -50,6 +78,13 @@ namespace FreeAgencyAuctionAPI.Repos
                 Console.WriteLine(e.Message);
                 return null;
             }
+        }
+
+        public async Task<OwnerEntity> Register(OwnerEntity newUser)
+        {
+            var ret = await _db.Owners.AddAsync(newUser);
+            await _db.SaveChangesAsync();
+            return newUser;
         }
     }
 }

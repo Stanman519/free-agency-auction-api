@@ -1,4 +1,5 @@
 using System;
+using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Builder;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using RestEase;
 
 
 namespace FreeAgencyAuctionAPI
@@ -29,26 +31,28 @@ namespace FreeAgencyAuctionAPI
             {
                 c.AddPolicy("AllowSpecificOrigin",
                     options => options.WithOrigins("https://capn-crunch-gm-bot.herokuapp.com", "https://stanfan.herokuapp.com", "http://capn-crunch-gm-bot.herokuapp.com", "http://stanfan.herokuapp.com",
-                            "http://localhost:3000", "https://localhost:3000", "https://capn-crunch.herokuapp.com", "http://capn-crunch.herokuapp.com")
+                            "http://localhost:3000", "https://localhost:3000", "https://capn-crunch.herokuapp.com", "http://capn-crunch.herokuapp.com", "http://localhost:8080", "https://localhost:8080")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
                         .SetIsOriginAllowedToAllowWildcardSubdomains()
                         .WithExposedHeaders("Access-Control-Allow-Origin"));
             });
-            
+            services.AddSignalR();
             services.AddControllers();
             services.AddSwaggerGen();
-            //services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
-            //services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
+            services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
+            services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
             //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
+            services.AddScoped<IMflService, MflService>();
             services.AddScoped<IBidLotService, BidLotService>();
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
             services.AddAutoMapper(typeof(Startup));
+            
 
             var databaseUrl =
                 @"postgres://REDACTED_HEROKU_PG_USER:REDACTED_HEROKU_PG_PW@ec2-54-161-150-170.compute-1.amazonaws.com:5432/dacgk47k91p2vs";
@@ -91,7 +95,13 @@ namespace FreeAgencyAuctionAPI
             app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Free Agency Auction"); });
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapHub<AuctionHub>("/auction-hub");
+            });
+
+
         }
     }
 }

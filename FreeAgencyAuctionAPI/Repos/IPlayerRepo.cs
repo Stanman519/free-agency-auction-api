@@ -55,7 +55,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var dbPlayer = await _db.Players.Where(p => p.playerid == player.playerid).FirstAsync();
+                var dbPlayer = await _db.Players.Where(p => p.espnid == player.espnid).FirstAsync();
                 dbPlayer.ownerid = player.ownerid;
                 await _db.SaveChangesAsync();
                 return dbPlayer;
@@ -71,7 +71,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var playerToUpdate = await _db.Players.FirstAsync(p => p.playerid == bid.playerid);
+                var playerToUpdate = await _db.Players.FirstAsync(p => p.espnid == bid.playerid);
                 playerToUpdate.ownername = bid.ownername;
                 playerToUpdate.length = bid.bidlength;
                 playerToUpdate.salary = bid.bidsalary;
