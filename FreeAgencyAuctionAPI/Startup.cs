@@ -31,7 +31,7 @@ namespace FreeAgencyAuctionAPI
             {
                 c.AddPolicy("AllowSpecificOrigin",
                     options => options.WithOrigins("https://capn-crunch-gm-bot.herokuapp.com", "https://stanfan.herokuapp.com", "http://capn-crunch-gm-bot.herokuapp.com", "http://stanfan.herokuapp.com",
-                            "http://localhost:3000", "https://localhost:3000", "https://capn-crunch.herokuapp.com", "http://capn-crunch.herokuapp.com", "http://localhost:8080", "https://localhost:8080", "https://https://free-agency-auction.herokuapp.com")
+                            "http://localhost:3000", "https://localhost:3000", "https://capn-crunch.herokuapp.com", "http://capn-crunch.herokuapp.com", "http://localhost:8080", "https://localhost:8080", "https://free-agency-auction.herokuapp.com")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
