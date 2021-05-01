@@ -35,8 +35,8 @@ namespace FreeAgencyAuctionAPI
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
-                        .SetIsOriginAllowedToAllowWildcardSubdomains());
-                        //.WithExposedHeaders("Access-Control-Allow-Origin"));
+                        .SetIsOriginAllowedToAllowWildcardSubdomains()
+                        .WithExposedHeaders("Access-Control-Allow-Origin"));
             });
             services.AddSignalR();
             services.AddControllers();
