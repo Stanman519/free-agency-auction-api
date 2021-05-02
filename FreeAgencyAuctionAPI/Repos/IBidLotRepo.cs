@@ -30,7 +30,7 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 var activeBids = from l in _db.Lots
                     join b in _db.Bids on l.bidid equals b.bidid
-                    join p in _db.Players on b.playerid equals p.playerid
+                    join p in _db.Players on b.playerid equals p.espnid
                     select new BidDTO
                     {
                         PlayerId = b.playerid,
@@ -90,7 +90,7 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 await _db.Bids.AddAsync(newBid);
                 await _db.SaveChangesAsync();
-                var player = await _db.Players.FirstOrDefaultAsync(p => p.playerid == newBid.playerid);
+                var player = await _db.Players.FirstOrDefaultAsync(p => p.espnid == newBid.playerid);
                 return new BidDTO
                 {
                     BidId = newBid.bidid,

@@ -28,7 +28,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                return await _db.Players.FirstAsync(p => p.playerid == playerId);
+                return await _db.Players.FirstAsync(p => p.espnid == playerId);
             }
             catch (Exception e)
             {
