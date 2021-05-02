@@ -89,14 +89,21 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> WinPlayer([FromBody] BidDTO bid)
 
         {
+            Console.WriteLine(bid.PlayerId);
+            Console.WriteLine(bid.Ownername);
             var addPlayerResp = await _mfl.AddPlayerToTeam(bid);
+            Console.WriteLine(addPlayerResp);
             var ret = await _pService.WinPlayer(bid);
+            Console.WriteLine(ret.EspnId);
             var ownerRet = await _oService.WinPlayer(bid);
+            Console.WriteLine(ownerRet.YearsLeft);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
             var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
+            Console.WriteLine(contractResponse);
             if (addPlayerResp.Length > 0 || contractResponse.Length > 0)
             {
-                //TODO: tell groupme it didnt work
+                Console.WriteLine("there was an error with adding to mfl");
+                //TODO: notify gm
             } 
             if (ret != null && ownerRet != null && lotRet != null) return Ok(ret);
             return BadRequest();
