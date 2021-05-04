@@ -87,17 +87,17 @@ namespace FreeAgencyAuctionAPI.Services
         private Dictionary<string, string> owners = new Dictionary<string, string>()
         {
             {"Ryan", "0001"},
-            {"Tyler W", "0002"},
-            {"Caleb", "0003"},
-            {"Trent", "0004"},
+            {"tylerwelsh", "0002"},
+            {"Leb", "0003"},
+            {"caboroberts", "0004"},
             {"Taylor", "0005"},
-            {"Logan", "0006"},
+            {"CrappieDuster", "0006"},
             {"Cory", "0007"},
-            {"Jeremi", "0008"},
-            {"Levi", "0009"},
-            {"Aaron", "0010"},
+            {"jeremimattern", "0008"},
+            {"Not a noob", "0009"},
+            {"Flapjackcarl", "0010"},
             {"Juan", "0011"},
-            {"Tyler S", "0012"}
+            {"Tbux", "0012"}
         };
     }
 

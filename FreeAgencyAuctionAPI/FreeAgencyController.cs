@@ -22,15 +22,17 @@ namespace FreeAgencyAuctionAPI
         private readonly IBidLotService _bService;
         private readonly IMflService _mfl;
         private readonly IHubContext<AuctionHub> _auctionHub;
+        private readonly IGMBot _bot;
 
         public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer,
-            IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub)
+            IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot)
         {
             _pService = pService;
             _oService = ownerServiceLayer;
             _bService = bService;
             _mfl = mfl;
             _auctionHub = auctionHub;
+            _bot = bot;
         }
 
         /// <summary>
@@ -89,21 +91,14 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> WinPlayer([FromBody] BidDTO bid)
 
         {
-            Console.WriteLine(bid.PlayerId);
-            Console.WriteLine(bid.Ownername);
             var addPlayerResp = await _mfl.AddPlayerToTeam(bid);
-            Console.WriteLine(addPlayerResp);
             var ret = await _pService.WinPlayer(bid);
-            Console.WriteLine(ret.EspnId);
             var ownerRet = await _oService.WinPlayer(bid);
-            Console.WriteLine(ownerRet.YearsLeft);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
             var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
-            Console.WriteLine(contractResponse);
             if (addPlayerResp.Length > 0 || contractResponse.Length > 0)
             {
-                Console.WriteLine("there was an error with adding to mfl");
-                //TODO: notify gm
+                await _bot.NotifyMflError($"there was an error syncing {bid.PlayerFirstName} {bid.PlayerLastName} to mfl");
             } 
             if (ret != null && ownerRet != null && lotRet != null) return Ok(ret);
             return BadRequest();
@@ -140,22 +135,6 @@ namespace FreeAgencyAuctionAPI
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
-        
-        // /// <summary>
-        // /// assign new bid to lot after bid
-        // /// </summary>
-        // /// <returns></returns>
-        // [HttpPut("lots")]
-        // [Produces("application/json", Type = typeof(LotDTO))]
-        // [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
-        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        // public async Task<IActionResult> UpdateLotWithBid([FromBody] LotDTO lot)
-        //
-        // {
-        //     var ret = await _bService.UpdateLotWithBid(lot);
-        //     if (ret != null) return Ok(ret);
-        //     return BadRequest();
-        // }
         
         /// <summary>
         /// get all owners for budget scoreboard
@@ -239,8 +218,8 @@ namespace FreeAgencyAuctionAPI
         {
             Console.WriteLine("hitting controller for login");
             var ret = await _oService.Login(loginAttempt);
-           // if (ret != null)
-           return Ok(ret);
+            if (ret == null) return BadRequest();
+            return Ok(ret);
         }
         /// <summary>
         /// persisted login with cookie token
@@ -254,7 +233,7 @@ namespace FreeAgencyAuctionAPI
 
         {
             var ret = await _oService.CookieLogin(authorization);
-            // if (ret != null)
+            if (ret == null) return BadRequest();
             return Ok(ret);
         }
         

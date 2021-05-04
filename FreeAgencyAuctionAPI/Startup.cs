@@ -41,6 +41,7 @@ namespace FreeAgencyAuctionAPI
             services.AddSignalR();
             services.AddControllers();
             services.AddSwaggerGen();
+            services.AddSingleton(RestClient.For<IGMBot>("https://capn-crunch-gm-bot.herokuapp.com"));
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
             //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
