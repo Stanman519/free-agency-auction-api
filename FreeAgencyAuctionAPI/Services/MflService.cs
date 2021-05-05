@@ -92,7 +92,7 @@ namespace FreeAgencyAuctionAPI.Services
             {"caboroberts", "0004"},
             {"turley69", "0005"},
             {"CrappieDuster", "0006"},
-            {"Cory", "0007"},
+            {"cory", "0007"},
             {"jeremimattern", "0008"},
             {"Not a noob", "0009"},
             {"Flapjackcarl", "0010"},
