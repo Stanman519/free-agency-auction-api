@@ -90,13 +90,13 @@ namespace FreeAgencyAuctionAPI.Services
             {"tylerwelsh", "0002"},
             {"Leb", "0003"},
             {"caboroberts", "0004"},
-            {"Taylor", "0005"},
+            {"turley69", "0005"},
             {"CrappieDuster", "0006"},
             {"Cory", "0007"},
             {"jeremimattern", "0008"},
             {"Not a noob", "0009"},
             {"Flapjackcarl", "0010"},
-            {"Juan", "0011"},
+            {"Juanard", "0011"},
             {"Tbux", "0012"}
         };
     }

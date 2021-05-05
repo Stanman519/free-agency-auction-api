@@ -96,7 +96,7 @@ namespace FreeAgencyAuctionAPI
             var ownerRet = await _oService.WinPlayer(bid);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
             var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
-            if (addPlayerResp.Length > 0 || contractResponse.Length > 0)
+            if (addPlayerResp == null || contractResponse == null || addPlayerResp?.Length > 0 || contractResponse?.Length > 0)
             {
                 await _bot.NotifyMflError($"there was an error syncing {bid.PlayerFirstName} {bid.PlayerLastName} to mfl");
             } 
