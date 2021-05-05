@@ -8,6 +8,16 @@ namespace FreeAgencyAuctionAPI.Repos
     public interface IGMBot
     {
         [Post("Bot/auctionError")]
-        Task NotifyMflError([Body] string message);
+        Task NotifyMflError([Body] ErrorMessage message);
+    }
+
+    public class ErrorMessage
+    {
+        public string Message { get; set; }
+
+        public ErrorMessage(string msg)
+        {
+            Message = msg;
+        }
     }
 }
