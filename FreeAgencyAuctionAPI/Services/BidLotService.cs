@@ -51,6 +51,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var newBidEntity = _mapper.Map<BidDTO, BidEntity>(newBid);
             var res = await _repo.AddBid(newBidEntity);
+            res.LotId = newBid.LotId;
             return res;
 
         }
