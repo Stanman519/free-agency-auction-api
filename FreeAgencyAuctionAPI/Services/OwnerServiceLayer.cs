@@ -10,7 +10,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IOwnerServiceLayer
     {
-        public Task<OwnerDTO> WinPlayer(BidDTO bid);
+        public Task WinPlayer(List<int> capSpace);
         public Task<List<OwnerDTO>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
@@ -26,10 +26,10 @@ namespace FreeAgencyAuctionAPI.Services
             _mapper = mapper;
             _repo = repo;
         }
-        public async Task<OwnerDTO> WinPlayer(BidDTO bid)
+        public async Task WinPlayer(List<int> capSpace)
         {
-            var ret = await _repo.WinPlayer(bid);
-            return _mapper.Map<OwnerEntity, OwnerDTO>(ret);
+            await _repo.WinPlayer(capSpace);
+
         }
 
         public async Task<List<OwnerDTO>> GetAllOwners()

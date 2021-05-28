@@ -93,7 +93,6 @@ namespace FreeAgencyAuctionAPI
         {
             var addPlayerResp = await _mfl.AddPlayerToTeam(bid);
             var ret = await _pService.WinPlayer(bid);
-            var ownerRet = await _oService.WinPlayer(bid);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
             var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
             if (addPlayerResp == null || contractResponse == null || addPlayerResp?.Length > 0 || contractResponse?.Length > 0)
@@ -106,8 +105,10 @@ namespace FreeAgencyAuctionAPI
                 {
                     Console.WriteLine(e);
                 }
-            } 
-            if (ret != null && ownerRet != null && lotRet != null) return Ok(ret);
+            }
+            var updatedCapSpace = await _mfl.GetSalaryCapRoom();
+            await _oService.WinPlayer(updatedCapSpace);
+            if (ret != null && lotRet != null) return Ok(ret);
             return BadRequest();
         }
         
@@ -260,5 +261,13 @@ namespace FreeAgencyAuctionAPI
             return Ok(ret);
         }
         
+        [HttpGet("salaryCap")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetSalaryCap()
+        {
+            return Ok(await _mfl.GetSalaryCapRoom());
+        }
     }
 }

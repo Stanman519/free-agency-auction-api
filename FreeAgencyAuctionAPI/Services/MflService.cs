@@ -16,6 +16,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task<string> AddPlayerToTeam(BidDTO bid);
         Task<string> GiveNewContractToPlayer(BidDTO bid);
+        Task<List<int>> GetSalaryCapRoom();
     }
     public class MflService : IMflService
     {
@@ -71,6 +72,44 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
+        public async Task<List<int>> GetSalaryCapRoom()
+        {
+
+            var bigLeagueObject = _leagueApi.GetBigLeagueObject().Result.league.franchises.franchise;
+            var salaryAdjustments = _leagueApi.GetMflSalaryAdjustments().Result.salaryAdjustments.salaryAdjustment;
+            var rosters = _leagueApi.GetMflRostersForPlayerSalaries().Result.rosters.franchise;
+            var rosteredSalaryTotals = rosters.Select(f => f.player.Sum(p =>
+            {
+                if(p.status == "ROSTER")
+                    return Int32.Parse(p.salary);
+                return Int32.Parse(p.salary) * 0.2;
+            })).ToList();
+            var eachTeamCapTotalString = bigLeagueObject.Select(f => f.salaryCapAmount).ToList();
+            var eachTeamCapTotal = eachTeamCapTotalString.Select(_ =>
+            {
+                if (string.IsNullOrEmpty(_))
+                    return 500;
+                return Int32.Parse(_);
+            }).ToList();
+
+            var reducedSalaryAdjustments = new List<decimal>
+                {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            salaryAdjustments.ForEach(a => reducedSalaryAdjustments[Int32.Parse(a.franchise_id) - 1] += decimal.Parse(a.amount));
+
+            var capSpace = new List<int>
+                {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            
+            for (int i = 0; i < 12; i++)
+            {
+                var subtotal = eachTeamCapTotal[i] - Convert.ToInt32(Math.Ceiling(rosteredSalaryTotals[i]));
+                capSpace[i] = subtotal - Convert.ToInt32(Math.Ceiling(reducedSalaryAdjustments[i]));
+            }
+
+            return capSpace;
+        }
+        
+        
+
         private Dictionary<string, string> CreateBodyData(BidDTO bid)
         {
             var ret = new Dictionary<string, string>()
@@ -106,4 +145,5 @@ namespace FreeAgencyAuctionAPI.Services
         [XmlElement("error")]
         public string Error { get; set; }
     }
+
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
@@ -10,7 +11,7 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IOwnerRepo
     {
-        public Task<OwnerEntity> WinPlayer(BidDTO bid);
+        public Task WinPlayer(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         public Task<OwnerEntity> Register(OwnerEntity newUser);
@@ -50,20 +51,21 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<OwnerEntity> WinPlayer(BidDTO bid)
+        public async Task WinPlayer(List<int> capSpace)
         {
             try
             {
-                var owner = await _db.Owners.FirstAsync(o => o.ownername == bid.Ownername);
-                owner.yearsleft -= bid.BidLength;
-                owner.caproom -= bid.BidSalary;
+                var owners = _db.Owners;
+                for (int i = 0; i < capSpace.Count; i++)
+                {
+                    var teamToUpdate = owners.FirstOrDefault(o => o.ownerid == i);
+                    teamToUpdate.caproom = capSpace[i];
+                }
                 await _db.SaveChangesAsync();
-                return owner;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                return null;
             }
         }
 
