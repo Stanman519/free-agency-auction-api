@@ -91,6 +91,9 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> WinPlayer([FromBody] BidDTO bid)
 
         {
+            // check if latest bid for player first
+            if (!await _bService.IsLatestBid(bid))
+                return BadRequest();
             var addPlayerResp = await _mfl.AddPlayerToTeam(bid);
             var ret = await _pService.WinPlayer(bid);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
@@ -268,6 +271,15 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> GetSalaryCap()
         {
             return Ok(await _mfl.GetSalaryCapRoom());
+        }
+        
+        [HttpPost("latestBidTest")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> LatestBidTest([FromBody] BidDTO bid)
+        {
+            return Ok(await _bService.IsLatestBid(bid));
         }
     }
 }

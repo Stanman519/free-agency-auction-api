@@ -13,6 +13,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<LotEntity> ClearThisLot(int lotId);
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
         Task<BidDTO> AddBid(BidEntity newBid);
+        Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -107,6 +108,21 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 Console.WriteLine(e.Message);
                 return null;
+            }
+        }
+
+        public async Task<bool> CheckLatestBidId(BidEntity winningBidEntity)
+        {
+            try
+            {
+                var latestDbBid = await _db.Bids.OrderByDescending(_ => _.bidid)
+                    .FirstOrDefaultAsync(b => b.playerid == winningBidEntity.playerid);
+                return latestDbBid.bidid == winningBidEntity.bidid;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return false;
             }
         }
     }
