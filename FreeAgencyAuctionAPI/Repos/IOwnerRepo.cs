@@ -59,7 +59,8 @@ namespace FreeAgencyAuctionAPI.Repos
                 for (int i = 0; i < capSpace.Count; i++)
                 {
                     var teamToUpdate = owners.FirstOrDefault(o => o.ownerid == i);
-                    teamToUpdate.caproom = capSpace[i];
+                    if(teamToUpdate != null) 
+                        teamToUpdate.caproom = capSpace[i];
                 }
                 await _db.SaveChangesAsync();
             }
