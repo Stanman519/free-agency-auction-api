@@ -1,14 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
-using Microsoft.AspNetCore.Http;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -17,6 +13,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<string> AddPlayerToTeam(BidDTO bid);
         Task<string> GiveNewContractToPlayer(BidDTO bid);
         Task<List<int>> GetSalaryCapRoom();
+        Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
     }
     public class MflService : IMflService
     {
@@ -35,11 +32,11 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 try
                 {
-                   var resp = await _globalApi.AddPlayerToMflTeam(bid.PlayerId, teamId);
+                   var resp = await _globalApi.AddPlayerToMflTeam(bid.Player.MflId, teamId);
                    var respString = await resp.Content.ReadAsStringAsync();
                    if (respString.Contains("error"))
                    {
-                       return $"{bid.PlayerFirstName} {bid.PlayerLastName} was not added to a team in mfl.  ";
+                       return $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl.  ";
                    }
                    return "";
                 }
@@ -61,7 +58,7 @@ namespace FreeAgencyAuctionAPI.Services
                 var respString = await resp.Content.ReadAsStringAsync();
                 if (respString.Contains("error"))
                 {
-                    return $"{bid.PlayerFirstName} {bid.PlayerLastName}'s contract was was not updated in mfl.  ";
+                    return $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was was not updated in mfl.  ";
                 }
                 return "";
             }
@@ -107,16 +104,54 @@ namespace FreeAgencyAuctionAPI.Services
 
             return capSpace;
         }
-        
-        
 
+        public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents()
+        {
+            var freeAgentIds = (await _leagueApi.GetMflFreeAgents()).freeAgents.leagueUnit.player.Select(_ => _.id).ToList();
+            
+            var freeAgents1 = new List<string>();
+            var freeAgents2 = new List<string>();
+
+            // get names via other get call
+            string queryParam1 = "";
+            string queryParam2 = "";
+
+            var midpoint = (int) Math.Floor(((decimal) freeAgentIds.Count) / 2);
+
+            freeAgents1 = freeAgentIds.GetRange(0, midpoint);
+            freeAgents2 = freeAgentIds.GetRange(midpoint, (freeAgentIds.Count) - midpoint);
+
+            freeAgents1.ForEach(p => queryParam1 = $"{queryParam1}{p},");
+            freeAgents2.ForEach(p => queryParam2 = $"{queryParam2}{p},");
+
+
+            var playerDetails1Task =  await _leagueApi.GetMflPlayerDetails(queryParam1);
+            var playerDetails2Task =  await _leagueApi.GetMflPlayerDetails(queryParam2);
+
+            //await Task.WhenAll(playerDetails1Task, playerDetails2Task);
+            
+            var playerDetailsList = playerDetails1Task.players.player;
+            playerDetailsList.AddRange(playerDetails2Task.players.player);
+            
+            playerDetailsList.ForEach(p =>
+            {
+                var nameArr = p.name.Split(",");
+                p.first_name = nameArr[1].Remove(0,1);
+                p.last_name = nameArr[0];
+            });
+
+            return playerDetailsList;
+        }
+        
+        
+        
         private Dictionary<string, string> CreateBodyData(BidDTO bid)
         {
             var ret = new Dictionary<string, string>()
             {
                 {
                     "DATA",
-                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{bid.PlayerId}\" salary=\"{bid.BidSalary}\" contractYear=\"{bid.BidLength}\"/></leagueUnit></salaries>"
+                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{bid.Player.MflId}\" salary=\"{bid.BidSalary}\" contractYear=\"{bid.BidLength}\"/></leagueUnit></salaries>"
                 }
             };
             return ret;

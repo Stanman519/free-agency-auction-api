@@ -14,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
         public Task<PlayerEntity> WinPlayer(BidEntity bid);
         public Task<List<PlayerEntity>> GetAllFreeAgents();
+        Task AddFreshPlayerInventory(List<PlayerEntity> players);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -28,7 +29,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                return await _db.Players.FirstAsync(p => p.espnid == playerId);
+                return await _db.Players.FirstAsync(p => p.mflid == playerId);
             }
             catch (Exception e)
             {
@@ -55,7 +56,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var dbPlayer = await _db.Players.Where(p => p.espnid == player.espnid).FirstAsync();
+                var dbPlayer = await _db.Players.Where(p => p.mflid == player.mflid).FirstAsync();
                 dbPlayer.ownerid = player.ownerid;
                 await _db.SaveChangesAsync();
                 return dbPlayer;
@@ -71,7 +72,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var playerToUpdate = await _db.Players.FirstAsync(p => p.espnid == bid.playerid);
+                var playerToUpdate = await _db.Players.FirstAsync(p => p.mflid == bid.mflid);
                 playerToUpdate.ownername = bid.ownername;
                 playerToUpdate.length = bid.bidlength;
                 playerToUpdate.salary = bid.bidsalary;
@@ -90,13 +91,32 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                return await _db.Players.Where(p => p.ownerid == null && p.ownername == null).ToListAsync();
+                return await _db.Players
+                    .Where(p => p.ownerid == null && p.ownername == null)
+                    .OrderBy(p => p.position)
+                    .ThenBy(p => p.lastname)
+                    .ToListAsync();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
                 return null;
             }
+        }
+
+        public async Task AddFreshPlayerInventory(List<PlayerEntity> players)
+        {
+            try
+            {
+                await _db.Players.AddRangeAsync(players);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
         }
     }
 }

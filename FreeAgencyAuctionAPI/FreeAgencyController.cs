@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Linq;
 using System.Threading.Tasks;
 using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Models;
@@ -23,9 +24,11 @@ namespace FreeAgencyAuctionAPI
         private readonly IMflService _mfl;
         private readonly IHubContext<AuctionHub> _auctionHub;
         private readonly IGMBot _bot;
+        private readonly IHeadshotLoadingService _headshot;
 
         public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer,
-            IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot)
+            IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot,
+            IHeadshotLoadingService headshot)
         {
             _pService = pService;
             _oService = ownerServiceLayer;
@@ -33,6 +36,7 @@ namespace FreeAgencyAuctionAPI
             _mfl = mfl;
             _auctionHub = auctionHub;
             _bot = bot;
+            _headshot = headshot;
         }
 
         /// <summary>
@@ -98,39 +102,42 @@ namespace FreeAgencyAuctionAPI
             var ret = await _pService.WinPlayer(bid);
             var lotRet = await _bService.ClearThisLot((int) bid.LotId);
             var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
-            if (addPlayerResp == null || contractResponse == null || addPlayerResp?.Length > 0 || contractResponse?.Length > 0)
+            if (addPlayerResp == null || contractResponse == null || addPlayerResp?.Length > 0 ||
+                contractResponse?.Length > 0)
             {
                 try
                 {
-                    await _bot.NotifyMflError(new ErrorMessage($"there was an error syncing player {bid.PlayerId} to mfl"));
+                    await _bot.NotifyMflError(
+                        new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl"));
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
                 }
             }
+
             var updatedCapSpace = await _mfl.GetSalaryCapRoom();
             await _oService.WinPlayer(updatedCapSpace);
             if (ret != null && lotRet != null) return Ok(ret);
             return BadRequest();
         }
-        
+
         /// <summary>
         /// active bids for all lots
         /// </summary>
         /// <returns></returns>
         [HttpGet("lots")]
         [Produces("application/json", Type = typeof(PlayerDTO))]
-        [ProducesResponseType(typeof(List<BidDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(List<LotDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetBidsForAllLots()
 
         {
-            var ret = await _bService.GetActiveBids();
+            var ret = await _bService.GetAllLots();
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
-        
+
         /// <summary>
         /// clear this lot after auction ends
         /// </summary>
@@ -146,7 +153,7 @@ namespace FreeAgencyAuctionAPI
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
-        
+
         /// <summary>
         /// get all owners for budget scoreboard
         /// </summary>
@@ -162,7 +169,7 @@ namespace FreeAgencyAuctionAPI
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
-        
+
         /// <summary>
         /// A NEW BID
         /// </summary>
@@ -178,7 +185,7 @@ namespace FreeAgencyAuctionAPI
             var lotToUpdate = new LotDTO
             {
                 LotId = (int) newBid.LotId,
-                BidId = ret.BidId
+                Bid = ret
             };
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
             if (updatedLot != null)
@@ -186,9 +193,10 @@ namespace FreeAgencyAuctionAPI
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 return Ok(ret);
             }
+
             return BadRequest();
         }
-        
+
         /// <summary>
         /// A NEW NOMINATION
         /// </summary>
@@ -204,7 +212,7 @@ namespace FreeAgencyAuctionAPI
             var lotToUpdate = new LotDTO
             {
                 LotId = (int) nomination.LotId,
-                BidId = ret.BidId
+                Bid = ret
             };
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
             if (updatedLot != null)
@@ -212,10 +220,11 @@ namespace FreeAgencyAuctionAPI
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 return Ok(ret);
             }
+
             return BadRequest();
         }
-        
-        
+
+
         /// <summary>
         /// LOG IN
         /// </summary>
@@ -232,6 +241,7 @@ namespace FreeAgencyAuctionAPI
             if (ret == null) return BadRequest();
             return Ok(ret);
         }
+
         /// <summary>
         /// persisted login with cookie token
         /// </summary>
@@ -247,7 +257,7 @@ namespace FreeAgencyAuctionAPI
             if (ret == null) return BadRequest();
             return Ok(ret);
         }
-        
+
         /// <summary>
         /// REGISTER NEW USER
         /// </summary>
@@ -263,7 +273,7 @@ namespace FreeAgencyAuctionAPI
             // if (ret != null)
             return Ok(ret);
         }
-        
+
         [HttpGet("salaryCap")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
@@ -272,7 +282,7 @@ namespace FreeAgencyAuctionAPI
         {
             return Ok(await _mfl.GetSalaryCapRoom());
         }
-        
+
         [HttpPost("latestBidTest")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -280,6 +290,37 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> LatestBidTest([FromBody] BidDTO bid)
         {
             return Ok(await _bService.IsLatestBid(bid));
+        }
+
+        [HttpGet("inventory")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> LoadFreeAgentsToDb()
+        {
+            var mflFreeAgentsTask = _mfl.GetAllMflFreeAgents();
+            var headshotsTask = _headshot.ParseHeadshots();
+            await Task.WhenAll(mflFreeAgentsTask, headshotsTask);
+            var finalList = mflFreeAgentsTask.Result.ToList()
+                .GroupJoin(headshotsTask.Result,
+                    mfl => mfl.last_name,
+                    h => h.LastName,
+                    (mfl, h) => new PlayerEntity
+                    {
+                        mflid = Int32.Parse(mfl.id),
+                        age = _headshot.GetAgeInt(mfl.birthdate),
+                        firstname = mfl.first_name,
+                        lastname = mfl.last_name,
+                        fullname = mfl.name,
+                        headshot = h.Count() > 1 ? h.FirstOrDefault(_ => _.FirstName == mfl.first_name)?.Headshot : h.FirstOrDefault()?.Headshot,
+                        height = Int32.Parse(mfl.height),
+                        weight = Int32.Parse(mfl.weight),
+                        position = mfl.position,
+                        team = mfl.team
+                    }
+                ).ToList();
+            await _pService.LoadAllFreeAgentsIntoDb(finalList);
+            return Ok();
         }
     }
 }

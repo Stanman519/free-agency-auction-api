@@ -23,5 +23,11 @@ namespace FreeAgencyAuctionAPI.Repos
         [Header("cookie", "MFL_IS_COMMISH=REDACTED_MFL_COMMISH%3D%3D;MFL_USER_ID=REDACTED_MFL_USER_ID%3D")]
         [Get("2021/export?TYPE=salaryAdjustments&L=13894&APIKEY=&JSON=1")]
         Task<SalaryAdjustmentsRoot> GetMflSalaryAdjustments();
+
+        [Get("2021/export?TYPE=freeAgents&L=13894&APIKEY=&POSITION=&JSON=1")]
+        Task<FreeAgentsRoot> GetMflFreeAgents();
+
+        [Get("2021/export?TYPE=players&L=13894&APIKEY=&DETAILS=1&SINCE=&PLAYERS={ids}&JSON=1")]
+        Task<MflPlayerDetailsRoot> GetMflPlayerDetails([Path] string ids);
     }
 }

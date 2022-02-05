@@ -4,13 +4,12 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
-using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace FreeAgencyAuctionAPI.Services
 {
     public interface IBidLotService
     {
-        public Task<List<BidDTO>> GetActiveBids();
+        public Task<List<LotDTO>> GetAllLots();
         public Task<LotDTO> ClearThisLot(int lotId);
         public Task<LotDTO> UpdateLotWithBid(LotDTO lot);
         public Task<BidDTO> PostNewBid(BidDTO newBid);
@@ -31,9 +30,9 @@ namespace FreeAgencyAuctionAPI.Services
             _playerRepo = playerRepo;
         }
 
-        public async Task<List<BidDTO>> GetActiveBids()
+        public async Task<List<LotDTO>> GetAllLots()
         {
-            return await _repo.GetActiveBids();
+            return await _repo.GetAllLots();
         }
 
         public async Task<LotDTO> ClearThisLot(int lotId)
@@ -67,7 +66,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var bidToSubmit = new BidEntity
             {
-                playerid = nomination.PlayerId,
+                mflid = nomination.Player.MflId,
                 ownername = nomination.Ownername,
                 bidlength = nomination.BidLength,
                 bidsalary = nomination.BidSalary,
@@ -76,7 +75,7 @@ namespace FreeAgencyAuctionAPI.Services
             var playerToAddTempOwner = new PlayerEntity
             {
                 ownerid = -1,
-                espnid = nomination.PlayerId
+                mflid = nomination.Player.MflId
             };
 
             try

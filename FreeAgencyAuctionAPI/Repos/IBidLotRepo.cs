@@ -9,7 +9,7 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IBidLotRepo
     {
-        Task<List<BidDTO>> GetActiveBids();
+        Task<List<LotDTO>> GetAllLots();
         Task<LotEntity> ClearThisLot(int lotId);
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
         Task<BidDTO> AddBid(BidEntity newBid);
@@ -25,24 +25,42 @@ namespace FreeAgencyAuctionAPI.Repos
             _db = db;
         }
 
-        public async Task<List<BidDTO>> GetActiveBids()
+        public async Task<List<LotDTO>> GetAllLots()
         {
             try
             {
-                var activeBids = from l in _db.Lots
-                    join b in _db.Bids on l.bidid equals b.bidid
-                    join p in _db.Players on b.playerid equals p.espnid
-                    select new BidDTO
+                var activeBids = from lot in _db.Lots
+                    join bid in _db.Bids on lot.bidid equals bid.bidid into bidResult
+                    from br in bidResult.DefaultIfEmpty()
+                    join player in _db.Players on br.mflid equals player.mflid into bidWithPlayer
+                    from p in bidWithPlayer.DefaultIfEmpty()
+                    orderby lot.lotid
+                    select new LotDTO
                     {
-                        PlayerId = b.playerid,
-                        Expires = b.expires,
-                        BidSalary = b.bidsalary,
-                        BidLength = b.bidlength,
-                        Ownername = b.ownername,
-                        BidId = b.bidid,
-                        LotId = l.lotid,
-                        PlayerFirstName = p.firstname,
-                        PlayerLastName = p.lastname
+                        LotId = lot.lotid,
+                        Bid = br.bidid == null ? null : new BidDTO
+                        {
+                            Player = new PlayerDTO
+                            {
+                                Age = p.age,
+                                ContractValue = p.contractvalue == null ? 0 : p.contractvalue,
+                                FirstName = p.firstname,
+                                FullName = p.fullname,
+                                Headshot = p.headshot,
+                                Height = p.height,
+                                LastName = p.lastname,
+                                Length = p.length,
+                                MflId = p.mflid,
+                                Position = p.position,
+                                Team = p.team
+                            },
+                            Expires = br.expires,
+                            BidSalary = br.bidsalary == null ? 0 : br.bidsalary,
+                            BidLength = br.bidlength == null ? 0 : br.bidlength,
+                            Ownername = br.ownername ?? "",
+                            BidId = br.bidid == null ? 0 : br.bidid,
+                            LotId = lot.lotid
+                        }
                     };
                 return activeBids.ToList();
             }
@@ -74,7 +92,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.lotid == lot.LotId);
-                lotToUpdate.bidid = lot.BidId;
+                lotToUpdate.bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
             }
@@ -91,17 +109,20 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 await _db.Bids.AddAsync(newBid);
                 await _db.SaveChangesAsync();
-                var player = await _db.Players.FirstOrDefaultAsync(p => p.espnid == newBid.playerid);
+                var player = await _db.Players.FirstOrDefaultAsync(p => p.mflid == newBid.mflid);
                 return new BidDTO
                 {
                     BidId = newBid.bidid,
                     BidLength = newBid.bidlength,
-                    BidSalary = newBid.bidsalary,
-                    PlayerId = newBid.playerid,
+                    BidSalary = newBid.bidsalary, 
                     Ownername = newBid.ownername,
                     Expires = newBid.expires,
-                    PlayerFirstName = player.firstname,
-                    PlayerLastName = player.lastname
+                    Player = new PlayerDTO
+                    {
+                        MflId = newBid.mflid,
+                        FirstName = player.firstname,
+                        LastName = player.lastname
+                    }
                 };
             }
             catch (Exception e)
@@ -116,7 +137,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var latestDbBid = await _db.Bids.OrderByDescending(_ => _.bidid)
-                    .FirstOrDefaultAsync(b => b.playerid == winningBidEntity.playerid);
+                    .FirstOrDefaultAsync(b => b.mflid == winningBidEntity.mflid);
                 return latestDbBid.bidid == winningBidEntity.bidid;
             }
             catch (Exception e)

@@ -34,7 +34,7 @@ namespace FreeAgencyAuctionAPI
         {
             [Key] 
             public int playerid { get; set; }
-            public int espnid { get; set; }
+            public int mflid { get; set; }
             public int? ownerid { get; set; }
             public string? ownername { get; set; }
             public string firstname { get; set; }
@@ -43,7 +43,12 @@ namespace FreeAgencyAuctionAPI
             public int? salary { get; set; }
             public int? length { get; set; }
             public int? contractvalue { get; set; }
-            
+            public string? fullname { get; set; }
+            public string? team { get; set; }
+            public int? age { get; set; }
+            public int? height { get; set; }
+            public int? weight { get; set; }
+            public string? headshot { get; set; }
         }
 
         [Table("bidledger")]
@@ -51,12 +56,12 @@ namespace FreeAgencyAuctionAPI
         {
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public int bidid { get; set; }
-            public int playerid { get; set; }
+            public int mflid { get; set; }
             [Key] 
             public string ownername { get; set; }
             public int bidlength { get; set; }
             public int bidsalary { get; set; }
-            public string expires { get; set; }
+            public DateTime expires { get; set; }
         }
         [Table("owner")]
         public class OwnerEntity

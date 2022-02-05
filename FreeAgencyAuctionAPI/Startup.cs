@@ -46,12 +46,14 @@ namespace FreeAgencyAuctionAPI
             services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
             //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
+            services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
             services.AddScoped<IMflService, MflService>();
             services.AddScoped<IBidLotService, BidLotService>();
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
+            
             services.AddAutoMapper(typeof(Startup));
             
 

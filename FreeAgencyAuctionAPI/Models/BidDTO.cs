@@ -11,17 +11,14 @@ namespace FreeAgencyAuctionAPI.Models
         public int BidLength { set; get; }
         [JsonProperty("bidSalary")]
         public int BidSalary { set; get; }
-        [JsonProperty("playerId")]
-        public int PlayerId { set; get; }
         [JsonProperty("ownername")]
         public string Ownername { set; get; }
         [JsonProperty("expires")]
-        public string Expires { set; get; }
+        public DateTime Expires { set; get; }
         [JsonProperty("lotId")]
         public int? LotId { set; get; }
-        [JsonProperty("playerFirstName")]
-        public string PlayerFirstName { set; get; }
-        [JsonProperty("playerLastName")]
-        public string PlayerLastName { set; get; }
+
+
+        public PlayerDTO Player { get; set; }
     }
 }

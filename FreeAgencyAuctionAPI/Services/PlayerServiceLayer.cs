@@ -14,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
         public Task<PlayerDTO> WinPlayer(BidDTO bid);
         public Task<List<PlayerDTO>> GetAllFreeAgents();
+        Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players);
     }
     public class PlayerServiceLayer : IPlayerServiceLayer
     {
@@ -57,6 +58,11 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var freeAgents = await _repo.GetAllFreeAgents();
             return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
+        }
+
+        public async Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players)
+        {
+            await _repo.AddFreshPlayerInventory(players);
         }
     }
 }

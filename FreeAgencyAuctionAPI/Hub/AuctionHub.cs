@@ -20,7 +20,7 @@ namespace FreeAgencyAuctionAPI.Hub
         public async Task SendFreshBid(BidDTO freshBid)
         {
             Console.WriteLine(freshBid.Ownername);
-            Console.WriteLine(freshBid.PlayerFirstName);
+            Console.WriteLine(freshBid.Player.FirstName);
             await Clients.All.SendAsync("FreshBid", freshBid);
         }
         

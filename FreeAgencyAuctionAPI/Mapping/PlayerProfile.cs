@@ -19,12 +19,10 @@ namespace FreeAgencyAuctionAPI.Mapping
         {
             CreateMap<BidEntity, BidDTO>()
                 .ForMember(dest => dest.LotId, opt => opt.Ignore())
-                .ForMember(dest => dest.PlayerLastName, opt => opt.Ignore())
-                .ForMember(dest => dest.PlayerFirstName, opt => opt.Ignore());
+                .ForMember(dest => dest.Player, opt => opt.Ignore());
             CreateMap<BidDTO, BidEntity>()
                 .ForSourceMember(src => src.LotId, opt => opt.DoNotValidate())
-                .ForSourceMember(src => src.PlayerFirstName, opt => opt.DoNotValidate())
-                .ForSourceMember(src => src.PlayerLastName, opt => opt.DoNotValidate());
+                .ForSourceMember(src => src.Player, opt => opt.DoNotValidate());
         }
     }
     public class OwnerProfile : Profile
