@@ -11,7 +11,6 @@ namespace FreeAgencyAuctionAPI.Services
     public interface IHeadshotLoadingService
     {
         Task<List<HeadshotPlayer>> ParseHeadshots();
-        int? GetAgeInt(string birthdate);
     }
 
     public class HeadshotLoadingService : IHeadshotLoadingService
@@ -36,10 +35,6 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        public int? GetAgeInt(string birthdate)
-        {
-            return Convert.ToInt32(Math.Floor(
-                (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
-        }
+
     }
 }

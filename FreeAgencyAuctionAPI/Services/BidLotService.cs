@@ -15,6 +15,7 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<BidDTO> PostNewBid(BidDTO newBid);
         Task<BidDTO> Nominate(BidDTO nomination);
         Task<bool> IsLatestBid(BidDTO winningBid);
+        Task<List<BidDTO>> GetBidHistory(string playerId);
     }
 
     public class BidLotService : IBidLotService
@@ -54,6 +55,12 @@ namespace FreeAgencyAuctionAPI.Services
             res.LotId = newBid.LotId;
             return res;
 
+        }
+
+        public async Task<List<BidDTO>> GetBidHistory(string playerId)
+        {
+            var bids = await _repo.GetBidHistoryByPlayerId(playerId);
+            return _mapper.Map<List<BidDTO>>(bids);
         }
 
         public async Task<bool> IsLatestBid(BidDTO winningBid)

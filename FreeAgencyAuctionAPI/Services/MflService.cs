@@ -14,16 +14,20 @@ namespace FreeAgencyAuctionAPI.Services
         Task<string> GiveNewContractToPlayer(BidDTO bid);
         Task<List<int>> GetSalaryCapRoom();
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
+        Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName, string position);
+        int? GetAgeInt(string birthdate);
     }
     public class MflService : IMflService
     {
         private readonly IGlobalMflApi _globalApi;
         private readonly IMflApi _leagueApi;
-        
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi)
+        private readonly IBingImageApi _bingApi;
+
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
+            _bingApi = bingApi;
         }
         
         public async Task<string> AddPlayerToTeam(BidDTO bid)
@@ -49,6 +53,62 @@ namespace FreeAgencyAuctionAPI.Services
             return null;
         }
 
+        public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName, string position)
+        {
+            
+            var bioTask = _leagueApi.GetMflPlayerDetails(id + ",15237,15281"); // adding two dummy players so that the response will be array lol
+            var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
+            var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries();
+            var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(lastYear, position);
+            var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(lastYear - 1, position);
+            var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(lastYear - 2, position);
+
+            await Task.WhenAll(bioTask, actionShotTask, salaryTask, scoringTaskYrNeg1, scoringTaskYrNeg2,
+                scoringTaskYrNeg3);
+            var lastSeasonTeam =
+                salaryTask.Result.rosters.franchise.FirstOrDefault(tm => tm.player.Exists(_ => _.id == id));
+            var lastSeasonSalary = 0;
+            if (lastSeasonTeam != null)
+                lastSeasonSalary = int.Parse(lastSeasonTeam.player.First(_ => _.id == id).salary);
+
+
+
+            var allScores = new List<List<PlayerScore>>
+            { scoringTaskYrNeg1.Result.PlayerScores.PlayerScore, scoringTaskYrNeg2.Result.PlayerScores.PlayerScore, scoringTaskYrNeg3.Result.PlayerScores.PlayerScore };
+            var bio = bioTask.Result.players.player.First(p => p.id == id);
+            var playerBio = new PlayerBioDTO
+            {
+                MflId = id,
+                Age = GetAgeInt(bio.birthdate),
+                FirstName = firstName,
+                LastName = lastName,
+                DraftRound = bio.draft_round,
+                DraftYear = bio.draft_year,
+                DraftPick = bio.draft_pick,
+                Height = Int32.Parse(bio.height),
+                Weight = Int32.Parse(bio.weight),
+                Position = bio.position,
+                Team = bio.team,
+                College = bio.college,
+                ActionShot = actionShotTask.Result.Value.FirstOrDefault()?.ContentUrl,
+                LastSeasonSalary = lastSeasonSalary,
+                PrevOwner = lastSeasonTeam?.id == null ? "" : owners.First(_ => _.Value == lastSeasonTeam.id).Key,
+                PositionRanks = allScores.Select((year, index) =>
+                {
+                    var foundIndex = year.FindIndex(p => p.Id == id);
+                    return new MflBioPositionRank
+                    {
+                        Year = lastYear - index,
+                        Points = foundIndex < 0 ? 0 : decimal.Parse(year[foundIndex].Score),
+                        Rank = foundIndex < 0 ? null : foundIndex + 1
+                    };
+                }).ToList()
+            };
+            return playerBio;
+        }
+        
+        
+        
         public async Task<string> GiveNewContractToPlayer(BidDTO bid)
         {
             var data = CreateBodyData(bid);
@@ -173,7 +233,12 @@ namespace FreeAgencyAuctionAPI.Services
             {"Juanard", "0011"},
             {"Tbux", "0012"}
         };
+        public int? GetAgeInt(string birthdate) {
+            return Convert.ToInt32(Math.Floor(
+                (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
+        }
     }
+
 
     public class MflRosterResponse
     {

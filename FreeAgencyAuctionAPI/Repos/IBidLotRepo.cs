@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
+using FreeAgencyAuctionAPI.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace FreeAgencyAuctionAPI.Repos
@@ -14,6 +16,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
         Task<BidDTO> AddBid(BidEntity newBid);
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
+        Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -47,10 +50,9 @@ namespace FreeAgencyAuctionAPI.Repos
                                 FirstName = p.firstname,
                                 FullName = p.fullname,
                                 Headshot = p.headshot,
-                                Height = p.height,
                                 LastName = p.lastname,
                                 Length = p.length,
-                                MflId = p.mflid,
+                                MflId = p.mflid.ToString(),
                                 Position = p.position,
                                 Team = p.team
                             },
@@ -103,6 +105,19 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
+        public async Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId)
+        {
+            try
+            {
+                return _db.Bids.Where(_ => _.mflid == playerId).OrderByDescending(_ => _.expires).ToList();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
         public async Task<BidDTO> AddBid(BidEntity newBid)
         {
             try
@@ -119,7 +134,7 @@ namespace FreeAgencyAuctionAPI.Repos
                     Expires = newBid.expires,
                     Player = new PlayerDTO
                     {
-                        MflId = newBid.mflid,
+                        MflId = newBid.mflid.ToString(),
                         FirstName = player.firstname,
                         LastName = player.lastname
                     }

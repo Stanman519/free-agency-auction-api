@@ -9,7 +9,7 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IPlayerRepo
     {
-        public Task<PlayerEntity> GetPlayerById(int playerId);
+        public Task<PlayerEntity> GetPlayerById(string playerId);
         public Task<List<PlayerEntity>> GetRosteredPlayers();
         public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
         public Task<PlayerEntity> WinPlayer(BidEntity bid);
@@ -25,7 +25,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             _db = db;
         }
-        public async Task<PlayerEntity> GetPlayerById(int playerId)
+        public async Task<PlayerEntity> GetPlayerById(string playerId)
         {
             try
             {

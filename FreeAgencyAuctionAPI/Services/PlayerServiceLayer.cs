@@ -9,7 +9,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IPlayerServiceLayer
     {
-        public Task<PlayerDTO> GetPlayerById(int id);
+        public Task<PlayerDTO> GetPlayerById(string id);
         public Task<List<PlayerDTO>> GetRosteredPlayers();
         public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
         public Task<PlayerDTO> WinPlayer(BidDTO bid);
@@ -27,7 +27,7 @@ namespace FreeAgencyAuctionAPI.Services
             _mapper = mapper;
         }
 
-        public async Task<PlayerDTO> GetPlayerById(int id)
+        public async Task<PlayerDTO> GetPlayerById(string id)
         {
             var entity = await _repo.GetPlayerById(id);
             if (entity == null) return null;

@@ -29,5 +29,10 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("2021/export?TYPE=players&L=13894&APIKEY=&DETAILS=1&SINCE=&PLAYERS={ids}&JSON=1")]
         Task<MflPlayerDetailsRoot> GetMflPlayerDetails([Path] string ids);
+        
+        [Get("2021/export?TYPE=playerScores&L=13894&APIKEY=REDACTED_MFL_API_KEY&W=YTD&YEAR={year}&PLAYERS=&POSITION={position}&STATUS=&RULES=1&COUNT=&JSON=1")]
+        Task<MflPositionRanks> GetMflPositionScoresByYear([Path] int year, [Path] string position);
     }
 }
+
+//2021/export?TYPE=playerScores&L=13894&APIKEY=REDACTED_MFL_API_KEY&W=YTD&YEAR=2021&PLAYERS=&POSITION=RB&STATUS=&RULES=1&COUNT=&JSON=1

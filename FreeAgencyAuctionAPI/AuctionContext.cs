@@ -34,7 +34,7 @@ namespace FreeAgencyAuctionAPI
         {
             [Key] 
             public int playerid { get; set; }
-            public int mflid { get; set; }
+            public string mflid { get; set; }
             public int? ownerid { get; set; }
             public string? ownername { get; set; }
             public string firstname { get; set; }
@@ -49,6 +49,7 @@ namespace FreeAgencyAuctionAPI
             public int? height { get; set; }
             public int? weight { get; set; }
             public string? headshot { get; set; }
+
         }
 
         [Table("bidledger")]
@@ -56,7 +57,7 @@ namespace FreeAgencyAuctionAPI
         {
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public int bidid { get; set; }
-            public int mflid { get; set; }
+            public string mflid { get; set; }
             [Key] 
             public string ownername { get; set; }
             public int bidlength { get; set; }
