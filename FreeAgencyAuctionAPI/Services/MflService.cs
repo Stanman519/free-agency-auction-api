@@ -47,7 +47,7 @@ namespace FreeAgencyAuctionAPI.Services
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                    return null;
+                    throw;
                 }
             }
             return null;

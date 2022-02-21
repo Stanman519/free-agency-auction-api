@@ -17,7 +17,8 @@ namespace FreeAgencyAuctionAPI.Models
         public DateTime Expires { set; get; }
         [JsonProperty("lotId")]
         public int? LotId { set; get; }
-
+        [JsonProperty("ownerId")]
+        public int OwnerId { get; set; }
 
         public PlayerDTO Player { get; set; }
     }

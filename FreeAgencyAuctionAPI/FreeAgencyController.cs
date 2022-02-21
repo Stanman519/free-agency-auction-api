@@ -49,40 +49,15 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetDataForPageLoad()
         {
+            
+            var rightNowUTC = DateTime.UtcNow;  // NEED TO CHECK IF any times expired 
             var owners = await _oService.GetAllOwners();
             // if (ret != null) return Ok(ret);
             // return BadRequest();
-        
-            //TEST DATA
-
-            // var owners = new List<OwnerDTO>();
-            // var test1 = new OwnerDTO {OwnerId = 1, Ownername = "Ryan", CapRoom = 50, YearsLeft = 20};
-            // var test2 = new OwnerDTO {OwnerId = 2, Ownername = "Tyler", CapRoom = 4, YearsLeft = 20};
-            // var test3 = new OwnerDTO {OwnerId = 3, Ownername = "Caleb", CapRoom = 42, YearsLeft = 20};
-            // var test4 = new OwnerDTO {OwnerId = 4, Ownername = "Trent", CapRoom = 61, YearsLeft = 20};
-            // var test5 = new OwnerDTO {OwnerId = 5, Ownername = "Taylor", CapRoom = 111, YearsLeft = 20};
-            // var test6 = new OwnerDTO {OwnerId = 6, Ownername = "Logan", CapRoom = 123, YearsLeft = 20};
-            // var test7 = new OwnerDTO {OwnerId = 7, Ownername = "Cory", CapRoom = 12, YearsLeft = 20};
-            // var test8 = new OwnerDTO {OwnerId = 8, Ownername = "Jeri", CapRoom = 77, YearsLeft = 20};
-            // var test9 = new OwnerDTO {OwnerId = 9, Ownername = "Levi", CapRoom = 123, YearsLeft = 20};
-            // var test10 = new OwnerDTO {OwnerId = 10, Ownername = "Aaron", CapRoom = 1, YearsLeft = 20};
-            // var test11 = new OwnerDTO {OwnerId = 11, Ownername = "Juan", CapRoom = 99, YearsLeft = 20};
-            // var test12 = new OwnerDTO {OwnerId = 12, Ownername = "Drew", CapRoom = 23, YearsLeft = 20};
-            // owners.Add(test1);
-            // owners.Add(test2);
-            // owners.Add(test3);
-            // owners.Add(test4);
-            // owners.Add(test5);
-            // owners.Add(test6);
-            // owners.Add(test7);
-            // owners.Add(test8);
-            // owners.Add(test9);
-            // owners.Add(test10);
-            // owners.Add(test11);
-            // owners.Add(test12);
+            //var allLots = await _bService.GetAllLots();
             
              // TEST DATA FOR DEVELOPMENT
-                        var ltest1 = new LotDTO
+             var ltest1 = new LotDTO
             {
                 LotId = 6,
                 Bid = new BidDTO
@@ -222,6 +197,9 @@ namespace FreeAgencyAuctionAPI
             lots.Add(ltest10);
             lots.Add(ltest11);
             lots.Add(ltest12);
+            
+            
+            
             var freeAgents = await _pService.GetAllFreeAgents();
             // if (freeAgents != null) return Ok(ret);
             // return BadRequest();
@@ -232,38 +210,10 @@ namespace FreeAgencyAuctionAPI
                 lots,
                 freeAgents
             });
-            return BadRequest();
+            return BadRequest(new ErrorResponse("Initial page load failed."));
         }
 
-        /// <summary>
-        /// get player by id
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("players/{playerId}")]
-        [Produces("application/json", Type = typeof(PlayerDTO))]
-        [ProducesResponseType(typeof(PlayerDTO), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetPlayerById(string playerId)
-        {
-            var ret = await _pService.GetPlayerById(playerId);
-            if (ret != null) return Ok(ret);
-            return BadRequest();
-        }
 
-        /// <summary>
-        /// get all players who have owners - for rosters pages
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("players/rostered")]
-        [Produces("application/json", Type = typeof(PlayerDTO))]
-        [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetRosteredPlayers()
-        {
-            var ret = await _pService.GetRosteredPlayers();
-            if (ret != null) return Ok(ret);
-            return BadRequest();
-        }
         
         /// <summary>
         /// get all mfl bio info for player bio
@@ -280,20 +230,6 @@ namespace FreeAgencyAuctionAPI
             return BadRequest();
         }
 
-        /// <summary>
-        /// get all players who don't have owners or nominations - for nomination
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("players/nominate")]
-        [Produces("application/json", Type = typeof(PlayerDTO))]
-        [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetAllFreeAgents()
-        {
-            var ret = await _pService.GetAllFreeAgents();
-            if (ret != null) return Ok(ret);
-            return BadRequest();
-        }
 
         /// <summary>
         /// add info to player after WIN
@@ -333,229 +269,7 @@ namespace FreeAgencyAuctionAPI
             return BadRequest();
         }
 
-        /// <summary>
-        /// active bids for all lots
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("lots")]
-        [Produces("application/json", Type = typeof(PlayerDTO))]
-        [ProducesResponseType(typeof(List<LotDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetBidsForAllLots()
-
-        {
-            
-            // TEST DATA FOR DEVELOPMENT
-            var test = new LotDTO
-            {
-                LotId = 1,
-                Bid = new BidDTO
-                {
-                    BidId = 1,
-                    BidLength = 1,
-                    BidSalary = 43,
-                    Expires = new DateTime(2022, 8, 8, 8, 8, 8, 8),
-                    LotId = 1,
-                    Ownername = "Ryan Stanley",
-                    Player = new PlayerDTO
-                    {
-                        Age = 44,
-                        FirstName = "Tom",
-                        LastName = "Brady",
-                        Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/2330.png",
-                        MflId = "5848",
-                        Team = "TBB",
-                        Position = "QB"
-                    }
-                }
-            };
-            var test2 = new LotDTO
-            {
-                LotId = 2,
-                Bid = new BidDTO
-                {
-                    BidId = 1,
-                    BidLength = 2,
-                    BidSalary = 14,
-                    Expires = new DateTime(2022, 8, 8, 1, 8, 8, 8),
-                    LotId = 2,
-                    Ownername = "Bob C",
-                    Player = new PlayerDTO
-                    {
-                        Age = 26,
-                        FirstName = "Ezekiel",
-                        LastName = "Elliott",
-                        Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3051392.png",
-                        MflId = "12625",
-                        Team = "DAL",
-                        Position = "RB"
-                    }
-                }
-            };
-            
-            var test3 = new LotDTO
-            {
-                LotId = 3,
-                Bid = new BidDTO
-                {
-                    BidId = 1,
-                    BidLength = 1,
-                    BidSalary = 3,
-                    Expires = new DateTime(2022, 8, 8, 14, 8, 8, 8),
-                    LotId = 3,
-                    Ownername = "Jason",
-                    Player = new PlayerDTO
-                    {
-                        Age = 27,
-                        FirstName = "Dallas",
-                        LastName = "Goedert",
-                        Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3121023.png",
-                        MflId = "13674",
-                        Team = "PHI",
-                        Position = "TE"
-                    }
-                }
-            };
-            
-            
-            var test4 = new LotDTO
-            {
-                LotId = 4,
-                Bid = new BidDTO
-                {
-                    BidId = 1,
-                    BidLength = 1,
-                    BidSalary = 4,
-                    Expires = new DateTime(2022, 8, 8, 18, 8, 8, 8),
-                    LotId = 4,
-                    Ownername = "Mike",
-                    Player = new PlayerDTO
-                    {
-                        Age = 29,
-                        FirstName = "James",
-                        LastName = "Hall",
-                        Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/4252364.png",
-                        MflId = "123121",
-                        Team = "NYJ",
-                        Position = "WR"
-                    }
-                }
-            };
-            
-            
-            var test5 = new LotDTO
-            {
-                LotId = 5,
-                Bid = new BidDTO
-                {
-                    BidId = 1,
-                    BidLength = 2,
-                    BidSalary = 31,
-                    Expires = new DateTime(2022, 8, 8, 0, 8, 8, 8),
-                    LotId = 5,
-                    Ownername = "Ted",
-                    Player = new PlayerDTO
-                    {
-                        Age = 22,
-                        FirstName = "Jimmy",
-                        LastName = "Clausen",
-                        Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3045138.png",
-                        MflId = "123121",
-                        Team = "LAC",
-                        Position = "QB"
-                    }
-                }
-            };
-            var test6 = new LotDTO {LotId = 6};
-            var test7 = new LotDTO {LotId = 7};
-            var test8 = new LotDTO {LotId = 8};
-            var test9 = new LotDTO {LotId = 9};
-            var test10 = new LotDTO {LotId = 10};
-            var test11 = new LotDTO {LotId = 11};
-            var test12 = new LotDTO {LotId = 12};
-
-            var lots = new List<LotDTO>();
-            lots.Add(test);
-            lots.Add(test2);
-            lots.Add(test3);
-            lots.Add(test4);
-            lots.Add(test5);
-            lots.Add(test6);
-            lots.Add(test7);
-            lots.Add(test8);
-            lots.Add(test9);
-            lots.Add(test10);
-            lots.Add(test11);
-            lots.Add(test12);
-            return Ok(lots);
-
-
-
-            // var ret = await _bService.GetAllLots();
-            // if (ret != null) return Ok(ret);
-            // return BadRequest();
-        }
-
-        /// <summary>
-        /// clear this lot after auction ends
-        /// </summary>
-        /// <returns></returns>
-        [HttpPut("lots/clear/{lotId}")]
-        [Produces("application/json", Type = typeof(LotDTO))]
-        [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ClearThisLot(int lotId)
-
-        {
-            var ret = await _bService.ClearThisLot(lotId);
-            if (ret != null) return Ok(ret);
-            return BadRequest();
-        }
-
-        /// <summary>
-        /// get all owners for budget scoreboard
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("owners")]
-        [Produces("application/json", Type = typeof(List<OwnerDTO>))]
-        [ProducesResponseType(typeof(List<OwnerDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetAllOwners()
-
-        {
-            // var ret = await _oService.GetAllOwners();
-            // if (ret != null) return Ok(ret);
-            // return BadRequest();
-            
-            //TEST DATA
-
-            var lots = new List<OwnerDTO>();
-            var test1 = new OwnerDTO {OwnerId = 1, Ownername = "Ryan", CapRoom = 50, YearsLeft = 20};
-            var test2 = new OwnerDTO {OwnerId = 2, Ownername = "Tyler", CapRoom = 4, YearsLeft = 20};
-            var test3 = new OwnerDTO {OwnerId = 3, Ownername = "Caleb", CapRoom = 42, YearsLeft = 20};
-            var test4 = new OwnerDTO {OwnerId = 4, Ownername = "Trent", CapRoom = 61, YearsLeft = 20};
-            var test5 = new OwnerDTO {OwnerId = 5, Ownername = "Taylor", CapRoom = 111, YearsLeft = 20};
-            var test6 = new OwnerDTO {OwnerId = 6, Ownername = "Logan", CapRoom = 123, YearsLeft = 20};
-            var test7 = new OwnerDTO {OwnerId = 7, Ownername = "Cory", CapRoom = 12, YearsLeft = 20};
-            var test8 = new OwnerDTO {OwnerId = 8, Ownername = "Jeri", CapRoom = 77, YearsLeft = 20};
-            var test9 = new OwnerDTO {OwnerId = 9, Ownername = "Levi", CapRoom = 123, YearsLeft = 20};
-            var test10 = new OwnerDTO {OwnerId = 10, Ownername = "Aaron", CapRoom = 1, YearsLeft = 20};
-            var test11 = new OwnerDTO {OwnerId = 11, Ownername = "Juan", CapRoom = 99, YearsLeft = 20};
-            var test12 = new OwnerDTO {OwnerId = 12, Ownername = "Drew", CapRoom = 23, YearsLeft = 20};
-            lots.Add(test1);
-            lots.Add(test2);
-            lots.Add(test3);
-            lots.Add(test4);
-            lots.Add(test5);
-            lots.Add(test6);
-            lots.Add(test7);
-            lots.Add(test8);
-            lots.Add(test9);
-            lots.Add(test10);
-            lots.Add(test11);
-            lots.Add(test12);
-            return Ok(lots);
-        }
+        
 
         /// <summary>
         /// A NEW BID
@@ -568,6 +282,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNewBid([FromBody] BidDTO newBid)
 
         {
+            newBid.Expires = DateTime.UtcNow;
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -607,7 +322,6 @@ namespace FreeAgencyAuctionAPI
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 return Ok(ret);
             }
-
             return BadRequest();
         }
 
@@ -660,6 +374,8 @@ namespace FreeAgencyAuctionAPI
             return Ok(ret);
         }
 
+        
+        //TODO: This needs to be incorporated to page load.  this is a weird call to mfl. necessary with db data?
         [HttpGet("salaryCap")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
@@ -669,15 +385,6 @@ namespace FreeAgencyAuctionAPI
             return Ok(await _mfl.GetSalaryCapRoom());
         }
 
-        [HttpPost("latestBidTest")]
-        [Produces("application/json")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> LatestBidTest([FromBody] BidDTO bid)
-        {
-            return Ok(await _bService.IsLatestBid(bid));
-        }
-        
         [HttpGet("players/{playerId}/bid-history")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -719,3 +426,96 @@ namespace FreeAgencyAuctionAPI
         }
     }
 }
+
+// /// <summary>
+        // /// active bids for all lots - is this still needed? Page load sent agian via Signal R?
+        // /// </summary>
+        // /// <returns></returns>
+        // [HttpGet("lots")]
+        // [Produces("application/json", Type = typeof(PlayerDTO))]
+        // [ProducesResponseType(typeof(List<LotDTO>), StatusCodes.Status200OK)]
+        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        // public async Task<IActionResult> GetBidsForAllLots()
+        //
+        // {
+        //     var ret = await _bService.GetAllLots();
+        //     if (ret != null) return Ok(ret);
+        //     return BadRequest();
+        // }
+
+        // /// <summary>
+        // /// clear this lot after auction ends - THIS SHOULD JUST BE DONE IN THE WIN CALL...
+        // /// </summary>
+        // /// <returns></returns>
+        // [HttpPut("lots/clear/{lotId}")]
+        // [Produces("application/json", Type = typeof(LotDTO))]
+        // [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
+        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        // public async Task<IActionResult> ClearThisLot(int lotId)
+        //
+        // {
+        //     var ret = await _bService.ClearThisLot(lotId);
+        //     if (ret != null) return Ok(ret);
+        //     return BadRequest();
+        // }
+
+        // /// <summary>
+        // /// get all owners for budget scoreboard - THIS SHOULD JUST BE DONE IN THE PAGE LOAD CALL NOW
+        // /// </summary>
+        // /// <returns></returns>
+        // [HttpGet("owners")]
+        // [Produces("application/json", Type = typeof(List<OwnerDTO>))]
+        // [ProducesResponseType(typeof(List<OwnerDTO>), StatusCodes.Status200OK)]
+        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        // public async Task<IActionResult> GetAllOwners()
+        //
+        // {
+        //     var ret = await _oService.GetAllOwners();
+        //     if (ret != null) return Ok(ret);
+        //     return BadRequest();
+        // }
+        
+// /// <summary>
+// /// get all players who don't have owners or nominations - for nomination THIS IS IN PAGE LOAD NOW.
+// /// Do i still need?  PAGE LOAD SENT AGAIN VIA SignalR??
+// /// </summary>
+// /// <returns></returns>
+// [HttpGet("players/nominate")]
+// [Produces("application/json", Type = typeof(PlayerDTO))]
+// [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
+// [ProducesResponseType(StatusCodes.Status400BadRequest)]
+// public async Task<IActionResult> GetAllFreeAgents()
+// {
+//     var ret = await _pService.GetAllFreeAgents();
+//     if (ret != null) return Ok(ret);
+//     return BadRequest();
+// }
+// /// <summary>
+// /// get player by id - What was this used for???????
+// /// </summary>
+// /// <returns></returns>
+// [HttpGet("players/{playerId}")]
+// [Produces("application/json", Type = typeof(PlayerDTO))]
+// [ProducesResponseType(typeof(PlayerDTO), StatusCodes.Status200OK)]
+// [ProducesResponseType(StatusCodes.Status400BadRequest)]
+// public async Task<IActionResult> GetPlayerById(string playerId)
+// {
+//     var ret = await _pService.GetPlayerById(playerId);
+//     if (ret != null) return Ok(ret);
+//     return BadRequest();
+// }
+
+// /// <summary>
+// /// get all players who have owners - for rosters pages
+// /// </summary>
+// /// <returns></returns>
+// [HttpGet("players/rostered")]
+// [Produces("application/json", Type = typeof(PlayerDTO))]
+// [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
+// [ProducesResponseType(StatusCodes.Status400BadRequest)]
+// public async Task<IActionResult> GetRosteredPlayers()
+// {
+//     var ret = await _pService.GetRosteredPlayers();
+//     if (ret != null) return Ok(ret);
+//     return BadRequest();
+// }
