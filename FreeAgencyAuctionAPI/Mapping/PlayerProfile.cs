@@ -19,8 +19,14 @@ namespace FreeAgencyAuctionAPI.Mapping
         {
             CreateMap<BidEntity, BidDTO>()
                 .ForMember(dest => dest.LotId, opt => opt.Ignore())
-                .ForMember(dest => dest.Player, opt => opt.Ignore());
+                .ForMember(dest => dest.Player, opt => opt.Ignore())
+                .ForMember(dest => dest.BidLength, opt => opt.MapFrom(src => src.bidlength))
+                .ForMember(dest => dest.BidSalary, opt => opt.MapFrom(src => src.bidsalary))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.ownerid));
             CreateMap<BidDTO, BidEntity>()
+                .ForMember(dest => dest.mflid, opt => opt.MapFrom(src => src.Player.MflId))
+                .ForMember(dest => dest.ownername, opt => opt.MapFrom(src => src.Ownername))
+                .ForMember(dest => dest.ownerid, opt => opt.MapFrom(src => src.OwnerId))
                 .ForSourceMember(src => src.LotId, opt => opt.DoNotValidate())
                 .ForSourceMember(src => src.Player, opt => opt.DoNotValidate());
         }

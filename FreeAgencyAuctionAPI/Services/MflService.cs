@@ -12,11 +12,15 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task<string> AddPlayerToTeam(BidDTO bid);
         Task<string> GiveNewContractToPlayer(BidDTO bid);
-        Task<List<int>> GetSalaryCapRoom();
+        Task<List<OwnerEntity>> GetSalaryCapRoom();
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
-        Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName, string position);
+
+        Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName,
+            string position);
+
         int? GetAgeInt(string birthdate);
     }
+
     public class MflService : IMflService
     {
         private readonly IGlobalMflApi _globalApi;
@@ -29,20 +33,21 @@ namespace FreeAgencyAuctionAPI.Services
             _leagueApi = leagueApi;
             _bingApi = bingApi;
         }
-        
+
         public async Task<string> AddPlayerToTeam(BidDTO bid)
         {
             if (owners.TryGetValue(bid.Ownername, out var teamId))
             {
                 try
                 {
-                   var resp = await _globalApi.AddPlayerToMflTeam(bid.Player.MflId, teamId);
-                   var respString = await resp.Content.ReadAsStringAsync();
-                   if (respString.Contains("error"))
-                   {
-                       return $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl.  ";
-                   }
-                   return "";
+                    var resp = await _globalApi.AddPlayerToMflTeam(bid.Player.MflId, teamId);
+                    var respString = await resp.Content.ReadAsStringAsync();
+                    if (respString.Contains("error"))
+                    {
+                        return $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl.  ";
+                    }
+
+                    return "";
                 }
                 catch (Exception e)
                 {
@@ -50,13 +55,16 @@ namespace FreeAgencyAuctionAPI.Services
                     throw;
                 }
             }
+
             return null;
         }
 
-        public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName, string position)
+        public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName,
+            string lastName, string position)
         {
-            
-            var bioTask = _leagueApi.GetMflPlayerDetails(id + ",15237,15281"); // adding two dummy players so that the response will be array lol
+            var bioTask =
+                _leagueApi.GetMflPlayerDetails(id +
+                                               ",15237,15281"); // adding two dummy players so that the response will be array lol
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
             var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries();
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(lastYear, position);
@@ -72,9 +80,11 @@ namespace FreeAgencyAuctionAPI.Services
                 lastSeasonSalary = int.Parse(lastSeasonTeam.player.First(_ => _.id == id).salary);
 
 
-
             var allScores = new List<List<PlayerScore>>
-            { scoringTaskYrNeg1.Result.PlayerScores.PlayerScore, scoringTaskYrNeg2.Result.PlayerScores.PlayerScore, scoringTaskYrNeg3.Result.PlayerScores.PlayerScore };
+            {
+                scoringTaskYrNeg1.Result.PlayerScores.PlayerScore, scoringTaskYrNeg2.Result.PlayerScores.PlayerScore,
+                scoringTaskYrNeg3.Result.PlayerScores.PlayerScore
+            };
             var bio = bioTask.Result.players.player.First(p => p.id == id);
             var playerBio = new PlayerBioDTO
             {
@@ -106,20 +116,20 @@ namespace FreeAgencyAuctionAPI.Services
             };
             return playerBio;
         }
-        
-        
-        
+
+
         public async Task<string> GiveNewContractToPlayer(BidDTO bid)
         {
             var data = CreateBodyData(bid);
             try
             {
-                var resp =  await _leagueApi.AdjustPlayerSalary(data);
+                var resp = await _leagueApi.AdjustPlayerSalary(data);
                 var respString = await resp.Content.ReadAsStringAsync();
                 if (respString.Contains("error"))
                 {
                     return $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was was not updated in mfl.  ";
                 }
+
                 return "";
             }
             catch (Exception e)
@@ -129,46 +139,74 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        public async Task<List<int>> GetSalaryCapRoom()
+        public async Task<List<OwnerEntity>> GetSalaryCapRoom()
         {
+            var bigLeagueTask = _leagueApi.GetBigLeagueObject();
+            var salaryTask = _leagueApi.GetMflSalaryAdjustments();
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries();
+            await Task.WhenAll(bigLeagueTask, salaryTask, rostersTask);
 
-            var bigLeagueObject = _leagueApi.GetBigLeagueObject().Result.league.franchises.franchise;
-            var salaryAdjustments = _leagueApi.GetMflSalaryAdjustments().Result.salaryAdjustments.salaryAdjustment;
-            var rosters = _leagueApi.GetMflRostersForPlayerSalaries().Result.rosters.franchise;
-            var rosteredSalaryTotals = rosters.Select(f => f.player.Sum(p =>
+            var bigLeagueObject = bigLeagueTask.Result.league.franchises.franchise;
+
+            var salaryAdjustments = salaryTask.Result.salaryAdjustments.salaryAdjustment;
+
+            var rosters = rostersTask.Result.rosters.franchise;
+            var rosteredSalaryTotals = rosters.Select(f =>
+                new
+                {
+                    Id = f.id,
+                    rosterSalarySum = f.player.Sum(p =>
+                    {
+                        if (p.status == "ROSTER")
+                            return double.Parse(p.salary);
+                        return double.Parse(p.salary) * 0.2;
+                    })
+                }
+            ).ToList();
+            var eachTeamCapTotal = bigLeagueObject.Select(f =>
             {
-                if(p.status == "ROSTER")
-                    return Int32.Parse(p.salary);
-                return Int32.Parse(p.salary) * 0.2;
-            })).ToList();
-            var eachTeamCapTotalString = bigLeagueObject.Select(f => f.salaryCapAmount).ToList();
-            var eachTeamCapTotal = eachTeamCapTotalString.Select(_ =>
-            {
-                if (string.IsNullOrEmpty(_))
-                    return 500;
-                return Int32.Parse(_);
+                var capNumber = string.IsNullOrEmpty(f.salaryCapAmount) ? 500 : double.Parse(f.salaryCapAmount);
+                return new
+                {
+                    Id = f.id,
+                    SalaryCapAmount = capNumber
+                };
             }).ToList();
 
-            var reducedSalaryAdjustments = new List<decimal>
-                {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-            salaryAdjustments.ForEach(a => reducedSalaryAdjustments[Int32.Parse(a.franchise_id) - 1] += decimal.Parse(a.amount));
+            // var reducedSalaryAdjustments = new List<decimal>
+            //     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            // salaryAdjustments.ForEach(a => reducedSalaryAdjustments[Int32.Parse(a.franchise_id) - 1] += decimal.Parse(a.amount));
 
-            var capSpace = new List<int>
-                {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            var reducedSalaryAdjustments = salaryAdjustments
+                .GroupBy(adj => adj.franchise_id, adj => double.TryParse(adj.amount, out var amount) ? amount : 0,
+                    (id, adjustments) => new
+                    {
+                        Id = id,
+                        SalaryAdjustments = adjustments.Sum()
+                    }).ToList();
+
+            var preAdjustmentsCapSpace = eachTeamCapTotal.Join(rosteredSalaryTotals, tmCap => tmCap.Id,
+                salaryTot => salaryTot.Id,
+                (tm, sal) => new
+                {
+                    Id = tm.Id,
+                    CapSpace = tm.SalaryCapAmount - sal.rosterSalarySum
+                });
             
-            for (int i = 0; i < 12; i++)
-            {
-                var subtotal = eachTeamCapTotal[i] - Convert.ToInt32(Math.Ceiling(rosteredSalaryTotals[i]));
-                capSpace[i] = subtotal - Convert.ToInt32(Math.Ceiling(reducedSalaryAdjustments[i]));
-            }
-
-            return capSpace;
+            var finalCapSpace = preAdjustmentsCapSpace.Join(reducedSalaryAdjustments, cap => cap.Id, adj => adj.Id,
+                (cap, adj) => new OwnerEntity()
+                {
+                    ownerid = int.Parse(cap.Id),
+                    caproom = (int) Math.Floor(cap.CapSpace - adj.SalaryAdjustments)
+                }).ToList();
+            return finalCapSpace;
         }
 
         public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents()
         {
-            var freeAgentIds = (await _leagueApi.GetMflFreeAgents()).freeAgents.leagueUnit.player.Select(_ => _.id).ToList();
-            
+            var freeAgentIds = (await _leagueApi.GetMflFreeAgents()).freeAgents.leagueUnit.player.Select(_ => _.id)
+                .ToList();
+
             var freeAgents1 = new List<string>();
             var freeAgents2 = new List<string>();
 
@@ -185,26 +223,25 @@ namespace FreeAgencyAuctionAPI.Services
             freeAgents2.ForEach(p => queryParam2 = $"{queryParam2}{p},");
 
 
-            var playerDetails1Task =  await _leagueApi.GetMflPlayerDetails(queryParam1);
-            var playerDetails2Task =  await _leagueApi.GetMflPlayerDetails(queryParam2);
+            var playerDetails1Task = await _leagueApi.GetMflPlayerDetails(queryParam1);
+            var playerDetails2Task = await _leagueApi.GetMflPlayerDetails(queryParam2);
 
             //await Task.WhenAll(playerDetails1Task, playerDetails2Task);
-            
+
             var playerDetailsList = playerDetails1Task.players.player;
             playerDetailsList.AddRange(playerDetails2Task.players.player);
-            
+
             playerDetailsList.ForEach(p =>
             {
                 var nameArr = p.name.Split(",");
-                p.first_name = nameArr[1].Remove(0,1);
+                p.first_name = nameArr[1].Remove(0, 1);
                 p.last_name = nameArr[0];
             });
 
             return playerDetailsList;
         }
-        
-        
-        
+
+
         private Dictionary<string, string> CreateBodyData(BidDTO bid)
         {
             var ret = new Dictionary<string, string>()
@@ -233,7 +270,9 @@ namespace FreeAgencyAuctionAPI.Services
             {"Juanard", "0011"},
             {"Tbux", "0012"}
         };
-        public int? GetAgeInt(string birthdate) {
+
+        public int? GetAgeInt(string birthdate)
+        {
             return Convert.ToInt32(Math.Floor(
                 (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
         }
@@ -242,8 +281,6 @@ namespace FreeAgencyAuctionAPI.Services
 
     public class MflRosterResponse
     {
-        [XmlElement("error")]
-        public string Error { get; set; }
+        [XmlElement("error")] public string Error { get; set; }
     }
-
 }

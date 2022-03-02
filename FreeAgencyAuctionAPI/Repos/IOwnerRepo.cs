@@ -11,7 +11,7 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IOwnerRepo
     {
-        public Task WinPlayer(List<int> capSpace);
+        public Task UpdateCapRoomForAllOwners(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         public Task<OwnerEntity> Register(OwnerEntity newUser);
@@ -51,7 +51,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task WinPlayer(List<int> capSpace)
+        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
         {
             try
             {

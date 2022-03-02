@@ -94,6 +94,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.lotid == lot.LotId);
+                
                 lotToUpdate.bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
@@ -109,7 +110,8 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                return _db.Bids.Where(_ => _.mflid == playerId).OrderByDescending(_ => _.expires).ToList();
+                var x = await _db.Bids.Where(_ => _.mflid == playerId).ToListAsync();
+                return x;
             }
             catch (Exception e)
             {
@@ -131,6 +133,7 @@ namespace FreeAgencyAuctionAPI.Repos
                     BidLength = newBid.bidlength,
                     BidSalary = newBid.bidsalary, 
                     Ownername = newBid.ownername,
+                    OwnerId = newBid.ownerid,
                     Expires = newBid.expires,
                     Player = new PlayerDTO
                     {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
@@ -88,7 +89,10 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var newBidEntity = _mapper.Map<BidDTO, BidEntity>(newBid);
             var res = await _repo.AddBid(newBidEntity);
+            var playerEntity = await _playerRepo.GetPlayerById(newBid.Player.MflId);
+            var player = _mapper.Map<PlayerDTO>(playerEntity);
             res.LotId = newBid.LotId;
+            res.Player = player;
             return res;
 
         }
@@ -96,6 +100,7 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<List<BidDTO>> GetBidHistory(string playerId)
         {
             var bids = await _repo.GetBidHistoryByPlayerId(playerId);
+            Console.WriteLine(bids);
             return _mapper.Map<List<BidDTO>>(bids);
         }
 
@@ -120,7 +125,7 @@ namespace FreeAgencyAuctionAPI.Services
             try
             {
                 await Task.WhenAll(taskList);
-                await _oService.WinPlayer(capSpaceTask.Result);
+                await _oService.UpdateCapSpaceForOwners(capSpaceTask.Result.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
             }
             catch (Exception e)
             {
@@ -140,14 +145,8 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<BidDTO> Nominate(BidDTO nomination)
         {
-            var bidToSubmit = new BidEntity
-            {
-                mflid = nomination.Player.MflId,
-                ownername = nomination.Ownername,
-                bidlength = nomination.BidLength,
-                bidsalary = nomination.BidSalary,
-                expires = nomination.Expires
-            };
+
+            var bidToSubmit = _mapper.Map<BidEntity>(nomination);
             var playerToAddTempOwner = new PlayerEntity
             {
                 ownerid = -1,
@@ -158,9 +157,12 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 var submittedBid = await _repo.AddBid(bidToSubmit);
                 var playerWithTempOwner = await _playerRepo.SetPlayerOwner(playerToAddTempOwner);
-                if (submittedBid != null && playerWithTempOwner != null)
+                var playerEntity = await _playerRepo.GetPlayerById(nomination.Player.MflId);
+                var player = _mapper.Map<PlayerDTO>(playerEntity);
+                if (submittedBid != null && playerWithTempOwner != null && player != null)
                 {
                     submittedBid.LotId = nomination.LotId;
+                    submittedBid.Player = player;
                     return submittedBid;
                 }
             }

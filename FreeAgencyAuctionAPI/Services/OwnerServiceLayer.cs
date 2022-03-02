@@ -10,7 +10,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IOwnerServiceLayer
     {
-        public Task WinPlayer(List<int> capSpace);
+        public Task UpdateCapSpaceForOwners(List<int> capSpace);
         public Task<List<OwnerDTO>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
@@ -26,9 +26,9 @@ namespace FreeAgencyAuctionAPI.Services
             _mapper = mapper;
             _repo = repo;
         }
-        public async Task WinPlayer(List<int> capSpace)
+        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
-            await _repo.WinPlayer(capSpace);
+            await _repo.UpdateCapRoomForAllOwners(capSpace);
 
         }
 

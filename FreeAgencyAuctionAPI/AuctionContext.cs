@@ -56,9 +56,10 @@ namespace FreeAgencyAuctionAPI
         public class BidEntity
         {
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+            [Key] 
             public int bidid { get; set; }
             public string mflid { get; set; }
-            [Key] 
+            public int ownerid { get; set; }
             public string ownername { get; set; }
             public int bidlength { get; set; }
             public int bidsalary { get; set; }
