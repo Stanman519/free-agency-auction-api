@@ -5,13 +5,14 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.Extensions.Logging;
 
 namespace FreeAgencyAuctionAPI.Services
 {
     public interface IMflService
     {
-        Task<string> AddPlayerToTeam(BidDTO bid);
-        Task<string> GiveNewContractToPlayer(BidDTO bid);
+        Task AddPlayerToTeam(BidDTO bid);
+        Task GiveNewContractToPlayer(BidDTO bid);
         Task<List<OwnerEntity>> GetSalaryCapRoom();
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
 
@@ -26,15 +27,19 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IGlobalMflApi _globalApi;
         private readonly IMflApi _leagueApi;
         private readonly IBingImageApi _bingApi;
+        private readonly ILogger<MflService> _logger;
+        private readonly IGMBot _gm;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
             _bingApi = bingApi;
+            _logger = logger;
+            _gm = gm;
         }
 
-        public async Task<string> AddPlayerToTeam(BidDTO bid)
+        public async Task AddPlayerToTeam(BidDTO bid)
         {
             if (owners.TryGetValue(bid.Ownername, out var teamId))
             {
@@ -44,10 +49,10 @@ namespace FreeAgencyAuctionAPI.Services
                     var respString = await resp.Content.ReadAsStringAsync();
                     if (respString.Contains("error"))
                     {
-                        return $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl.  ";
+                        _logger.LogInformation(respString);
+                        _logger.LogError("{lastname} was not added to a team in mfl.", bid.Player.LastName);
+                        await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl."));
                     }
-
-                    return "";
                 }
                 catch (Exception e)
                 {
@@ -55,8 +60,6 @@ namespace FreeAgencyAuctionAPI.Services
                     throw;
                 }
             }
-
-            return null;
         }
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName,
@@ -118,7 +121,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
 
-        public async Task<string> GiveNewContractToPlayer(BidDTO bid)
+        public async Task GiveNewContractToPlayer(BidDTO bid)
         {
             var data = CreateBodyData(bid);
             try
@@ -127,15 +130,15 @@ namespace FreeAgencyAuctionAPI.Services
                 var respString = await resp.Content.ReadAsStringAsync();
                 if (respString.Contains("error"))
                 {
-                    return $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was was not updated in mfl.  ";
+                    _logger.LogInformation(respString);
+                    _logger.LogError("{lastname}'s contract was not updated in mfl.", bid.Player.LastName);
+                    await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl."));
                 }
-
-                return "";
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return null;
+                return;
             }
         }
 
@@ -172,10 +175,6 @@ namespace FreeAgencyAuctionAPI.Services
                     SalaryCapAmount = capNumber
                 };
             }).ToList();
-
-            // var reducedSalaryAdjustments = new List<decimal>
-            //     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-            // salaryAdjustments.ForEach(a => reducedSalaryAdjustments[Int32.Parse(a.franchise_id) - 1] += decimal.Parse(a.amount));
 
             var reducedSalaryAdjustments = salaryAdjustments
                 .GroupBy(adj => adj.franchise_id, adj => double.TryParse(adj.amount, out var amount) ? amount : 0,

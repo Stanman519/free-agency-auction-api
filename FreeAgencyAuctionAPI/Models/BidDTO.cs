@@ -19,7 +19,7 @@ namespace FreeAgencyAuctionAPI.Models
         public int? LotId { set; get; }
         [JsonProperty("ownerId")]
         public int OwnerId { get; set; }
-
+        [JsonProperty("player")]
         public PlayerDTO Player { get; set; }
     }
 }

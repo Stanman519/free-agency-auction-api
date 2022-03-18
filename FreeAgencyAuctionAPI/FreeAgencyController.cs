@@ -10,6 +10,7 @@ using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using RestEase;
 
 
@@ -26,10 +27,11 @@ namespace FreeAgencyAuctionAPI
         private readonly IHubContext<AuctionHub> _auctionHub;
         private readonly IGMBot _bot;
         private readonly IHeadshotLoadingService _headshot;
+        private readonly ILogger<FreeAgencyController> _logger;
 
         public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer,
             IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot,
-            IHeadshotLoadingService headshot)
+            IHeadshotLoadingService headshot, ILogger<FreeAgencyController> logger)
         {
             _pService = pService;
             _oService = ownerServiceLayer;
@@ -38,6 +40,7 @@ namespace FreeAgencyAuctionAPI
             _auctionHub = auctionHub;
             _bot = bot;
             _headshot = headshot;
+            _logger = logger;
         }
         
         /// <summary>
@@ -51,175 +54,25 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> GetDataForPageLoad([Query] string loginInfo = "")
         {
             OwnerDTO profile = null;
-            if (!string.IsNullOrEmpty(loginInfo))
-            {
-                profile = await _oService.CookieLogin(loginInfo);
-            }
-            var rightNowUTC = DateTime.UtcNow;  // NEED TO CHECK IF any times expired 
+            var hasCookies = !string.IsNullOrEmpty(loginInfo);
+
+            if (hasCookies) profile = await _oService.CookieLogin(loginInfo);
+            
             var owners = await _oService.GetAllOwners();
-            // if (ret != null) return Ok(ret);
-            // return BadRequest();
-            var lots = (await _bService.GetAllLots()).OrderBy(_ => _.LotId).Take(12).ToList();
-            
-             // TEST DATA FOR DEVELOPMENT
-            //  var ltest1 = new LotDTO
-            // {
-            //     LotId = 6,
-            //     Bid = new BidDTO
-            //     {
-            //         BidId = 1,
-            //         BidLength = 1,
-            //         BidSalary = 43,
-            //         Expires = new DateTime(2022, 8, 8, 8, 8, 8, 8),
-            //         LotId = 6,
-            //         Ownername = "Ryan Stanley",
-            //         Player = new PlayerDTO
-            //         {
-            //             Age = 44,
-            //             FirstName = "Tom",
-            //             LastName = "Brady",
-            //             Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/2330.png",
-            //             MflId = "5848",
-            //             Team = "TBB",
-            //             Position = "QB"
-            //         }
-            //     }
-            // };
-            // var ltest2 = new LotDTO
-            // {
-            //     LotId = 2,
-            //     Bid = new BidDTO
-            //     {
-            //         BidId = 1,
-            //         BidLength = 2,
-            //         BidSalary = 14,
-            //         Expires = new DateTime(2022, 8, 8, 1, 8, 8, 8),
-            //         LotId = 2,
-            //         Ownername = "Bob C",
-            //         Player = new PlayerDTO
-            //         {
-            //             Age = 26,
-            //             FirstName = "Ezekiel",
-            //             LastName = "Elliott",
-            //             Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3051392.png",
-            //             MflId = "12625",
-            //             Team = "DAL",
-            //             Position = "RB"
-            //         }
-            //     }
-            // };
-            //
-            // var ltest3 = new LotDTO
-            // {
-            //     LotId = 3,
-            //     Bid = new BidDTO
-            //     {
-            //         BidId = 1,
-            //         BidLength = 1,
-            //         BidSalary = 3,
-            //         Expires = new DateTime(2022, 8, 8, 14, 8, 8, 8),
-            //         LotId = 3,
-            //         Ownername = "Jason",
-            //         Player = new PlayerDTO
-            //         {
-            //             Age = 27,
-            //             FirstName = "Dallas",
-            //             LastName = "Goedert",
-            //             Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3121023.png",
-            //             MflId = "13674",
-            //             Team = "PHI",
-            //             Position = "TE"
-            //         }
-            //     }
-            // };
-            //
-            // var ltest4 = new LotDTO
-            // {
-            //     LotId = 4,
-            //     Bid = new BidDTO
-            //     {
-            //         BidId = 1,
-            //         BidLength = 1,
-            //         BidSalary = 4,
-            //         Expires = new DateTime(2022, 8, 8, 18, 8, 8, 8),
-            //         LotId = 4,
-            //         Ownername = "Mike",
-            //         Player = new PlayerDTO
-            //         {
-            //             Age = 29,
-            //             FirstName = "James",
-            //             LastName = "Hall",
-            //             Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/4252364.png",
-            //             MflId = "123121",
-            //             Team = "NYJ",
-            //             Position = "WR"
-            //         }
-            //     }
-            // };
-            //
-            //
-            // var ltest5 = new LotDTO
-            // {
-            //     LotId = 5,
-            //     Bid = new BidDTO
-            //     {
-            //         BidId = 1,
-            //         BidLength = 2,
-            //         BidSalary = 31,
-            //         Expires = new DateTime(2022, 8, 8, 0, 8, 8, 8),
-            //         LotId = 5,
-            //         Ownername = "Ted",
-            //         Player = new PlayerDTO
-            //         {
-            //             Age = 22,
-            //             FirstName = "Jimmy",
-            //             LastName = "Clausen",
-            //             Headshot = "https://a.espncdn.com/i/headshots/nfl/players/full/3045138.png",
-            //             MflId = "123121",
-            //             Team = "LAC",
-            //             Position = "QB"
-            //         }
-            //     }
-            // };
-            // var ltest6 = new LotDTO {LotId = 1};
-            // var ltest7 = new LotDTO {LotId = 7};
-            // var ltest8 = new LotDTO {LotId = 8};
-            // var ltest9 = new LotDTO {LotId = 9};
-            // var ltest10 = new LotDTO {LotId = 10};
-            // var ltest11 = new LotDTO {LotId = 11};
-            // var ltest12 = new LotDTO {LotId = 12};
-            //
-            // var lots = new List<LotDTO>();
-            // lots.Add(ltest1);
-            // lots.Add(ltest2);
-            // lots.Add(ltest3);
-            // lots.Add(ltest4);
-            // lots.Add(ltest5);
-            // lots.Add(ltest6);
-            // lots.Add(ltest7);
-            // lots.Add(ltest8);
-            // lots.Add(ltest9);
-            // lots.Add(ltest10);
-            // lots.Add(ltest11);
-            // lots.Add(ltest12);
-            
-            
-            
+            var lotsQuery = await _bService.GetAllLots();
             var freeAgents = await _pService.GetAllFreeAgents();
-            // if (freeAgents != null) return Ok(ret);
-            // return BadRequest();
+            
+            var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
             
             return Ok( new LoadData
             {
                 owners = owners,
                 lots = lots,
                 freeAgents = freeAgents,
-                profile = profile 
+                profile = hasCookies ? profile : null
             });
             return BadRequest(new ErrorResponse("Initial page load failed."));
         }
-
-
         
         /// <summary>
         /// get all mfl bio info for player bio
@@ -236,7 +89,6 @@ namespace FreeAgencyAuctionAPI
             return BadRequest();
         }
 
-
         /// <summary>
         /// add info to player after WIN
         /// </summary>
@@ -246,39 +98,24 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(typeof(PlayerDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> WinPlayer([FromBody] BidDTO bid)
-
         {
-            //TODO: check to make sure that the time actually expired and that this is truly a win...
-            //seems like there could be instances where a new bid populates and the time hits zero on the render.. .not great
+            var rightNow = DateTime.UtcNow;
+            if (bid.Expires > rightNow) return BadRequest(new ErrorResponse("Bid has still not expired."));
             // check if latest bid for player first
             if (!await _bService.IsLatestBid(bid))
-                return BadRequest();
-            var addPlayerResp = await _mfl.AddPlayerToTeam(bid);
-            var ret = await _pService.WinPlayer(bid);
-            var lotRet = await _bService.ClearThisLot((int) bid.LotId);
-            var contractResponse = await _mfl.GiveNewContractToPlayer(bid);
-            if (addPlayerResp == null || contractResponse == null || addPlayerResp?.Length > 0 ||
-                contractResponse?.Length > 0)
+                return BadRequest(new ErrorResponse("There has been a more recent bid for this player. Try reloading the page."));
+            try
             {
-                try
-                {
-                    await _bot.NotifyMflError(
-                        new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl"));
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
+                // if necessary, could send Rabbit message here instead
+                await _bService.HandleWinningTasks(bid);
             }
-
-            var updatedCapSpace = await _mfl.GetSalaryCapRoom();
-            await _oService.UpdateCapSpaceForOwners(updatedCapSpace.OrderBy(_=>_.ownerid).Select(_ => _.caproom).ToList());
-            if (ret != null && lotRet != null) return Ok(ret);
-            return BadRequest();
+            catch (Exception e)
+            {
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+            return Ok();
         }
-
         
-
         /// <summary>
         /// A NEW BID
         /// </summary>
@@ -290,7 +127,10 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNewBid([FromBody] BidDTO newBid)
 
         {
-            newBid.Expires = DateTime.UtcNow.AddDays(1);
+            if (newBid.LotId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
+            if (!await _bService.ValidateBidForDbEntry(newBid))
+                return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
+            newBid.Expires = DateTime.UtcNow.AddMinutes(1);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -303,7 +143,6 @@ namespace FreeAgencyAuctionAPI
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 return Ok(ret);
             }
-
             return BadRequest();
         }
 
@@ -318,7 +157,12 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNomination([FromBody] BidDTO nomination)
 
         {
-            nomination.Expires = DateTime.UtcNow.AddDays(1);
+            if (nomination.LotId == null)
+            {
+                _logger.LogCritical("Somehow a null lotId was entered with bid {bid}", nomination.BidId);
+                return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
+            }
+            nomination.Expires = DateTime.UtcNow.AddMinutes(1);
             var ret = await _bService.Nominate(nomination);
             var lotToUpdate = new LotDTO
             {
@@ -326,12 +170,19 @@ namespace FreeAgencyAuctionAPI
                 Bid = ret
             };
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
-            if (updatedLot != null)
+            if (updatedLot == null) return BadRequest();
+            
+            try
             {
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
-                return Ok(ret);
             }
-            return BadRequest();
+            catch (Exception e)
+            {
+                _logger.LogError("nomination signalR message failed. bid: {bid}", ret.BidId);
+            }
+            return Ok(ret);
+            
+            
         }
 
 

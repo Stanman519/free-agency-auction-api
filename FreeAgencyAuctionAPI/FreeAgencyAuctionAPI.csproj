@@ -7,12 +7,20 @@
     <ItemGroup>
       <PackageReference Include="AutoMapper" Version="10.1.1" />
       <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
+      <PackageReference Include="MediatR" Version="10.0.1" />
       <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.3" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.2" />
+      <PackageReference Include="RabbitMQ.Client" Version="6.2.4" />
       <PackageReference Include="RestEase" Version="1.5.4" />
+      <PackageReference Include="stream-chat-net" Version="1.1.1" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.1.0" />
       <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.1.0" />
+      <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Chat" />
     </ItemGroup>
 
 </Project>

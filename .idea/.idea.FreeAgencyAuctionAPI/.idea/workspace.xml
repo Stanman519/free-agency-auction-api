@@ -12,14 +12,26 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/LoadData.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/WinMessage.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/ConsumerBase.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/IRabbitMqProducer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/ProducerBase.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/RabbitMqClientBase.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinConsumer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinProducer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinReceivedHandler.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinSendingSvc.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyAuctionAPI.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyAuctionAPI.csproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Program.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,21 +51,20 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/8C8CFEB7-710C-413D-99A5-C7608DD46397/24/ImplementationFactory.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/F758DD2F-9E4C-41A0-B7A1-63138D66F75D/A/ServiceProvider.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4FA875E5-17C9-436C-A904-328A3AFE532F/228/ExceptionDispatchInfo.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/8E54BF64-1A8E-4E41-8EA6-B3C1B5D56C69/10F/ActionMethodExecutor.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/AAE016FC-BE39-4F4C-9149-B5546D3C4055/2/BackgroundService.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/26259B0A-3C4B-474B-9F08-1864810B4654/90/a0203973/IRequestHandler`1.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/AE604AFE-B657-4617-A94D-F2A743C6288E/3f/96bb3612/IMapperBase.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/20F0FCC7-0C8F-4B83-9A46-22A8D55D531B/23/EntityFrameworkQueryableExtensions.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/B0011D0B-050B-4D61-8D05-A255EE4AB661/62/99287ab8/HttpContent.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/B0B47439-E185-401F-8A88-2F4F7545EF10/A/ClientProxyExtensions.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/B0011D0B-050B-4D61-8D05-A255EE4AB661/27/961f6ed3/HttpResponseMessage.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflRosters.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflSalaryAdjustments.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflLeague.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflFreeAgent.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/HeadshotPlayer.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflPlayerProfiles.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/LotDTO.cs" />
@@ -61,7 +72,6 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/MflPositionRanks.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IMflApi.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/ActionShot.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflScoringService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/HeadshotLoadingService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerDTO.cs" />
@@ -70,14 +80,42 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/ErrorResponse.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/BingImageApi.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/LoadData.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/RabbitMQPublisher.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/RabbitMqProducer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/IRabbitMqProducer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/WinSender.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/LogWinningEvent.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/WinSendingSvc.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/RabbitMqClientBase.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/ProducerBase.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/WinProducer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/WinMessage.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinReceivedHandler.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/appsettings.json" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Program.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/PlayerContext.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/OwnerContext.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/LotContext.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/BidContext.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/BidDTO.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/ConsumerBase.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/IRabbitMqProducer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/ProducerBase.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/RabbitMqClientBase.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinConsumer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinProducer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/WinSendingSvc.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1pRdtHP5KDrdlBLzTUqY72hYAuw" />
@@ -89,11 +127,12 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
-    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.13192284" />
+    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.24153705" />
     <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="XThreadsFramesViewSplitterKey" value="0.18250951" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.path.for.package.eslint" value="project" />
@@ -182,7 +221,13 @@
       <workItem from="1645492344388" duration="7142000" />
       <workItem from="1645648682423" duration="16143000" />
       <workItem from="1645977157938" duration="6328000" />
-      <workItem from="1646164949442" duration="2173000" />
+      <workItem from="1646164949442" duration="8592000" />
+      <workItem from="1646332863918" duration="8200000" />
+      <workItem from="1646657200271" duration="597000" />
+      <workItem from="1646700704494" duration="3970000" />
+      <workItem from="1646762368044" duration="25713000" />
+      <workItem from="1646957735707" duration="17800000" />
+      <workItem from="1647388644300" duration="6198000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>
@@ -350,17 +395,23 @@
           <option name="timeStamp" value="1" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs</url>
-          <line>143</line>
-          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" initialLine="143" containingFunctionPresentation="method 'GetSalaryCapRoom'">
+          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Rabbit/ProducerBase.cs</url>
+          <line>34</line>
+          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/ProducerBase.cs" initialLine="34" containingFunctionPresentation="method 'Publish'" />
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs</url>
+          <line>152</line>
+          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" initialLine="149" containingFunctionPresentation="method 'HandleWinningTasks'">
             <startOffsets>
-              <option value="6122" />
+              <option value="5713" />
             </startOffsets>
             <endOffsets>
-              <option value="6369" />
+              <option value="5775" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="2" />
+          <option name="timeStamp" value="14" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using RabbitMQ.Client;
 using RestEase;
 
 
@@ -16,7 +17,6 @@ namespace FreeAgencyAuctionAPI
 {
     public class Startup
     {
-
         public IConfiguration Configuration;
         
         public Startup(IConfiguration configuration)
@@ -40,12 +40,29 @@ namespace FreeAgencyAuctionAPI
             });
             services.AddSignalR();
             services.AddControllers();
+            //services.AddSingleton<IRabbitMqProducer<WinMessage>, WinProducer>();
+            services.AddSingleton(_ =>
+                {
+                    var uri = new Uri("amqps://zafemuwu:f8cock5ulqBvvuwhzRjKX_UVkxkkWKiw@clam.rmq.cloudamqp.com/zafemuwu");
+                    return new ConnectionFactory
+                    {
+                        Uri = uri
+                    };
+                });
+            services.AddSingleton(serviceProvider =>
+            {
+                var uri = new Uri("amqps://zafemuwu:f8cock5ulqBvvuwhzRjKX_UVkxkkWKiw@clam.rmq.cloudamqp.com/zafemuwu");
+                return new ConnectionFactory
+                {
+                    Uri = uri,
+                    DispatchConsumersAsync = true
+                };
+            });
             services.AddSwaggerGen();
             services.AddSingleton(RestClient.For<IGMBot>("https://capn-crunch-gm-bot.herokuapp.com"));
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0"));
-            //services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
@@ -54,7 +71,7 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
-            
+            //services.AddScoped<IWinSendingSvc, WinSendingSvc>();
             services.AddAutoMapper(typeof(Startup));
             
 
