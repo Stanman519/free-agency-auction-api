@@ -249,8 +249,11 @@ namespace FreeAgencyAuctionAPI
         {
             var mflFreeAgentsTask = _mfl.GetAllMflFreeAgents();
             var headshotsTask = _headshot.ParseHeadshots();
-            await Task.WhenAll(mflFreeAgentsTask, headshotsTask);
-            var finalList = mflFreeAgentsTask.Result.ToList()
+            var dbFreeAgentsTask = _pService.GetAllPlayers();
+            await Task.WhenAll(mflFreeAgentsTask, headshotsTask, dbFreeAgentsTask);
+            var dbIds = dbFreeAgentsTask.Result.Select(p => p.MflId).ToList();
+            var filteredList = mflFreeAgentsTask.Result.ToList().Where(player => !dbIds.Contains(player.id)).ToList();
+            var finalList = filteredList
                 .GroupJoin(headshotsTask.Result,
                     mfl => mfl.last_name,
                     h => h.LastName,
@@ -265,7 +268,8 @@ namespace FreeAgencyAuctionAPI
                         height = Int32.Parse(mfl.height),
                         weight = Int32.Parse(mfl.weight),
                         position = mfl.position,
-                        team = mfl.team
+                        team = mfl.team,
+                        mflidint = Int32.Parse(mfl.id)
                     }
                 ).ToList();
             await _pService.LoadAllFreeAgentsIntoDb(finalList);
@@ -273,113 +277,3 @@ namespace FreeAgencyAuctionAPI
         }
     }
 }
-
-
-// /// <summary>
-// /// persisted login with cookie token
-// /// </summary>
-// /// <returns></returns>
-// [HttpPost("login/persist")]
-// [Produces("application/json", Type = typeof(OwnerDTO))]
-// [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
-// [ProducesResponseType(StatusCodes.Status400BadRequest)]
-// public async Task<IActionResult> PersistedLogin([FromHeader] string authorization)
-//
-// {
-//     var ret = await _oService.CookieLogin(authorization);
-//     if (ret == null) return BadRequest();
-//     return Ok(ret);
-// }
-
-// /// <summary>
-        // /// active bids for all lots - is this still needed? Page load sent agian via Signal R?
-        // /// </summary>
-        // /// <returns></returns>
-        // [HttpGet("lots")]
-        // [Produces("application/json", Type = typeof(PlayerDTO))]
-        // [ProducesResponseType(typeof(List<LotDTO>), StatusCodes.Status200OK)]
-        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        // public async Task<IActionResult> GetBidsForAllLots()
-        //
-        // {
-        //     var ret = await _bService.GetAllLots();
-        //     if (ret != null) return Ok(ret);
-        //     return BadRequest();
-        // }
-
-        // /// <summary>
-        // /// clear this lot after auction ends - THIS SHOULD JUST BE DONE IN THE WIN CALL...
-        // /// </summary>
-        // /// <returns></returns>
-        // [HttpPut("lots/clear/{lotId}")]
-        // [Produces("application/json", Type = typeof(LotDTO))]
-        // [ProducesResponseType(typeof(LotDTO), StatusCodes.Status200OK)]
-        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        // public async Task<IActionResult> ClearThisLot(int lotId)
-        //
-        // {
-        //     var ret = await _bService.ClearThisLot(lotId);
-        //     if (ret != null) return Ok(ret);
-        //     return BadRequest();
-        // }
-
-        // /// <summary>
-        // /// get all owners for budget scoreboard - THIS SHOULD JUST BE DONE IN THE PAGE LOAD CALL NOW
-        // /// </summary>
-        // /// <returns></returns>
-        // [HttpGet("owners")]
-        // [Produces("application/json", Type = typeof(List<OwnerDTO>))]
-        // [ProducesResponseType(typeof(List<OwnerDTO>), StatusCodes.Status200OK)]
-        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        // public async Task<IActionResult> GetAllOwners()
-        //
-        // {
-        //     var ret = await _oService.GetAllOwners();
-        //     if (ret != null) return Ok(ret);
-        //     return BadRequest();
-        // }
-        
-// /// <summary>
-// /// get all players who don't have owners or nominations - for nomination THIS IS IN PAGE LOAD NOW.
-// /// Do i still need?  PAGE LOAD SENT AGAIN VIA SignalR??
-// /// </summary>
-// /// <returns></returns>
-// [HttpGet("players/nominate")]
-// [Produces("application/json", Type = typeof(PlayerDTO))]
-// [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
-// [ProducesResponseType(StatusCodes.Status400BadRequest)]
-// public async Task<IActionResult> GetAllFreeAgents()
-// {
-//     var ret = await _pService.GetAllFreeAgents();
-//     if (ret != null) return Ok(ret);
-//     return BadRequest();
-// }
-// /// <summary>
-// /// get player by id - What was this used for???????
-// /// </summary>
-// /// <returns></returns>
-// [HttpGet("players/{playerId}")]
-// [Produces("application/json", Type = typeof(PlayerDTO))]
-// [ProducesResponseType(typeof(PlayerDTO), StatusCodes.Status200OK)]
-// [ProducesResponseType(StatusCodes.Status400BadRequest)]
-// public async Task<IActionResult> GetPlayerById(string playerId)
-// {
-//     var ret = await _pService.GetPlayerById(playerId);
-//     if (ret != null) return Ok(ret);
-//     return BadRequest();
-// }
-
-// /// <summary>
-// /// get all players who have owners - for rosters pages
-// /// </summary>
-// /// <returns></returns>
-// [HttpGet("players/rostered")]
-// [Produces("application/json", Type = typeof(PlayerDTO))]
-// [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
-// [ProducesResponseType(StatusCodes.Status400BadRequest)]
-// public async Task<IActionResult> GetRosteredPlayers()
-// {
-//     var ret = await _pService.GetRosteredPlayers();
-//     if (ret != null) return Ok(ret);
-//     return BadRequest();
-// }

@@ -47,11 +47,12 @@ namespace FreeAgencyAuctionAPI.Services
                 {
                     var resp = await _globalApi.AddPlayerToMflTeam(bid.Player.MflId, teamId);
                     var respString = await resp.Content.ReadAsStringAsync();
-                    if (respString.Contains("error"))
+                    if (respString.ToUpper().Contains("ERROR"))
                     {
-                        _logger.LogInformation(respString);
+                        var error = respString.XmlDeserializeFromString<MflXmlError>();
+                        _logger.LogInformation(error.ErrorMsg);
                         _logger.LogError("{lastname} was not added to a team in mfl.", bid.Player.LastName);
-                        await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl."));
+                        await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
                     }
                 }
                 catch (Exception e)
@@ -66,8 +67,8 @@ namespace FreeAgencyAuctionAPI.Services
             string lastName, string position)
         {
             var bioTask =
-                _leagueApi.GetMflPlayerDetails(id +
-                                               ",15237,15281"); // adding two dummy players so that the response will be array lol
+                _leagueApi.GetMflPlayerDetails(id + ",15237,15281"); // adding two dummy players so that the response will be array lol
+            //Check out other api to add custom json serializer so you dont have to do this.
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
             var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries();
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(lastYear, position);
@@ -108,7 +109,7 @@ namespace FreeAgencyAuctionAPI.Services
                 PrevOwner = lastSeasonTeam?.id == null ? "" : owners.First(_ => _.Value == lastSeasonTeam.id).Key,
                 PositionRanks = allScores.Select((year, index) =>
                 {
-                    var foundIndex = year.FindIndex(p => p.Id == id);
+                    var foundIndex = year.FindIndex(p => p?.Id == id);
                     return new MflBioPositionRank
                     {
                         Year = lastYear - index,
@@ -128,11 +129,12 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 var resp = await _leagueApi.AdjustPlayerSalary(data);
                 var respString = await resp.Content.ReadAsStringAsync();
-                if (respString.Contains("error"))
+                if (respString.ToUpper().Contains("ERROR"))
                 {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", bid.Player.LastName);
-                    await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl."));
+                    await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
             }
             catch (Exception e)

@@ -15,6 +15,7 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task<PlayerEntity> WinPlayer(BidEntity bid);
         public Task<List<PlayerEntity>> GetAllFreeAgents();
         Task AddFreshPlayerInventory(List<PlayerEntity> players);
+        Task<List<PlayerEntity>> GetAllPlayers();
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -86,6 +87,19 @@ namespace FreeAgencyAuctionAPI.Repos
                 return null;
             }
         }
+        
+        public async Task<List<PlayerEntity>> GetAllPlayers()
+        {
+            try
+            {
+                return await _db.Players.ToListAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        } 
 
         public async Task<List<PlayerEntity>> GetAllFreeAgents()
         {

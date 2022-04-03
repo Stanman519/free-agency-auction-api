@@ -49,6 +49,7 @@ namespace FreeAgencyAuctionAPI
             public int? height { get; set; }
             public int? weight { get; set; }
             public string? headshot { get; set; }
+            public int mflidint { get; set; }
 
         }
 
