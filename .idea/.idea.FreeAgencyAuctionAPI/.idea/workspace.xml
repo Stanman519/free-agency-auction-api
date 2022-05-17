@@ -11,9 +11,7 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -232,7 +230,7 @@
       <workItem from="1650025191424" duration="3248000" />
       <workItem from="1650042376304" duration="5217000" />
       <workItem from="1652189659085" duration="3644000" />
-      <workItem from="1652749277718" duration="3893000" />
+      <workItem from="1652749277718" duration="4242000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>

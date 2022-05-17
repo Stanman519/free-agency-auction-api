@@ -153,8 +153,7 @@ namespace FreeAgencyAuctionAPI.Services
             // 2 years or more younger than RB age cliff ? + 10%
             // 1 year younger + 5
             // 2 years over -10%
-
-
+            
         }
     }
 }
