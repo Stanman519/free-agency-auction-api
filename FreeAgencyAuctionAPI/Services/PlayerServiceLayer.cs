@@ -154,11 +154,6 @@ namespace FreeAgencyAuctionAPI.Services
             // 1 year younger + 5
             // 2 years over -10%
 
-            // deal with age peaks
-
-            // 1 = 100
-            // 
-            // 12 = 0
 
         }
     }
