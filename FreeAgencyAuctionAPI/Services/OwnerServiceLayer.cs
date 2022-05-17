@@ -72,7 +72,9 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var plaintextBytes= System.Text.Encoding.UTF8.GetBytes(newUser.Password);
             newUser.Password = System.Convert.ToBase64String(plaintextBytes);
+            
             var entity = _mapper.Map<OwnerDTO, OwnerEntity>(newUser);
+            entity.premium = false;
             var dbOwner = _mapper.Map<OwnerEntity, OwnerDTO>(await _repo.Register(entity));
             var userClient = _factory.GetUserClient();
             dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);

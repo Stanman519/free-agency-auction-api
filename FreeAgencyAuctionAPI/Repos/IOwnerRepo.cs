@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FreeAgencyAuctionAPI.Repos
@@ -20,11 +21,12 @@ namespace FreeAgencyAuctionAPI.Repos
     public class OwnerRepo : IOwnerRepo
     {
         private readonly AuctionContext _db;
+        private readonly ILogger<OwnerRepo> _logger;
 
-        public OwnerRepo(AuctionContext db)
+        public OwnerRepo(AuctionContext db, ILogger<OwnerRepo> logger)
         {
             _db = db;
-
+            _logger = logger;
         }
 
         public async Task<OwnerDTO> Login(OwnerDTO owner)
@@ -46,7 +48,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
@@ -66,7 +68,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
             }
         }
 
@@ -78,16 +80,25 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
 
         public async Task<OwnerEntity> Register(OwnerEntity newUser)
         {
-            var ret = await _db.Owners.AddAsync(newUser);
-            await _db.SaveChangesAsync();
-            return newUser;
+            try
+            {
+                var ret = await _db.Owners.AddAsync(newUser);
+                await _db.SaveChangesAsync();
+                return newUser;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e.Message);
+                throw;
+            }
+            
         }
     }
 }

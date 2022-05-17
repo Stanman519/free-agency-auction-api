@@ -9,5 +9,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string Email { get; set; }
         public int CapRoom { get; set; }
         public int YearsLeft { get; set; }
+        public bool Premium { get; set; }
+        public string DisplayName { get; set; }
     }
 }

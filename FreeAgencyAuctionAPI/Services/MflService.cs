@@ -17,7 +17,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
 
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName,
-            string position);
+            string position, bool hasAction);
 
         int? GetAgeInt(string birthdate);
     }
@@ -29,14 +29,16 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IBingImageApi _bingApi;
         private readonly ILogger<MflService> _logger;
         private readonly IGMBot _gm;
+        private readonly IPlayerRepo _pRepo;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
             _bingApi = bingApi;
             _logger = logger;
             _gm = gm;
+            _pRepo = pRepo;
         }
 
         public async Task AddPlayerToTeam(BidDTO bid)
@@ -64,7 +66,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName,
-            string lastName, string position)
+            string lastName, string position, bool hasAction)
         {
             var bioTask =
                 _leagueApi.GetMflPlayerDetails(id + ",15237,15281"); // adding two dummy players so that the response will be array lol
@@ -75,8 +77,14 @@ namespace FreeAgencyAuctionAPI.Services
             var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(lastYear - 1, position);
             var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(lastYear - 2, position);
 
-            await Task.WhenAll(bioTask, actionShotTask, salaryTask, scoringTaskYrNeg1, scoringTaskYrNeg2,
-                scoringTaskYrNeg3);
+            var taskList = new List<Task>
+            {
+                bioTask, salaryTask, scoringTaskYrNeg1, scoringTaskYrNeg2,
+                scoringTaskYrNeg3
+            };
+            if (!hasAction) taskList.Add(actionShotTask);
+
+            await Task.WhenAll(taskList);
             var lastSeasonTeam =
                 salaryTask.Result.rosters.franchise.FirstOrDefault(tm => tm.player.Exists(_ => _.id == id));
             var lastSeasonSalary = 0;
@@ -104,7 +112,6 @@ namespace FreeAgencyAuctionAPI.Services
                 Position = bio.position,
                 Team = bio.team,
                 College = bio.college,
-                ActionShot = actionShotTask.Result.Value.FirstOrDefault()?.ContentUrl,
                 LastSeasonSalary = lastSeasonSalary,
                 PrevOwner = lastSeasonTeam?.id == null ? "" : owners.First(_ => _.Value == lastSeasonTeam.id).Key,
                 PositionRanks = allScores.Select((year, index) =>
@@ -118,6 +125,12 @@ namespace FreeAgencyAuctionAPI.Services
                     };
                 }).ToList()
             };
+            if (!hasAction)
+            {
+                playerBio.ActionShot = actionShotTask.Result.Value.FirstOrDefault()?.ContentUrl;
+                Console.WriteLine("azure call for bing");
+                await _pRepo.SavePlayerActionShot(playerBio.MflId, playerBio.ActionShot);
+            }
             return playerBio;
         }
 

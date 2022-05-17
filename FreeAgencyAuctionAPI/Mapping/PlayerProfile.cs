@@ -7,7 +7,8 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public PlayerProfile()
         {
-            CreateMap<PlayerEntity, PlayerDTO>();
+            CreateMap<PlayerEntity, PlayerDTO>()
+                .ForMember(dest => dest.ActionShot, opt => opt.MapFrom(src => src.actionshot));
             CreateMap<PlayerDTO, PlayerEntity>();
 
         }

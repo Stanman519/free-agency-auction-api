@@ -202,7 +202,7 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<bool> ValidateBidForDbEntry(BidDTO bid)
         {
             var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId);
-            return (latestBid.bidlength * 5) + latestBid.bidsalary < (bid.BidLength) + bid.BidSalary;
+            return (latestBid.bidlength * 5) + latestBid.bidsalary < (bid.BidLength * 5) + bid.BidSalary;
         }
     }
 }

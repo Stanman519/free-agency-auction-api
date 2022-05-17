@@ -82,9 +82,9 @@ namespace FreeAgencyAuctionAPI
         [Produces("application/json", Type = typeof(PlayerDTO))]
         [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position)
+        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position, [Query("hasAction")] bool hasAction)
         {
-            var ret = await _mfl.GetMflPlayerBioDetails(lastYear, id, firstName, lastName, position);
+            var ret = await _mfl.GetMflPlayerBioDetails(lastYear, id, firstName, lastName, position, hasAction);
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
@@ -130,7 +130,7 @@ namespace FreeAgencyAuctionAPI
             if (newBid.LotId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
             if (!await _bService.ValidateBidForDbEntry(newBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddMinutes(1);
+            newBid.Expires = DateTime.UtcNow.AddDays(1);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -162,7 +162,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogCritical("Somehow a null lotId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddMinutes(1);
+            nomination.Expires = DateTime.UtcNow.AddDays(1);
             var ret = await _bService.Nominate(nomination);
             var lotToUpdate = new LotDTO
             {
@@ -201,9 +201,7 @@ namespace FreeAgencyAuctionAPI
             if (ret == null) return BadRequest(new ErrorResponse {FriendlyMessage = "Incorrect login info"});
             return Ok(ret);
         }
-
-
-
+        
         /// <summary>
         /// REGISTER NEW USER
         /// </summary>
@@ -213,7 +211,6 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RegisterUser([FromBody] OwnerDTO newUser)
-
         {
             var ret = await _oService.Register(newUser);
             // if (ret != null)
@@ -240,6 +237,16 @@ namespace FreeAgencyAuctionAPI
         {
             return Ok(await _bService.GetBidHistory(playerId));
         }
+        
+        [HttpPost("tip")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetBidSuggestion([FromBody] PlayerTipRequestDTO tipRequestRequest)
+        {
+            await _pService.GetSuggestedSalary(tipRequestRequest);
+            return Ok(await _bService.GetBidHistory(tipRequestRequest.MflId));
+        }
 
         [HttpGet("inventory")]
         [Produces("application/json")]
@@ -251,9 +258,19 @@ namespace FreeAgencyAuctionAPI
             var headshotsTask = _headshot.ParseHeadshots();
             var dbFreeAgentsTask = _pService.GetAllPlayers();
             await Task.WhenAll(mflFreeAgentsTask, headshotsTask, dbFreeAgentsTask);
-            var dbIds = dbFreeAgentsTask.Result.Select(p => p.MflId).ToList();
-            var filteredList = mflFreeAgentsTask.Result.ToList().Where(player => !dbIds.Contains(player.id)).ToList();
-            var finalList = filteredList
+            var playerIdsAndTeamsInDb = dbFreeAgentsTask.Result.Select(p => new { mflId = p.MflId, team = p.Team}).ToList();
+            // how do we check if team changed?
+            var playersToAddToDb = mflFreeAgentsTask.Result.ToList().Where(mfl =>
+            {
+                if (playerIdsAndTeamsInDb.FirstOrDefault(dbPlayer =>
+                    dbPlayer.team == mfl.team && dbPlayer.mflId == mfl.id) == null) return true;
+                return false;
+            });
+            // if a players team changed, they should be in playersToAddToDb.
+            
+            // go though players to add to db, either add them to the teamChangeList or newPlayerList
+            
+            var playersToAddWithHeadshots = playersToAddToDb
                 .GroupJoin(headshotsTask.Result,
                     mfl => mfl.last_name,
                     h => h.LastName,
@@ -272,7 +289,22 @@ namespace FreeAgencyAuctionAPI
                         mflidint = Int32.Parse(mfl.id)
                     }
                 ).ToList();
-            await _pService.LoadAllFreeAgentsIntoDb(finalList);
+            var mflIdsInDb = playerIdsAndTeamsInDb.Select(p => p.mflId).ToList();
+            var teamChangeList = new List<PlayerEntity>();
+            var newPlayerList = new List<PlayerEntity>();
+            playersToAddWithHeadshots.ForEach(player =>
+            {
+                if (mflIdsInDb.Contains(player.mflid))
+                {
+                    teamChangeList.Add(player);
+                }
+                else
+                {
+                    newPlayerList.Add(player);
+                }
+            });
+            await _pService.UpdateTeamsAndHeadshotsInDb(teamChangeList);
+            await _pService.LoadAllFreeAgentsIntoDb(newPlayerList);
             return Ok();
         }
     }

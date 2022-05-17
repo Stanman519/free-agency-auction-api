@@ -6,6 +6,7 @@ using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FreeAgencyAuctionAPI.Repos
 {
@@ -23,10 +24,12 @@ namespace FreeAgencyAuctionAPI.Repos
     public class BidLotRepo : IBidLotRepo
     {
         private readonly AuctionContext _db;
+        private readonly ILogger<BidLotRepo> _logger;
 
-        public BidLotRepo(AuctionContext db)
+        public BidLotRepo(AuctionContext db, ILogger<BidLotRepo> logger)
         {
             _db = db;
+            _logger = logger;
         }
 
         public async Task<List<LotDTO>> GetAllLots()
@@ -55,7 +58,8 @@ namespace FreeAgencyAuctionAPI.Repos
                                 Length = p.length,
                                 MflId = p.mflid.ToString(),
                                 Position = p.position,
-                                Team = p.team
+                                Team = p.team,
+                                ActionShot = p.actionshot
                             },
                             Expires = br.expires,
                             BidSalary = br.bidsalary == null ? 0 : br.bidsalary,
@@ -69,7 +73,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
@@ -85,7 +89,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
@@ -102,7 +106,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
@@ -116,7 +120,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e.Message);
                 throw;
             }
         }
@@ -146,7 +150,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e.Message);
                 return null;
             }
         }
@@ -174,7 +178,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e.Message);
                 return false;
             }
         }

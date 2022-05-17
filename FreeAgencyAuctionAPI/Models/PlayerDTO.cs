@@ -10,6 +10,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string? Team { get; set; }
         public int? Age { get; set; }
         public string? Headshot { get; set; }
+        public string? ActionShot { get; set; }
         public int? Salary { set; get; }
         public int? Length { set; get; }
         public string? OwnerName { set; get; }

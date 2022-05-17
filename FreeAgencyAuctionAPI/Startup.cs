@@ -62,6 +62,7 @@ namespace FreeAgencyAuctionAPI
             services.AddSingleton(RestClient.For<IGMBot>("https://capn-crunch-gm-bot.herokuapp.com"));
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
+            services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
             services.AddSingleton(RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0"));
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();

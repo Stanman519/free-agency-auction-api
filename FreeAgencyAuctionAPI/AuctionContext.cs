@@ -12,6 +12,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<BidEntity> Bids { get; set; }
         public DbSet<OwnerEntity> Owners { get; set; }
         public DbSet<LotEntity> Lots { get; set; }
+        public DbSet<SuggestionEntity> Suggestions { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -49,6 +50,7 @@ namespace FreeAgencyAuctionAPI
             public int? height { get; set; }
             public int? weight { get; set; }
             public string? headshot { get; set; }
+            public string? actionshot { get; set; }
             public int mflidint { get; set; }
 
         }
@@ -76,6 +78,28 @@ namespace FreeAgencyAuctionAPI
             public string email { get; set; }
             public int caproom { get; set; }
             public int yearsleft { get; set; }
+            public bool? premium { get; set; }
+            public string displayname { get; set; }
+        }
+        
+        [Table("suggestions")]
+        public class SuggestionEntity
+        {
+            public int ownerid { get; set; }
+            public string mflid { get; set; }
+            public int suggestion { get; set; }
+
+            public SuggestionEntity()
+            {
+                
+            }
+
+            public SuggestionEntity(int owner, string mfl, int salary)
+            {
+                ownerid = owner;
+                mflid = mfl;
+                suggestion = salary;
+            }
         }
         [Table("lot")]
         public class LotEntity
