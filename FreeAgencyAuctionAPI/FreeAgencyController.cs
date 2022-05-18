@@ -244,8 +244,8 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetBidSuggestion([FromBody] PlayerTipRequestDTO tipRequestRequest)
         {
-            await _pService.GetSuggestedSalary(tipRequestRequest);
-            return Ok(await _bService.GetBidHistory(tipRequestRequest.MflId));
+            
+            return Ok(await _pService.GetSuggestedSalary(tipRequestRequest));
         }
 
         [HttpGet("inventory")]

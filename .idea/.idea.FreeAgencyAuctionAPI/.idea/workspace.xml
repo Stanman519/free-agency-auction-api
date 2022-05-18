@@ -11,7 +11,13 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="" />
+    <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -117,7 +123,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
-    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.3576324" />
+    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.3576751" />
     <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
@@ -230,7 +236,7 @@
       <workItem from="1650025191424" duration="3248000" />
       <workItem from="1650042376304" duration="5217000" />
       <workItem from="1652189659085" duration="3644000" />
-      <workItem from="1652749277718" duration="4242000" />
+      <workItem from="1652749277718" duration="6995000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>

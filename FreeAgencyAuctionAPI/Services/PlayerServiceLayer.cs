@@ -18,7 +18,7 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<List<PlayerDTO>> GetAllFreeAgents();
         Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players);
         Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
-        Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip);
+        Task<SuggestionEntity> GetSuggestedSalary(PlayerTipRequestDTO tip);
     }
     public class PlayerServiceLayer : IPlayerServiceLayer
     {
@@ -81,7 +81,7 @@ namespace FreeAgencyAuctionAPI.Services
             await _repo.UpdateTeamsAndHeadshotsInDb(teamChangeList);
         }
 
-        public async Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip)
+        public async Task<SuggestionEntity> GetSuggestedSalary(PlayerTipRequestDTO tip)
         {
             var yearSugg = new int[] {1, 3};
             var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
@@ -91,14 +91,15 @@ namespace FreeAgencyAuctionAPI.Services
             if (player == null)
             {
                 // return null or record 1 in the db for this player
-                return -1;
+                return null;
             }
             var positionRange = Utils.PositionRanges.First(pos =>
                 pos.Position == tip.Position && (pos.RankMax >= player.Rank && pos.RankMin <= player.Rank));
             if (positionRange.SalaryUpper == 1)
             {
-                await _repo.AddTipToDb(tip.MflId, tip.OwnerId, 1);
-                return 1;
+                var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
+                await _repo.AddTipToDb(minTip);
+                return minTip;
             }
             var playerRangeLevel = player.Rank % 12;
             if (playerRangeLevel == 0) playerRangeLevel = 12;  // lower is better except 0. 0 is worst so make it 12
@@ -148,8 +149,9 @@ namespace FreeAgencyAuctionAPI.Services
             if (salary < 25 && yearSugg[1] > 2) yearSugg[1] = 2;
             // TODO: check 2nd highest team cap space, if salary is way over that.. lower the salary
 
-            await _repo.AddTipToDb(tip.MflId, tip.OwnerId, salary);
-            return salary;
+            var tipResponse = new SuggestionEntity(tip.OwnerId, tip.MflId, salary, yearSugg[0], yearSugg[1]);
+            await _repo.AddTipToDb(tipResponse);
+            return tipResponse;
             // 2 years or more younger than RB age cliff ? + 10%
             // 1 year younger + 5
             // 2 years over -10%

@@ -27,7 +27,12 @@ namespace FreeAgencyAuctionAPI
                     @"Server=ec2-54-161-150-170.compute-1.amazonaws.com;Port=5432;Database=dacgk47k91p2vs;User Id=REDACTED_HEROKU_PG_USER;Password=REDACTED_HEROKU_PG_PW");
             }
         }
-        
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SuggestionEntity>()
+                .HasKey(c => new { c.mflid, c.ownerid });
+        }
+
     }
 
         [Table("player")]
@@ -88,17 +93,21 @@ namespace FreeAgencyAuctionAPI
             public int ownerid { get; set; }
             public string mflid { get; set; }
             public int suggestion { get; set; }
+            public int yearmax { get; set; }
+            public int yearmin { get; set; }
 
             public SuggestionEntity()
             {
                 
             }
 
-            public SuggestionEntity(int owner, string mfl, int salary)
+            public SuggestionEntity(int owner, string mfl, int salary, int yearmin, int yearmax)
             {
                 ownerid = owner;
                 mflid = mfl;
                 suggestion = salary;
+                this.yearmax = yearmax;
+                this.yearmin = yearmin;
             }
         }
         [Table("lot")]

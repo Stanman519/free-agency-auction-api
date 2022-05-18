@@ -19,7 +19,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<PlayerEntity>> GetAllPlayers();
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
         Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
-        Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
+        Task AddTipToDb(SuggestionEntity suggestionEntity);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -140,9 +140,8 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task AddTipToDb(string tipMflId, int tipOwnerId, int salary)
+        public async Task AddTipToDb(SuggestionEntity suggestion)
         {
-            var suggestion = new SuggestionEntity(tipOwnerId, tipMflId, salary);
             _db.Suggestions.Add(suggestion);
             await _db.SaveChangesAsync();
         }
