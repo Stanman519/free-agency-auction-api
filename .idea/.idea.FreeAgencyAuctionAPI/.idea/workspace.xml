@@ -15,8 +15,12 @@
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,20 +102,20 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Mapping/PlayerProfile.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/ISharkApi.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Utils.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerTipDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerTipRequestDTO.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IPlayerRepo.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1pRdtHP5KDrdlBLzTUqY72hYAuw" />
@@ -123,7 +127,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
-    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.3576751" />
+    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.35779816" />
     <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
@@ -236,7 +240,9 @@
       <workItem from="1650025191424" duration="3248000" />
       <workItem from="1650042376304" duration="5217000" />
       <workItem from="1652189659085" duration="3644000" />
-      <workItem from="1652749277718" duration="6995000" />
+      <workItem from="1652749277718" duration="13401000" />
+      <workItem from="1653077821395" duration="181000" />
+      <workItem from="1653078454371" duration="5314000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>
@@ -408,19 +414,6 @@
           <line>34</line>
           <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/ProducerBase.cs" initialLine="34" containingFunctionPresentation="method 'Publish'" />
           <option name="timeStamp" value="7" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs</url>
-          <line>56</line>
-          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" initialLine="54" containingFunctionPresentation="method 'AddPlayerToTeam'">
-            <startOffsets>
-              <option value="2138" />
-            </startOffsets>
-            <endOffsets>
-              <option value="2284" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="28" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

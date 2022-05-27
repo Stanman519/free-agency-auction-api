@@ -93,9 +93,11 @@ namespace FreeAgencyAuctionAPI.Services
                 // return null or record 1 in the db for this player
                 return null;
             }
-            var positionRange = Utils.PositionRanges.First(pos =>
+            
+            // if they are so low THIS BREAKS  - need null as default
+            var positionRange = Utils.PositionRanges.FirstOrDefault(pos =>
                 pos.Position == tip.Position && (pos.RankMax >= player.Rank && pos.RankMin <= player.Rank));
-            if (positionRange.SalaryUpper == 1)
+            if (positionRange == null || positionRange.SalaryUpper == 1)
             {
                 var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
                 await _repo.AddTipToDb(minTip);

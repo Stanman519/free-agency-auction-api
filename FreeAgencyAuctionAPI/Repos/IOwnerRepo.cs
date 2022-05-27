@@ -14,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         public Task UpdateCapRoomForAllOwners(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
+        public Task<List<SuggestionEntity>> GetAllTipsByOwnerId(int ownerId);
         public Task<OwnerDTO> Login(OwnerDTO owner);
         public Task<OwnerEntity> Register(OwnerEntity newUser);
     }
@@ -43,7 +44,9 @@ namespace FreeAgencyAuctionAPI.Repos
                     Ownername = ret.ownername,
                     CapRoom = ret.caproom,
                     YearsLeft = ret.yearsleft,
-                    Password = ret.password_hash
+                    Password = ret.password_hash,
+                    Premium = ret.premium ?? false,
+                    DisplayName = ret.displayname
                 };
             }
             catch (Exception e)
@@ -51,6 +54,11 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e.Message);
                 return null;
             }
+        }
+
+        public async Task<List<SuggestionEntity>> GetAllTipsByOwnerId(int ownerId)
+        {
+            return await _db.Suggestions.Where(s => s.ownerId == ownerId).ToListAsync();
         }
 
         public async Task UpdateCapRoomForAllOwners(List<int> capSpace)

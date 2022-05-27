@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace FreeAgencyAuctionAPI.Models
 {
     public class OwnerDTO
@@ -11,5 +13,6 @@ namespace FreeAgencyAuctionAPI.Models
         public int YearsLeft { get; set; }
         public bool Premium { get; set; }
         public string DisplayName { get; set; }
+        public List<SuggestionEntity> TipsUsed { get; set; }
     }
 }

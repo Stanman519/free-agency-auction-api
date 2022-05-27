@@ -282,13 +282,20 @@ namespace FreeAgencyAuctionAPI.Services
             {"Not a noob", "0009"},
             {"Flapjackcarl", "0010"},
             {"Juanard", "0011"},
-            {"Tbux", "0012"}
+            {"dkirsch16", "0012"}
         };
 
         public int? GetAgeInt(string birthdate)
         {
-            return Convert.ToInt32(Math.Floor(
-                (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
+            try
+            {
+                return Convert.ToInt32(Math.Floor(
+                    (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
+            }
+            catch (Exception e)
+            {
+                return null;
+            } 
         }
     }
 

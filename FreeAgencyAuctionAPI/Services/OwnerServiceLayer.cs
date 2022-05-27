@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Text;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
@@ -39,7 +40,13 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<List<OwnerDTO>> GetAllOwners()
         {
             var ret = await _repo.GetAllOwners();
-            return _mapper.Map<List<OwnerEntity>, List<OwnerDTO>>(ret);
+            
+            var owners = _mapper.Map<List<OwnerEntity>, List<OwnerDTO>>(ret);
+            // owners.ForEach(o =>
+            // {
+            //     o.TipsUsed = allTips.FirstOrDefault(t => t.Key == o.OwnerId)?.Select(t => t).ToList();
+            // });
+            return owners;
         }
 
         public async Task<OwnerDTO> Login(OwnerDTO owner)
@@ -47,7 +54,9 @@ namespace FreeAgencyAuctionAPI.Services
             var plaintextBytes= System.Text.Encoding.UTF8.GetBytes(owner.Password);
             owner.Password = System.Convert.ToBase64String(plaintextBytes);
 
+           
             var dbOwner =  await _repo.Login(owner);
+            dbOwner.TipsUsed = await _repo.GetAllTipsByOwnerId(dbOwner.OwnerId);
             var userClient = _factory.GetUserClient();
             dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
@@ -65,6 +74,7 @@ namespace FreeAgencyAuctionAPI.Services
             var dbOwner =  await _repo.Login(loginAttempt);
             var userClient = _factory.GetUserClient();
             dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            dbOwner.TipsUsed = await _repo.GetAllTipsByOwnerId(dbOwner.OwnerId);
             return dbOwner;
         }
 

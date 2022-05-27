@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI
 {
@@ -30,7 +31,7 @@ namespace FreeAgencyAuctionAPI
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<SuggestionEntity>()
-                .HasKey(c => new { c.mflid, c.ownerid });
+                .HasKey(c => new {mflid = c.mflId, ownerid = c.ownerId });
         }
 
     }
@@ -90,24 +91,27 @@ namespace FreeAgencyAuctionAPI
         [Table("suggestions")]
         public class SuggestionEntity
         {
-            public int ownerid { get; set; }
-            public string mflid { get; set; }
+            public int ownerId { get; set; }
+            [JsonProperty(PropertyName = "mflId")]
+            public string mflId { get; set; }
             public int suggestion { get; set; }
-            public int yearmax { get; set; }
-            public int yearmin { get; set; }
+            [JsonProperty(PropertyName = "yearMax")]
+            public int yearMax { get; set; }
+            [JsonProperty(PropertyName = "yearMin")]
+            public int yearMin { get; set; }
 
             public SuggestionEntity()
             {
                 
             }
 
-            public SuggestionEntity(int owner, string mfl, int salary, int yearmin, int yearmax)
+            public SuggestionEntity(int owner, string mfl, int salary, int yearMin, int yearMax)
             {
-                ownerid = owner;
-                mflid = mfl;
+                ownerId = owner;
+                mflId = mfl;
                 suggestion = salary;
-                this.yearmax = yearmax;
-                this.yearmin = yearmin;
+                this.yearMax = yearMax;
+                this.yearMin = yearMin;
             }
         }
         [Table("lot")]
@@ -116,6 +120,5 @@ namespace FreeAgencyAuctionAPI
             [Key]
             public int lotid { get; set; }
             public int? bidid { get; set; }
-            public int passes { get; set; }
         }
 }

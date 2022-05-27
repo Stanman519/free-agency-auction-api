@@ -282,8 +282,8 @@ namespace FreeAgencyAuctionAPI
                         lastname = mfl.last_name,
                         fullname = mfl.name,
                         headshot = h.Count() > 1 ? h.FirstOrDefault(_ => _.FirstName == mfl.first_name)?.Headshot : h.FirstOrDefault()?.Headshot,
-                        height = Int32.Parse(mfl.height),
-                        weight = Int32.Parse(mfl.weight),
+                        height = Int32.TryParse(mfl.height, out var outHeight) ? outHeight : 0,
+                        weight = Int32.TryParse(mfl.weight, out var outWeight) ? outWeight : 0 ,
                         position = mfl.position,
                         team = mfl.team,
                         mflidint = Int32.Parse(mfl.id)
