@@ -36,9 +36,7 @@ namespace FreeAgencyAuctionAPI
                             "http://free-agency-auction.herokuapp.com")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
-                        .AllowAnyOrigin()
                         .AllowCredentials()
-                        
                         .SetIsOriginAllowedToAllowWildcardSubdomains());
 
             });
