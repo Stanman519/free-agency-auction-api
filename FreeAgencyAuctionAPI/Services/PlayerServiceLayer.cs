@@ -83,23 +83,24 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<SuggestionEntity> GetSuggestedSalary(PlayerTipRequestDTO tip)
         {
+            var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
             var yearSugg = new int[] {1, 3};
             var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
             var player = projections.FirstOrDefault(p => p.ID == tip.MflId);
-            var isImpactStarter = (tip.Position == "QB" && player.Rank < 16) || (tip.Position == "RB" && player.Rank < 33) ||
-                              (tip.Position == "WR" && player.Rank < 37) || (tip.Position == "TE" && player.Rank < 11);
             if (player == null)
             {
-                // return null or record 1 in the db for this player
-                return null;
+                await _repo.AddTipToDb(minTip);
+                return minTip;
             }
+            var isImpactStarter = (tip.Position == "QB" && player.Rank < 16) || (tip.Position == "RB" && player.Rank < 33) ||
+                              (tip.Position == "WR" && player.Rank < 37) || (tip.Position == "TE" && player.Rank < 11);
+
             
             // if they are so low THIS BREAKS  - need null as default
             var positionRange = Utils.PositionRanges.FirstOrDefault(pos =>
                 pos.Position == tip.Position && (pos.RankMax >= player.Rank && pos.RankMin <= player.Rank));
             if (positionRange == null || positionRange.SalaryUpper == 1)
             {
-                var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
                 await _repo.AddTipToDb(minTip);
                 return minTip;
             }
