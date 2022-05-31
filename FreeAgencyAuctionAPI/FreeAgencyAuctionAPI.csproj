@@ -21,6 +21,7 @@
 
     <ItemGroup>
       <Folder Include="Chat" />
+      <Folder Include="projections" />
     </ItemGroup>
 
 </Project>

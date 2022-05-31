@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -85,7 +87,8 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
             var yearSugg = new int[] {1, 3};
-            var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
+            //var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
+            var projections = getLocalProjectionByPosition(tip.Position);
             var player = projections.FirstOrDefault(p => p.ID == tip.MflId);
             if (player == null)
             {
@@ -94,7 +97,6 @@ namespace FreeAgencyAuctionAPI.Services
             }
             var isImpactStarter = (tip.Position == "QB" && player.Rank < 16) || (tip.Position == "RB" && player.Rank < 33) ||
                               (tip.Position == "WR" && player.Rank < 37) || (tip.Position == "TE" && player.Rank < 11);
-
             
             // if they are so low THIS BREAKS  - need null as default
             var positionRange = Utils.PositionRanges.FirstOrDefault(pos =>
@@ -159,6 +161,34 @@ namespace FreeAgencyAuctionAPI.Services
             // 1 year younger + 5
             // 2 years over -10%
             
+        }
+
+        private List<SharkPlayerProjection> getLocalProjectionByPosition(string tipPosition)
+        {
+            switch (tipPosition.ToUpper())
+            {
+                case "QB":
+                    return parseLocalProjectionByPosition("qb");
+                case "RB":
+                    return parseLocalProjectionByPosition("rb");
+                case "WR":
+                    return parseLocalProjectionByPosition("wr");
+                case "TE":
+                    return parseLocalProjectionByPosition("te");
+                default:
+                    return new List<SharkPlayerProjection>();
+            }
+        }
+
+        private List<SharkPlayerProjection> parseLocalProjectionByPosition(string pos)
+        {
+            using (StreamReader file = File.OpenText($"{pos}.json"))
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                var rawProjections = (List<SharkPlayerProjection>)serializer.Deserialize(file, typeof(List<SharkPlayerProjection>));
+
+                return rawProjections;
+            }
         }
     }
 }
