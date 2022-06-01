@@ -147,7 +147,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", bid.Player.LastName);
-                    await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
+                    //await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
             }
             catch (Exception e)

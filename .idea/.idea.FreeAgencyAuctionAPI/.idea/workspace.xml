@@ -109,8 +109,8 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1pRdtHP5KDrdlBLzTUqY72hYAuw" />
@@ -238,7 +238,7 @@
       <workItem from="1652749277718" duration="13401000" />
       <workItem from="1653077821395" duration="181000" />
       <workItem from="1653078454371" duration="16775000" />
-      <workItem from="1654098724300" duration="6965000" />
+      <workItem from="1654098724300" duration="7342000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>
@@ -410,32 +410,6 @@
           <line>34</line>
           <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/ProducerBase.cs" initialLine="34" containingFunctionPresentation="method 'Publish'" />
           <option name="timeStamp" value="7" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs</url>
-          <line>57</line>
-          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" initialLine="57" containingFunctionPresentation="method 'GetAllLots'">
-            <startOffsets>
-              <option value="2065" />
-            </startOffsets>
-            <endOffsets>
-              <option value="2376" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs</url>
-          <line>55</line>
-          <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" initialLine="55" containingFunctionPresentation="method 'GetAllLots'">
-            <startOffsets>
-              <option value="2002" />
-            </startOffsets>
-            <endOffsets>
-              <option value="2039" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
