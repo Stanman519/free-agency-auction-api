@@ -155,14 +155,14 @@ namespace FreeAgencyAuctionAPI.Services
                 var dbPlayer = await _playerRepo.GetPlayerById(bid.Player.MflId);
                 if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0) return;
                 var lotTask = await ClearThisLot(safeLotId);
-                await _mfl.AddPlayerToTeam(bid);
+                //await _mfl.AddPlayerToTeam(bid);
                 
                 await _pService.WinPlayer(bid);
-                await _mfl.GiveNewContractToPlayer(bid);
+                //await _mfl.GiveNewContractToPlayer(bid);
                 var capSpaceTask = await _mfl.GetSalaryCapRoom();
                 await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
-                await _oService.SendWinningMessageToChat(dbPlayer.firstname, dbPlayer.lastname, bid.BidSalary,
-                    bid.BidLength, bid.Ownername);
+                //await _oService.SendWinningMessageToChat(dbPlayer.firstname, dbPlayer.lastname, bid.BidSalary,
+                //    bid.BidLength, bid.Ownername);
                 timer.Stop();
                 _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
             }
