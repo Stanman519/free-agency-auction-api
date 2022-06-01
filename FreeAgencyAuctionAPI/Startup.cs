@@ -23,11 +23,14 @@ namespace FreeAgencyAuctionAPI
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            
         }
         
         
         public void ConfigureServices(IServiceCollection services)
         {
+            var streamFactory = new StreamClientFactory("REDACTED_STREAM_KEY",
+                "REDACTED_STREAM_SECRET");
             services.AddCors(c =>
             {
                 c.AddPolicy("AllowSpecificOrigin",
@@ -61,12 +64,14 @@ namespace FreeAgencyAuctionAPI
                     DispatchConsumersAsync = true
                 };
             });
+
+            services.AddSingleton(_ => streamFactory.GetMessageClient());
+            services.AddSingleton(_ => streamFactory.GetUserClient());
             services.AddSwaggerGen();
             services.AddSingleton(RestClient.For<IGMBot>("https://mfl-capn.herokuapp.com/"));
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www49.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
-            //services.AddSingleton<IStreamClientFactory>();
             services.AddSingleton(RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0"));
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();

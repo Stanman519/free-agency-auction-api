@@ -253,7 +253,7 @@ namespace FreeAgencyAuctionAPI
         // [ProducesResponseType(StatusCodes.Status400BadRequest)]
         // public async Task<IActionResult> blargh()
         // {
-        //     await _oService.SendWinningMessageToChat();
+        //     await _oService.SendWinningMessageToChat("test", "test", 1, 2, "test");
         //     return Ok();
         // }
 

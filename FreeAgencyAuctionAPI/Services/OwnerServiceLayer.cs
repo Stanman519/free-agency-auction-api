@@ -23,14 +23,20 @@ namespace FreeAgencyAuctionAPI.Services
     {
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
-        private StreamClientFactory _factory;
+
+        private readonly IMessageClient _messageClient;
+
+        private readonly IUserClient _userClient;
+        // private StreamClientFactory _factory;
 
 
-        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo)
+        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient)
         {
             _mapper = mapper;
             _repo = repo;
-            _factory = new StreamClientFactory("REDACTED_STREAM_KEY", "REDACTED_STREAM_SECRET");
+            _messageClient = messageClient;
+            _userClient = userClient;
+            // _factory = new StreamClientFactory("REDACTED_STREAM_KEY", "REDACTED_STREAM_SECRET");
             
         }
         public async Task UpdateCapSpaceForOwners(List<int> capSpace)
@@ -59,8 +65,8 @@ namespace FreeAgencyAuctionAPI.Services
            
             var dbOwner =  await _repo.Login(owner);
             dbOwner.TipsUsed = await _repo.GetAllTipsByOwnerId(dbOwner.OwnerId);
-            var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            //var userClient = _factory.GetUserClient();
+            dbOwner.Token = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 
@@ -74,8 +80,8 @@ namespace FreeAgencyAuctionAPI.Services
                 Password = ownerArr[1]
             };
             var dbOwner =  await _repo.Login(loginAttempt);
-            var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            //var userClient = _factory.GetUserClient();
+            dbOwner.Token = _userClient.CreateToken(dbOwner.Ownername);
             dbOwner.TipsUsed = await _repo.GetAllTipsByOwnerId(dbOwner.OwnerId);
             return dbOwner;
         }
@@ -88,14 +94,14 @@ namespace FreeAgencyAuctionAPI.Services
             var entity = _mapper.Map<OwnerDTO, OwnerEntity>(newUser);
             entity.premium = false;
             var dbOwner = _mapper.Map<OwnerEntity, OwnerDTO>(await _repo.Register(entity));
-            var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            //var userClient = _factory.GetUserClient();
+            dbOwner.Token = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
         //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
         public async Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername)
         {
-            //await _factory. GetMessageClient().SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
+            await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
         }
     }
 }
