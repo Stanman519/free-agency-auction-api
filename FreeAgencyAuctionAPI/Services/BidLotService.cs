@@ -171,8 +171,8 @@ namespace FreeAgencyAuctionAPI.Services
                 try
                 {
                     _logger.LogError("there was an error syncing player {bid.Player.MflId} to mfl.", bid.Player.MflId);
-                    await _bot.NotifyMflError(
-                        new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
+                    // await _bot.NotifyMflError(
+                    //     new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
                 }
                 catch (Exception exception)
                 {

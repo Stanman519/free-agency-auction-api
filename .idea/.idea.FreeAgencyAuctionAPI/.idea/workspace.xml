@@ -108,8 +108,8 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1pRdtHP5KDrdlBLzTUqY72hYAuw" />
@@ -237,7 +237,7 @@
       <workItem from="1652749277718" duration="13401000" />
       <workItem from="1653077821395" duration="181000" />
       <workItem from="1653078454371" duration="16775000" />
-      <workItem from="1654098724300" duration="4602000" />
+      <workItem from="1654098724300" duration="4913000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>
