@@ -13,9 +13,8 @@
   <component name="ChangeListManager">
     <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -105,12 +104,12 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/AuctionContext.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/PlayerServiceLayer.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IOwnerRepo.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Startup.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/OwnerServiceLayer.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1pRdtHP5KDrdlBLzTUqY72hYAuw" />
@@ -238,7 +237,7 @@
       <workItem from="1652749277718" duration="13401000" />
       <workItem from="1653077821395" duration="181000" />
       <workItem from="1653078454371" duration="16775000" />
-      <workItem from="1654098724300" duration="2801000" />
+      <workItem from="1654098724300" duration="4602000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>

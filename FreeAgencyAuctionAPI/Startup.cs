@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Npgsql;
 using RabbitMQ.Client;
 using RestEase;
+using StreamChat.Clients;
 
 
 namespace FreeAgencyAuctionAPI
@@ -65,6 +66,7 @@ namespace FreeAgencyAuctionAPI
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www49.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
+            //services.AddSingleton<IStreamClientFactory>();
             services.AddSingleton(RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0"));
             services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();

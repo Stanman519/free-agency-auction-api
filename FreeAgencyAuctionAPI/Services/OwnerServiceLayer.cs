@@ -24,16 +24,14 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
         private StreamClientFactory _factory;
-        private readonly IMessageClient _client;
 
 
         public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo)
         {
             _mapper = mapper;
             _repo = repo;
-            _factory = new StreamClientFactory("REDACTED_STREAM_KEY",
-                "REDACTED_STREAM_SECRET");
-            _client = _factory.GetMessageClient();
+            _factory = new StreamClientFactory("REDACTED_STREAM_KEY", "REDACTED_STREAM_SECRET");
+            
         }
         public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
@@ -97,8 +95,7 @@ namespace FreeAgencyAuctionAPI.Services
         //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
         public async Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername)
         {
-            
-            await _client.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
+            await _factory.GetMessageClient().SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
         }
     }
 }
