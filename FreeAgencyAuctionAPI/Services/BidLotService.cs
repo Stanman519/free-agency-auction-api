@@ -57,21 +57,21 @@ namespace FreeAgencyAuctionAPI.Services
             
             preCheckedLots.ForEach(l =>
             {
-                if (l?.Bid?.Expires < rightNowUTC)
+                if (l?.Bid?.Expires.ToUniversalTime() < rightNowUTC)
                 {
                     deadLotsToFix.Add(HandleWinningTasks(l.Bid));
                     l.Bid = null; // don't pass this bid in the lot back to client
                 }
             });
-            try
-            {
-                deadLotsToFix.ForEach(async l => await l);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
+            // try
+            // {
+            //     deadLotsToFix.ForEach(async l => await l);
+            // }
+            // catch (Exception e)
+            // {
+            //     Console.WriteLine(e);
+            //     throw;
+            // }
             return preCheckedLots;
         }
 
@@ -161,6 +161,8 @@ namespace FreeAgencyAuctionAPI.Services
                 await _mfl.GiveNewContractToPlayer(bid);
                 var capSpaceTask = await _mfl.GetSalaryCapRoom();
                 await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
+                await _oService.SendWinningMessageToChat(dbPlayer.firstname, dbPlayer.lastname, bid.BidSalary,
+                    bid.BidLength, bid.Ownername);
                 timer.Stop();
                 _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
             }

@@ -61,7 +61,7 @@ namespace FreeAgencyAuctionAPI
                 };
             });
             services.AddSwaggerGen();
-            services.AddSingleton(RestClient.For<IGMBot>("https://capn-crunch-gm-bot.herokuapp.com"));
+            services.AddSingleton(RestClient.For<IGMBot>("https://mfl-capn.herokuapp.com/"));
             services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<IMflApi>("https://www49.myfantasyleague.com"));
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));

@@ -62,7 +62,7 @@ namespace FreeAgencyAuctionAPI
             var lotsQuery = await _bService.GetAllLots();
             var freeAgents = await _pService.GetAllFreeAgents();
             
-            var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
+            var lots = lotsQuery.OrderBy(_ => _.Bid?.Expires).Take(12).ToList();
             
             return Ok( new LoadData
             {
@@ -247,6 +247,17 @@ namespace FreeAgencyAuctionAPI
             
             return Ok(await _pService.GetSuggestedSalary(tipRequestRequest));
         }
+        // [HttpGet("msg")]
+        // [Produces("application/json")]
+        // [ProducesResponseType(StatusCodes.Status200OK)]
+        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        // public async Task<IActionResult> blargh()
+        // {
+        //     await _oService.SendWinningMessageToChat();
+        //     return Ok();
+        // }
+
+        
 
         [HttpGet("inventory")]
         [Produces("application/json")]

@@ -17,12 +17,15 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
         Task<OwnerDTO> Register(OwnerDTO newUser);
+        Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername);
     }
     public class OwnerServiceLayer : IOwnerServiceLayer
     {
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
         private StreamClientFactory _factory;
+        private readonly IMessageClient _client;
+
 
         public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo)
         {
@@ -30,6 +33,7 @@ namespace FreeAgencyAuctionAPI.Services
             _repo = repo;
             _factory = new StreamClientFactory("REDACTED_STREAM_KEY",
                 "REDACTED_STREAM_SECRET");
+            _client = _factory.GetMessageClient();
         }
         public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
@@ -90,6 +94,11 @@ namespace FreeAgencyAuctionAPI.Services
             dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
-        
+        //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
+        public async Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername)
+        {
+            
+            await _client.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
+        }
     }
 }
