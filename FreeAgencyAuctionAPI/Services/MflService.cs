@@ -54,7 +54,7 @@ namespace FreeAgencyAuctionAPI.Services
                         var error = respString.XmlDeserializeFromString<MflXmlError>();
                         _logger.LogInformation(error.ErrorMsg);
                         _logger.LogError("{lastname} was not added to a team in mfl.", bid.Player.LastName);
-                        await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
+                        //await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
                     }
                 }
                 catch (Exception e)
