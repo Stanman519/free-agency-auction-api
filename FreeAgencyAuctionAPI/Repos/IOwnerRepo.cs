@@ -58,7 +58,9 @@ namespace FreeAgencyAuctionAPI.Repos
 
         public async Task<List<SuggestionEntity>> GetAllTipsByOwnerId(int ownerId)
         {
-            return await _db.Suggestions.Where(s => s.ownerId == ownerId).ToListAsync();
+            
+            var suggestions = _db.Suggestions.Where(s => s.ownerId == ownerId);
+            return !suggestions.Any() ? new List<SuggestionEntity>() : suggestions.ToList();
         }
 
         public async Task UpdateCapRoomForAllOwners(List<int> capSpace)

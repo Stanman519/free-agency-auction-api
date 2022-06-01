@@ -131,24 +131,36 @@ namespace FreeAgencyAuctionAPI.Services
         
         public async Task HandleWinningTasks(BidDTO bid)
         {
+            
+            
             // make this a task of void and just shoot back error messages instead
             var safeLotId = bid.LotId ?? 0;
             // do two batches because Entity framework cant do async.
-            var lotTask = ClearThisLot(safeLotId);
-            var addPlayerRespTask =  _mfl.AddPlayerToTeam(bid);
-            
-            var playerTask =  _pService.WinPlayer(bid);
-            var contractTask = _mfl.GiveNewContractToPlayer(bid);
-            var capSpaceTask = _mfl.GetSalaryCapRoom();
+            // var lotTask = ClearThisLot(safeLotId);
+            // var addPlayerRespTask =  _mfl.AddPlayerToTeam(bid);
+            //
+            // var playerTask =  _pService.WinPlayer(bid);
+            // var contractTask = _mfl.GiveNewContractToPlayer(bid);
+            // var capSpaceTask = _mfl.GetSalaryCapRoom();
             
             var timer = new Stopwatch();
             // TODO: we used to do the owner budget call in the win POST ... do it now with SignalR?
             try
             {
+
                 timer.Start();
-                await Task.WhenAll(lotTask, addPlayerRespTask);
-                await Task.WhenAll(playerTask, contractTask, capSpaceTask);
-                await _oService.UpdateCapSpaceForOwners(capSpaceTask.Result.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
+
+                // await Task.WhenAll(lotTask, addPlayerRespTask);
+                // await Task.WhenAll(playerTask, contractTask, capSpaceTask);
+                var dbPlayer = await _playerRepo.GetPlayerById(bid.Player.MflId);
+                if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0) return;
+                var lotTask = await ClearThisLot(safeLotId);
+                await _mfl.AddPlayerToTeam(bid);
+                
+                await _pService.WinPlayer(bid);
+                await _mfl.GiveNewContractToPlayer(bid);
+                var capSpaceTask = await _mfl.GetSalaryCapRoom();
+                await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
                 timer.Stop();
                 _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
             }
