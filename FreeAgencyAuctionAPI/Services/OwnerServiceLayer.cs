@@ -100,8 +100,8 @@ namespace FreeAgencyAuctionAPI.Services
         }
         //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
         public async Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername)
-        {
-            //await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
+        { 
+            await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
         }
     }
 }

@@ -20,6 +20,8 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId);
         Task<BidEntity> GetLatestBidForPlayerId(string mflId);
         Task SendWinMessageToDb(BidEntity map);
+        Task<List<WinMsg>> GetAllWinMessages();
+        Task MarkAllWinMessagesAsProcessed(int bidId);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -198,6 +200,34 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 _logger.LogError(e.Message);
                 return false;
+            }
+        }
+
+        public async Task<List<WinMsg>> GetAllWinMessages()
+        {
+            try
+            {
+                return await _db.WinMessages.ToListAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public async Task MarkAllWinMessagesAsProcessed(int bidId)
+        {
+            try
+            {
+                var winsToChange = await _db.WinMessages.Where(w => w.bidid == bidId).ToListAsync();
+                winsToChange.ForEach(w => w.proccessed = true);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
             }
         }
     }

@@ -30,6 +30,14 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.ownerid, opt => opt.MapFrom(src => src.OwnerId))
                 .ForSourceMember(src => src.LotId, opt => opt.DoNotValidate())
                 .ForSourceMember(src => src.Player, opt => opt.DoNotValidate());
+            CreateMap<WinMsg, BidDTO>()
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.ownerid))
+                .ForMember(dest => dest.LotId, opt => opt.Ignore())
+                .ForMember(dest => dest.BidSalary, opt => opt.MapFrom(src => src.bidsalary))
+                .ForMember(dest => dest.BidLength, opt => opt.MapFrom(src => src.bidlength))
+                .ForMember(dest => dest.BidId, opt => opt.MapFrom(src => src.bidid))
+                .ForMember(dest => dest.Ownername, opt => opt.MapFrom(src => src.ownername))
+                .ForMember(dest => dest.Expires, opt => opt.MapFrom(src => src.expires));
         }
     }
     public class OwnerProfile : Profile

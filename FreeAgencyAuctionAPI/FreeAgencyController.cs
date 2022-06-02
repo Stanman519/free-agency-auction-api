@@ -130,7 +130,7 @@ namespace FreeAgencyAuctionAPI
             if (newBid.LotId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
             if (!await _bService.ValidateBidForDbEntry(newBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddDays(1);
+            newBid.Expires = DateTime.UtcNow.AddHours(12);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -162,7 +162,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogCritical("Somehow a null lotId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddDays(1);
+            nomination.Expires = DateTime.UtcNow.AddHours(12);
             var ret = await _bService.Nominate(nomination);
             var lotToUpdate = new LotDTO
             {
@@ -247,19 +247,18 @@ namespace FreeAgencyAuctionAPI
             
             return Ok(await _pService.GetSuggestedSalary(tipRequestRequest));
         }
-        [HttpPost("msg")]
+        [HttpPost("win-message-job")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> blargh([FromBody] BidEntity bid)
+        public async Task<IActionResult> blargh()
         {
             //await _oService.SendWinningMessageToChat("test", "test", 1, 2, "test");
             //await _bService.testWin(bid);
+            await _bService.HandleWinMessages();
             return Ok();
         }
-
         
-
         [HttpGet("inventory")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]

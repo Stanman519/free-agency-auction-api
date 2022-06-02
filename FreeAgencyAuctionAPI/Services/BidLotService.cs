@@ -21,6 +21,8 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<BidDTO>> GetBidHistory(string playerId);
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
+
+        Task HandleWinMessages();
         // Task SendWinningMessage(BidDTO bid);
         //Task testWin(BidEntity bid);
     }
@@ -34,11 +36,12 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IPlayerServiceLayer _pService;
         private readonly IGMBot _bot;
         private readonly ILogger<BidLotService> _logger;
+        private readonly IMflApi _mflApi;
         private readonly IOwnerServiceLayer _oService;
 
 
         public BidLotService(IMapper mapper, IBidLotRepo repo, IPlayerRepo playerRepo, IMflService mfl, 
-            IPlayerServiceLayer pService, IOwnerServiceLayer oService, IGMBot bot, ILogger<BidLotService> logger)
+            IPlayerServiceLayer pService, IOwnerServiceLayer oService, IGMBot bot, ILogger<BidLotService> logger, IMflApi mflApi)
         {
             _mapper = mapper;
             _repo = repo;
@@ -48,6 +51,7 @@ namespace FreeAgencyAuctionAPI.Services
             _oService = oService;
             _bot = bot;
             _logger = logger;
+            _mflApi = mflApi;
         }
 
         public async Task<List<LotDTO>> GetAllLots()
@@ -147,19 +151,13 @@ namespace FreeAgencyAuctionAPI.Services
                 var dbPlayer = await _playerRepo.GetPlayerById(bid.Player.MflId);
                 if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0) return;
                 await ClearThisLot(safeLotId);
-                //await _mfl.AddPlayerToTeam(bid);
+                
                 
                 await _pService.WinPlayer(bid);
-                //await _mfl.GiveNewContractToPlayer(bid);
+               
                 var capSpaceTask = await _mfl.GetSalaryCapRoom();
                 await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
-
                 await _repo.SendWinMessageToDb(_mapper.Map<BidEntity>(bid));
-                
-                
-                
-                //await _oService.SendWinningMessageToChat(dbPlayer.firstname, dbPlayer.lastname, bid.BidSalary,
-                //    bid.BidLength, bid.Ownername);
                 timer.Stop();
                 _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
             }
@@ -215,6 +213,36 @@ namespace FreeAgencyAuctionAPI.Services
             var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId);
             return (latestBid.bidlength * 5) + latestBid.bidsalary < (bid.BidLength * 5) + bid.BidSalary;
         }
+
+        public async Task HandleWinMessages()
+        {
+            var allWins = await _repo.GetAllWinMessages();
+            // group all by bid id, then check if any of each group has been processed.  if one has, and others have not, change all to be processed
+            var relevantWins = allWins.GroupBy(w => w.bidid).Where(w => !w.Any(bid => bid.proccessed));
+
+            foreach (var winGroup in relevantWins)
+            {
+                var sampleBid = winGroup.First();
+                var bidDTO = _mapper.Map<BidDTO>(sampleBid);
+                bidDTO.Player = new PlayerDTO
+                {
+                    MflId = sampleBid.mflid
+                };
+                await _mfl.AddPlayerToTeam(bidDTO);
+                await _mfl.GiveNewContractToPlayer(bidDTO);
+                var player = (await _mflApi.GetMflPlayerDetails(sampleBid.mflid + ",15237,15281")).players.player.FirstOrDefault(p => p.id == sampleBid.mflid);
+                await _oService.SendWinningMessageToChat(player?.first_name, player?.last_name, sampleBid.bidsalary,
+                    sampleBid.bidlength, sampleBid.ownername);
+                await _repo.MarkAllWinMessagesAsProcessed(sampleBid.bidid);
+            }
+            // i guess just do this for the hell of it
+            var capSpaceTask = await _mfl.GetSalaryCapRoom();
+            await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
+            
+        }
+        
+        
+        
         // public async Task testWin(BidEntity bid)
         // {
         //     try
