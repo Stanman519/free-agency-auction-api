@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using FreeAgencyAuctionAPI.Models;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
@@ -14,6 +15,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<OwnerEntity> Owners { get; set; }
         public DbSet<LotEntity> Lots { get; set; }
         public DbSet<SuggestionEntity> Suggestions { get; set; }
+        public DbSet<WinMsg> WinMessages { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -74,6 +76,24 @@ namespace FreeAgencyAuctionAPI
             public int bidsalary { get; set; }
             public DateTime expires { get; set; }
         }
+        
+        [Table("win")]
+        public class WinMsg
+        {
+            [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+            [Key] 
+            public int dummyid { get; set; }
+            public int bidid { get; set; }
+            public string mflid { get; set; }
+            public int ownerid { get; set; }
+            public string ownername { get; set; }
+            public int bidlength { get; set; }
+            public int bidsalary { get; set; }
+            public DateTime expires { get; set; }
+            public bool proccessed { get; set; }
+ 
+        }
+        
         [Table("owner")]
         public class OwnerEntity
         {

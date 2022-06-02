@@ -22,6 +22,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
         // Task SendWinningMessage(BidDTO bid);
+        //Task testWin(BidEntity bid);
     }
 
     public class BidLotService : IBidLotService
@@ -131,17 +132,8 @@ namespace FreeAgencyAuctionAPI.Services
         
         public async Task HandleWinningTasks(BidDTO bid)
         {
-            
-            
-            // make this a task of void and just shoot back error messages instead
             var safeLotId = bid.LotId ?? 0;
-            // do two batches because Entity framework cant do async.
-            // var lotTask = ClearThisLot(safeLotId);
-            // var addPlayerRespTask =  _mfl.AddPlayerToTeam(bid);
-            //
-            // var playerTask =  _pService.WinPlayer(bid);
-            // var contractTask = _mfl.GiveNewContractToPlayer(bid);
-            // var capSpaceTask = _mfl.GetSalaryCapRoom();
+
             
             var timer = new Stopwatch();
             // TODO: we used to do the owner budget call in the win POST ... do it now with SignalR?
@@ -154,13 +146,18 @@ namespace FreeAgencyAuctionAPI.Services
                 // await Task.WhenAll(playerTask, contractTask, capSpaceTask);
                 var dbPlayer = await _playerRepo.GetPlayerById(bid.Player.MflId);
                 if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0) return;
-                var lotTask = await ClearThisLot(safeLotId);
+                await ClearThisLot(safeLotId);
                 //await _mfl.AddPlayerToTeam(bid);
                 
                 await _pService.WinPlayer(bid);
                 //await _mfl.GiveNewContractToPlayer(bid);
                 var capSpaceTask = await _mfl.GetSalaryCapRoom();
                 await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
+
+                await _repo.SendWinMessageToDb(_mapper.Map<BidEntity>(bid));
+                
+                
+                
                 //await _oService.SendWinningMessageToChat(dbPlayer.firstname, dbPlayer.lastname, bid.BidSalary,
                 //    bid.BidLength, bid.Ownername);
                 timer.Stop();
@@ -218,5 +215,17 @@ namespace FreeAgencyAuctionAPI.Services
             var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId);
             return (latestBid.bidlength * 5) + latestBid.bidsalary < (bid.BidLength * 5) + bid.BidSalary;
         }
+        // public async Task testWin(BidEntity bid)
+        // {
+        //     try
+        //     {
+        //         await _repo.SendWinMessageToDb(bid);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine(e);
+        //         throw;
+        //     }
+        // }
     }
 }

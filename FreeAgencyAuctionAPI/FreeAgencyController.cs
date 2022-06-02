@@ -247,15 +247,16 @@ namespace FreeAgencyAuctionAPI
             
             return Ok(await _pService.GetSuggestedSalary(tipRequestRequest));
         }
-        // [HttpGet("msg")]
-        // [Produces("application/json")]
-        // [ProducesResponseType(StatusCodes.Status200OK)]
-        // [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        // public async Task<IActionResult> blargh()
-        // {
-        //     await _oService.SendWinningMessageToChat("test", "test", 1, 2, "test");
-        //     return Ok();
-        // }
+        [HttpPost("msg")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> blargh([FromBody] BidEntity bid)
+        {
+            //await _oService.SendWinningMessageToChat("test", "test", 1, 2, "test");
+            //await _bService.testWin(bid);
+            return Ok();
+        }
 
         
 

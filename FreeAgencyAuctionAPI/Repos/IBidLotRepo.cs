@@ -19,6 +19,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
         Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId);
         Task<BidEntity> GetLatestBidForPlayerId(string mflId);
+        Task SendWinMessageToDb(BidEntity map);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -166,6 +167,23 @@ namespace FreeAgencyAuctionAPI.Repos
                 Console.WriteLine(e);
                 throw;
             }
+        }
+
+        public async Task SendWinMessageToDb(BidEntity bid)
+        {
+            var winMsg = new WinMsg
+            {
+                bidid = bid.bidid,
+                bidlength = bid.bidlength,
+                bidsalary = bid.bidsalary,
+                expires = bid.expires,
+                mflid = bid.mflid,
+                ownerid = bid.ownerid,
+                ownername = bid.ownername,
+                proccessed = false
+            };
+            await _db.WinMessages.AddAsync(winMsg);
+            await _db.SaveChangesAsync();
         }
 
         public async Task<bool> CheckLatestBidId(BidEntity winningBidEntity)
