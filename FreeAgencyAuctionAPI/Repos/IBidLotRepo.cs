@@ -68,6 +68,7 @@ namespace FreeAgencyAuctionAPI.Repos
                             BidSalary = br.bidsalary == null ? 0 : br.bidsalary,
                             BidLength = br.bidlength == null ? 0 : br.bidlength,
                             Ownername = br.ownername ?? "",
+                            OwnerId = br.ownerid,
                             BidId = br.bidid == null ? 0 : br.bidid,
                             LotId = lot.lotid
                         }

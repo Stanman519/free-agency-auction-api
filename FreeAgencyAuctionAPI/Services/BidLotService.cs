@@ -157,7 +157,9 @@ namespace FreeAgencyAuctionAPI.Services
                
                 var capSpaceTask = await _mfl.GetSalaryCapRoom();
                 await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
-                await _repo.SendWinMessageToDb(_mapper.Map<BidEntity>(bid));
+                var bidEntity = _mapper.Map<BidEntity>(bid);
+                bidEntity.ownerid = bid.OwnerId;
+                await _repo.SendWinMessageToDb(bidEntity);
                 timer.Stop();
                 _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
             }
@@ -222,7 +224,7 @@ namespace FreeAgencyAuctionAPI.Services
 
             foreach (var winGroup in relevantWins)
             {
-                var sampleBid = winGroup.First();
+                var sampleBid = winGroup.OrderBy(w => w.dummyid).First();
                 var bidDTO = _mapper.Map<BidDTO>(sampleBid);
                 bidDTO.Player = new PlayerDTO
                 {
@@ -231,7 +233,7 @@ namespace FreeAgencyAuctionAPI.Services
                 await _mfl.AddPlayerToTeam(bidDTO);
                 await _mfl.GiveNewContractToPlayer(bidDTO);
                 var player = (await _mflApi.GetMflPlayerDetails(sampleBid.mflid + ",15237,15281")).players.player.FirstOrDefault(p => p.id == sampleBid.mflid);
-                await _oService.SendWinningMessageToChat(player?.first_name, player?.last_name, sampleBid.bidsalary,
+                await _oService.SendWinningMessageToChat(player?.name, sampleBid.bidsalary,
                     sampleBid.bidlength, sampleBid.ownername);
                 await _repo.MarkAllWinMessagesAsProcessed(sampleBid.bidid);
             }

@@ -17,7 +17,7 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
         Task<OwnerDTO> Register(OwnerDTO newUser);
-        Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername);
+        Task SendWinningMessageToChat(string name, int salary, int years, string ownername);
     }
     public class OwnerServiceLayer : IOwnerServiceLayer
     {
@@ -99,9 +99,9 @@ namespace FreeAgencyAuctionAPI.Services
             return dbOwner;
         }
         //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
-        public async Task SendWinningMessageToChat(string firstname, string lastname, int salary, int years, string ownername)
+        public async Task SendWinningMessageToChat(string name, int salary, int years, string ownername)
         { 
-            await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {firstname} {lastname} at ${salary}, {years} years.");
+            await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {name} at ${salary}, {years} years.");
         }
     }
 }
