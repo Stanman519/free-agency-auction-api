@@ -149,7 +149,8 @@ namespace FreeAgencyAuctionAPI.Services
                 // await Task.WhenAll(lotTask, addPlayerRespTask);
                 // await Task.WhenAll(playerTask, contractTask, capSpaceTask);
                 var dbPlayer = await _playerRepo.GetPlayerById(bid.Player.MflId);
-                if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0) return;
+                
+                if (dbPlayer.ownerid == null || dbPlayer.ownerid > 0 || !string.IsNullOrEmpty(dbPlayer.ownername)) return;
                 await ClearThisLot(safeLotId);
                 
                 
