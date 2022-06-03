@@ -85,6 +85,11 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<SuggestionEntity> GetSuggestedSalary(PlayerTipRequestDTO tip)
         {
+            // IF TIP IS ALREADY IN DB RETURN IT
+
+            var existingTip = await _repo.GetTipByIds(tip.OwnerId, tip.MflId);
+            if (existingTip != null) return existingTip;
+            
             var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
             var yearSugg = new int[] {1, 3};
             //var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);

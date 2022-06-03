@@ -20,6 +20,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
         Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
         Task AddTipToDb(SuggestionEntity suggestionEntity);
+        Task<SuggestionEntity> GetTipByIds(int tipOwnerId, string tipMflId);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -89,6 +90,11 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e.Message);
                 return null;
             }
+        }
+        
+        public async Task<SuggestionEntity> GetTipByIds(int tipOwnerId, string tipMflId)
+        {
+            return await _db.Suggestions.FirstOrDefaultAsync(s => s.mflId == tipMflId & s.ownerId == tipOwnerId);
         }
 
         public async Task<PlayerEntity> WinPlayer(BidEntity bid)
