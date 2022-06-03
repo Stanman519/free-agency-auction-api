@@ -64,6 +64,7 @@ namespace FreeAgencyAuctionAPI.Services
 
            
             var dbOwner =  await _repo.Login(owner);
+            if (dbOwner == null) return null;
             dbOwner.TipsUsed = await _repo.GetAllTipsByOwnerId(dbOwner.OwnerId);
             //var userClient = _factory.GetUserClient();
             dbOwner.Token = _userClient.CreateToken(dbOwner.Ownername);
