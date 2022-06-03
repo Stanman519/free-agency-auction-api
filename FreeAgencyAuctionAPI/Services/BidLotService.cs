@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.Extensions.Logging;
 
 namespace FreeAgencyAuctionAPI.Services
@@ -21,7 +22,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<BidDTO>> GetBidHistory(string playerId);
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
-
+        Task PostNewBidChangesToGroup();
         Task HandleWinMessages();
         // Task SendWinningMessage(BidDTO bid);
         //Task testWin(BidEntity bid);
@@ -243,7 +244,23 @@ namespace FreeAgencyAuctionAPI.Services
             await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
             
         }
-        
+
+        public async Task PostNewBidChangesToGroup()
+        {
+            var strForBot = "Players with new bids in the last hour:\n";
+            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour();
+            var bidsGroupedByPlayer = bidsFromLastHour.GroupBy(b => b.Player.MflId).ToList();
+            if (!bidsGroupedByPlayer.Any()) return;
+            foreach (var bid in bidsGroupedByPlayer)
+            {
+                var latestBid = bid.OrderByDescending(b => b.Expires).First();
+
+                strForBot +=
+                    $"{latestBid.Player.LastName} - ${latestBid.BidSalary} ({latestBid.Ownername})\n";
+            }
+
+            await _bot.NotifyMflError(new ErrorMessage(strForBot));
+        }
         
         
         // public async Task testWin(BidEntity bid)

@@ -22,6 +22,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task SendWinMessageToDb(BidEntity map);
         Task<List<WinMsg>> GetAllWinMessages();
         Task MarkAllWinMessagesAsProcessed(int bidId);
+        Task<List<BidDTO>> GetNewBidsFromTheLastHour();
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -224,6 +225,34 @@ namespace FreeAgencyAuctionAPI.Repos
                 var winsToChange = await _db.WinMessages.Where(w => w.bidid == bidId).ToListAsync();
                 winsToChange.ForEach(w => w.proccessed = true);
                 await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public async Task<List<BidDTO>> GetNewBidsFromTheLastHour()
+        {
+            var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+            try
+            {
+                return await _db.Bids.Where(b => b.expires >= oneHourAgo.AddHours(12)).Join(_db.Players, b => b.mflid, p => p.mflid, (b,p) => new BidDTO
+                {
+                    BidLength = b.bidlength,
+                    BidSalary = b.bidsalary,
+                    BidId = b.bidid,
+                    Expires = b.expires,
+                    OwnerId = b.ownerid,
+                    Ownername = b.ownername,
+                    Player = new PlayerDTO
+                    {
+                        FirstName = p.firstname,
+                        LastName = p.lastname,
+                        Position = p.position
+                    }
+                }).ToListAsync();
             }
             catch (Exception e)
             {

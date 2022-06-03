@@ -259,6 +259,18 @@ namespace FreeAgencyAuctionAPI
             return Ok();
         }
         
+        [HttpGet("bot-bid-summary")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> PostLastHourBids()
+        {
+            //await _oService.SendWinningMessageToChat("test", "test", 1, 2, "test");
+            //await _bService.testWin(bid);
+            await _bService.PostNewBidChangesToGroup();
+            return Ok();
+        }
+        
         [HttpGet("inventory")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
