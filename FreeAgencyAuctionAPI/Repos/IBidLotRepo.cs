@@ -250,7 +250,8 @@ namespace FreeAgencyAuctionAPI.Repos
                     {
                         FirstName = p.firstname,
                         LastName = p.lastname,
-                        Position = p.position
+                        Position = p.position,
+                        MflId = p.mflid
                     }
                 }).ToListAsync();
             }
