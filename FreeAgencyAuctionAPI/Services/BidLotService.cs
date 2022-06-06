@@ -249,6 +249,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var strForBot = "Players with new bids in the last hour:\n";
             var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour();
+            var emptyLots = (await _repo.GetAllLots()).Where(l => l.Bid == null).ToList();
             var bidsGroupedByPlayer = bidsFromLastHour.GroupBy(b => b.Player.MflId).ToList();
             if (!bidsGroupedByPlayer.Any()) return;
             foreach (var bid in bidsGroupedByPlayer)
@@ -259,6 +260,15 @@ namespace FreeAgencyAuctionAPI.Services
                     $"{latestBid.Player.LastName} - ${latestBid.BidSalary} ({latestBid.Ownername})\n";
             }
 
+            if (emptyLots.Any())
+            {
+                strForBot += "\nNeeds to nominate:\n";
+                foreach (var lot in emptyLots)
+                {
+                    strForBot += $"{Utils.Owners[lot.LotId]}\n";
+                }
+            }
+            
             await _bot.NotifyMflError(new ErrorMessage(strForBot));
         }
         

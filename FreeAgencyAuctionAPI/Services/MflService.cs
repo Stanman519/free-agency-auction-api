@@ -269,7 +269,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
 
-        private Dictionary<string, string> owners = new Dictionary<string, string>()
+        public Dictionary<string, string> owners = new Dictionary<string, string>()
         {
             {"Ryan", "0001"},
             {"tylerwelsh", "0002"},
