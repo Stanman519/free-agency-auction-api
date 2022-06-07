@@ -69,15 +69,15 @@ namespace FreeAgencyAuctionAPI.Services
                     l.Bid = null; // don't pass this bid in the lot back to client
                 }
             });
-            // try
-            // {
-            //     deadLotsToFix.ForEach(async l => await l);
-            // }
-            // catch (Exception e)
-            // {
-            //     Console.WriteLine(e);
-            //     throw;
-            // }
+            try
+            {
+                deadLotsToFix.ForEach(async l => await l);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
             return preCheckedLots;
         }
 

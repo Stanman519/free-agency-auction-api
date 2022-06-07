@@ -13,8 +13,6 @@
   <component name="ChangeListManager">
     <list default="true" id="15d92220-2196-410c-90cc-07feee94412b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FreeAgencyAuctionAPI/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -95,7 +93,6 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflXmlParser.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/ISharkApi.cs" />
-      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Utils.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerTipDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/PlayerTipRequestDTO.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Models/OwnerDTO.cs" />
@@ -109,6 +106,7 @@
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/FreeAgencyController.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Repos/IBidLotRepo.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/MflService.cs" />
+      <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/Utils.cs" />
       <option value="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" />
     </changedPaths>
   </component>
@@ -237,7 +235,7 @@
       <workItem from="1652749277718" duration="13401000" />
       <workItem from="1653077821395" duration="181000" />
       <workItem from="1653078454371" duration="16775000" />
-      <workItem from="1654098724300" duration="33206000" />
+      <workItem from="1654098724300" duration="34408000" />
     </task>
     <task id="LOCAL-00001" summary="cors">
       <created>1619814253028</created>
@@ -425,13 +423,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs</url>
-          <line>273</line>
+          <line>271</line>
           <properties documentPath="$PROJECT_DIR$/FreeAgencyAuctionAPI/Services/BidLotService.cs" initialLine="261" containingFunctionPresentation="method 'PostNewBidChangesToGroup'">
             <startOffsets>
-              <option value="10850" />
+              <option value="10859" />
             </startOffsets>
             <endOffsets>
-              <option value="10905" />
+              <option value="10914" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="15" />
