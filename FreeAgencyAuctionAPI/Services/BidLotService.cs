@@ -59,19 +59,22 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var rightNowUTC = DateTime.UtcNow;  // NEED TO CHECK IF any times expired 
             var preCheckedLots =  await _repo.GetAllLots();
-            var deadLotsToFix = new List<Task>();
+            var deadLotsToFix = new List<BidDTO>();
             
             preCheckedLots.ForEach(l =>
             {
                 if (l?.Bid?.Expires.ToUniversalTime() < rightNowUTC)
                 {
-                    deadLotsToFix.Add(HandleWinningTasks(l.Bid));
+                    deadLotsToFix.Add(l.Bid);
                     l.Bid = null; // don't pass this bid in the lot back to client
                 }
             });
             try
             {
-                deadLotsToFix.ForEach(async l => await l);
+                foreach (var lot in deadLotsToFix)
+                {
+                    await HandleWinningTasks(lot);
+                }
             }
             catch (Exception e)
             {
