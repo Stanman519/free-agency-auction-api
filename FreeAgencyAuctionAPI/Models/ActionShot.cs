@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore.Query;
 using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI.Models
 {
-// Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
+    // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
 
 
     public class Thumbnail

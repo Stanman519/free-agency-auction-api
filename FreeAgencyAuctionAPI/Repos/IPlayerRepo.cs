@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,16 +9,17 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IPlayerRepo
     {
-        public Task<PlayerEntity> GetPlayerById(string playerId);
-        public Task<List<PlayerEntity>> GetRosteredPlayers();
-        public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
-        public Task<PlayerEntity> WinPlayer(BidEntity bid);
-        public Task<List<PlayerEntity>> GetAllFreeAgents();
-        Task AddFreshPlayerInventory(List<PlayerEntity> players);
+        public Task<PlayerEntity> GetPlayerById(int playerId);
+        public Task<List<PlayerEntity>> GetRosteredPlayers(int leagueId);
+        //public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
+        //public Task<PlayerEntity> WinPlayer(BidEntity bid);
+        public Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId);
+       // Task AddFreshPlayerInventory(List<PlayerEntity> players);
         Task<List<PlayerEntity>> GetAllPlayers();
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
-        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
+/*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
+        Task<List<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -32,55 +32,66 @@ namespace FreeAgencyAuctionAPI.Repos
             _db = db;
             _logger = logger;
         }
-        public async Task<PlayerEntity> GetPlayerById(string playerId)
+        public async Task<PlayerEntity> GetPlayerById(int playerId)
         {
             try
             {
-                return await _db.Players.FirstAsync(p => p.mflid == playerId);
+                return await _db.Players.FirstAsync(p => p.Mflid == playerId);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e, "get player error");
                 return null;
             }
         }
 
-        public async Task<List<PlayerEntity>> GetRosteredPlayers()
+        public async Task<List<PlayerEntity>> GetRosteredPlayers(int leagueId)
         {
             try
             {
-                return await _db.Players.AsQueryable().Where(p => p.ownername != null).ToListAsync();
-                return null;
+                var leagueContracts = await _db.Contracts.AsQueryable().Where(c => c.Leagueid == leagueId).ToListAsync();
+                return leagueContracts.Select(c => c.Player).ToList();
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "error getting rostered players");
                 return null;
             }
         }
 
-        public async Task<PlayerEntity> SetPlayerOwner(PlayerEntity player)
+        /*        public async Task<PlayerEntity> SetPlayerOwner(PlayerEntity player)
+                {
+                    try
+                    {
+                        var dbPlayer = await _db.Players.AsQueryable().FirstAsync(p => p.Mflid == player.Mflid);
+                        dbPlayer.ownerid = player.ownerid;
+                        await _db.SaveChangesAsync();
+                        return dbPlayer;
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e.Message);
+                        return null;
+                    }
+                }*/
+        public async Task<List<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds)
         {
             try
             {
-                var dbPlayer = await _db.Players.AsQueryable().Where(p => p.mflid == player.mflid).FirstAsync();
-                dbPlayer.ownerid = player.ownerid;
-                await _db.SaveChangesAsync();
-                return dbPlayer;
+                return await _db.Players.Where(p => freeAgentMflIds.Contains(p.Mflid)).ToListAsync();
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
-                return null;
+                _logger.LogError(e, "Error fetching free agents");
+                throw;
             }
         }
-        
         public async Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot)
         {
             try
             {
-                var dbPlayer = await _db.Players.AsQueryable().Where(p => p.mflid == mflId).FirstAsync();
-                dbPlayer.actionshot = actionShot;
+                var dbPlayer = await _db.Players.AsQueryable().FirstAsync(p => p.Mflid == int.Parse(mflId));
+                dbPlayer.Actionshot = actionShot;
                 await _db.SaveChangesAsync();
                 return dbPlayer;
             }
@@ -91,22 +102,28 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<PlayerEntity> WinPlayer(BidEntity bid)
+        public async Task WinPlayer(BidEntity bid)
         {
             try
             {
-                var playerToUpdate = await _db.Players.FirstAsync(p => p.mflid == bid.mflid);
-                playerToUpdate.ownername = bid.ownername;
-                playerToUpdate.length = bid.bidlength;
-                playerToUpdate.salary = bid.bidsalary;
-                playerToUpdate.contractvalue = (bid.bidlength * 5) + bid.bidsalary;
+                var newContract = new ContractEntity
+                {
+                    Bid = bid,
+                    Mflid = bid.Mflid,
+                    Length = bid.Bidlength,
+                    Salary = bid.Bidsalary,
+                    Contractvalue = (bid.Bidlength * 5) + bid.Bidsalary,
+                    Ownerid = bid.Ownerid,
+                    Leagueid = bid.Leagueid
+                };
+
                 await _db.SaveChangesAsync();
-                return playerToUpdate;
+                return;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
-                return null;
+                _logger.LogError(e, "error winning contract");
+                return;
             }
         }
         
@@ -118,24 +135,30 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "error getting all players");
                 return null;
             }
         } 
 
-        public async Task<List<PlayerEntity>> GetAllFreeAgents()
+        public async Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId)
         {
             try
             {
-                return await _db.Players.AsQueryable()
-                    .Where(p => p.ownerid == null && p.ownername == null)
-                    .OrderBy(p => p.position)
-                    .ThenBy(p => p.lastname)
-                    .ToListAsync();
+                //outer join players and contracts, then remove lot players
+                return await (from p in _db.Players
+                            join c in _db.Contracts.Where(cont => cont.Leagueid == leagueId) on p.Mflid equals c.Mflid into temp
+                            from c in temp.DefaultIfEmpty()
+                            join l in _db.Lots.Where(lot => lot.Leagueid == leagueId) on p.Mflid equals l.Bid.Mflid into temp2
+                            from l in temp2.DefaultIfEmpty()
+                            select new { p, c, l }).Where(_ => _.c == null && _.l == null)
+                            .Select(_ => _.p)
+                            .OrderBy(p => p.Position)
+                            .ThenBy(p => p.Lastname)
+                            .ToListAsync();
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "free agent fetch");
                 return null;
             }
         }
@@ -147,7 +170,7 @@ namespace FreeAgencyAuctionAPI.Repos
             await _db.SaveChangesAsync();
         }
 
-        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
+/*        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
         {
             try
             {
@@ -172,9 +195,9 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e.Message);
                 throw;
             }
-        }
+        }*/
 
-        public async Task AddFreshPlayerInventory(List<PlayerEntity> players)
+        /*public async Task AddFreshPlayerInventory(List<PlayerEntity> players)
         {
             try
             {
@@ -187,6 +210,6 @@ namespace FreeAgencyAuctionAPI.Repos
                 throw;
             }
 
-        }
+        }*/
     }
 }

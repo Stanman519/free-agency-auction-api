@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
 using FreeAgencyAuctionAPI.Hub;
@@ -20,7 +19,7 @@ namespace FreeAgencyAuctionAPI
     [Route("[controller]")]
     public class FreeAgencyController : ControllerBase
     {
-        private readonly IPlayerServiceLayer _pService;
+        private readonly IPlayerService _pService;
         private readonly IOwnerServiceLayer _oService;
         private readonly IBidLotService _bService;
         private readonly IMflService _mfl;
@@ -29,7 +28,8 @@ namespace FreeAgencyAuctionAPI
         private readonly IHeadshotLoadingService _headshot;
         private readonly ILogger<FreeAgencyController> _logger;
 
-        public FreeAgencyController(IPlayerServiceLayer pService, IOwnerServiceLayer ownerServiceLayer,
+
+        public FreeAgencyController(IPlayerService pService, IOwnerServiceLayer ownerServiceLayer,
             IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot,
             IHeadshotLoadingService headshot, ILogger<FreeAgencyController> logger)
         {
@@ -47,28 +47,32 @@ namespace FreeAgencyAuctionAPI
         /// get data for page load
         /// </summary>
         /// <returns></returns>
-        [HttpGet("page-load")]
+        [HttpGet("leagues/{leagueId}/page-load")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetDataForPageLoad([Query] string loginInfo = "")
+        public async Task<IActionResult> GetDataForPageLoad([Path] int leagueId, [Query] string loginInfo = "")
         {
+            //TODO: THIS NEEDS BETTER ERROR HANDLING AND WIN MESSAGES
             OwnerDTO profile = null;
             var hasCookies = !string.IsNullOrEmpty(loginInfo);
 
             if (hasCookies) profile = await _oService.CookieLogin(loginInfo);
             
             var owners = await _oService.GetAllOwners();
-            var lotsQuery = await _bService.GetAllLots();
-            var freeAgents = await _pService.GetAllFreeAgents();
+            var lotsQuery = await _bService.GetAllLots(leagueId);
+            var freeAgents = await _pService.GetAllFreeAgents(leagueId);
             
             var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
-            
+            var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId));
+
+
+
             return Ok( new LoadData
             {
                 owners = owners,
                 lots = lots,
-                freeAgents = freeAgents,
+                freeAgents = filterOutAuctionPlayers.ToList(),
                 profile = hasCookies ? profile : null
             });
             return BadRequest(new ErrorResponse("Initial page load failed."));
@@ -78,13 +82,13 @@ namespace FreeAgencyAuctionAPI
         /// get all mfl bio info for player bio
         /// </summary>
         /// <returns></returns>
-        [HttpGet("year/{lastYear}/playerId/{id}/position/{position}/firstName/{firstName}/lastName/{lastName}")]
+        [HttpGet("leagues/{leagueId}/year/{lastYear}/playerId/{id}/position/{position}/firstName/{firstName}/lastName/{lastName}")]
         [Produces("application/json", Type = typeof(PlayerDTO))]
         [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position, [Query("hasAction")] bool hasAction)
+        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int leagueId, [FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position, [Query("hasAction")] bool hasAction)
         {
-            var ret = await _mfl.GetMflPlayerBioDetails(lastYear, id, firstName, lastName, position, hasAction);
+            var ret = await _mfl.GetMflPlayerBioDetails(leagueId, lastYear, id, firstName, lastName, position, hasAction);
             if (ret != null) return Ok(ret);
             return BadRequest();
         }
@@ -106,7 +110,6 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest(new ErrorResponse("There has been a more recent bid for this player. Try reloading the page."));
             try
             {
-                // if necessary, could send Rabbit message here instead
                 await _bService.HandleWinningTasks(bid);
             }
             catch (Exception e)
@@ -127,16 +130,18 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNewBid([FromBody] BidDTO newBid)
 
         {
-            if (newBid.LotId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
+            if (newBid.LotId == null || newBid.LeagueId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             if (!await _bService.ValidateBidForDbEntry(newBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddDays(1);
+            newBid.Expires = DateTime.UtcNow.AddDays(200);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
                 LotId = (int) newBid.LotId,
-                Bid = ret
+                Bid = ret,
+                LeagueId = newBid.LeagueId
             };
+            ret.LotId = newBid.LotId;
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
             if (updatedLot != null)
             {
@@ -157,17 +162,19 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNomination([FromBody] BidDTO nomination)
 
         {
-            if (nomination.LotId == null)
+            if (nomination.LotId == null || nomination.LeagueId == null)
             {
-                _logger.LogCritical("Somehow a null lotId was entered with bid {bid}", nomination.BidId);
-                return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID is null."));
+                _logger.LogCritical("Somehow a null lotId or leagueId was entered with bid {bid}", nomination.BidId);
+                return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddDays(1);
+            nomination.Expires = DateTime.UtcNow.AddDays(200);
             var ret = await _bService.Nominate(nomination);
+            ret.LotId = nomination.LotId;
             var lotToUpdate = new LotDTO
             {
                 LotId = (int) nomination.LotId,
-                Bid = ret
+                Bid = ret,
+                LeagueId = nomination.LeagueId
             };
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
             if (updatedLot == null) return BadRequest();
@@ -217,38 +224,38 @@ namespace FreeAgencyAuctionAPI
             return Ok(ret);
         }
         
-        [HttpGet("salaryCap")]
+        [HttpGet("leagues/{leagueId}/salaryCap")]
         [Produces("application/json")]
-        [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetSalaryCap()
+        public async Task<IActionResult> GetSalaryCap([FromRoute] int leagueId)
         {
-            var capSpace = await _mfl.GetSalaryCapRoom();
-            await _oService.UpdateCapSpaceForOwners(capSpace.OrderBy(_ => _.ownerid).Select(_ => _.caproom)
+            var capSpace = await _mfl.GetSalaryCapRoom(leagueId);
+            await _oService.UpdateCapSpaceForOwners(capSpace.OrderBy(_ => _.Ownerid).Select(_ => _.Caproom ?? 0)
                 .ToList());
             return Ok();
         }
 
-        [HttpGet("players/{playerId}/bid-history")]
+        [HttpGet("leagues/{leagueId}/players/{playerId}/bid-history")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetBidHisotry([FromRoute] string playerId)
+        public async Task<IActionResult> GetBidHisotry([FromRoute] int leagueId, [FromRoute] string playerId)
         {
-            return Ok(await _bService.GetBidHistory(playerId));
+            return Ok(await _bService.GetBidHistory(leagueId, playerId));
         }
         
-        [HttpPost("tip")]
+        [HttpPost("leagues/{leagueId}/tip")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetBidSuggestion([FromBody] PlayerTipRequestDTO tipRequestRequest)
+        public async Task<IActionResult> GetBidSuggestion([FromRoute] int leagueId, [FromBody] PlayerTipRequestDTO tipRequestRequest)
         {
             await _pService.GetSuggestedSalary(tipRequestRequest);
-            return Ok(await _bService.GetBidHistory(tipRequestRequest.MflId));
+            return Ok(await _bService.GetBidHistory(leagueId, tipRequestRequest.MflId));
         }
 
-        [HttpGet("inventory")]
+        /*[HttpGet("inventory")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -263,7 +270,7 @@ namespace FreeAgencyAuctionAPI
             var playersToAddToDb = mflFreeAgentsTask.Result.ToList().Where(mfl =>
             {
                 if (playerIdsAndTeamsInDb.FirstOrDefault(dbPlayer =>
-                    dbPlayer.team == mfl.team && dbPlayer.mflId == mfl.id) == null) return true;
+                    dbPlayer.team == mfl.team && dbPlayer.mflId == int.Parse(mfl.id)) == null) return true;
                 return false;
             });
             // if a players team changed, they should be in playersToAddToDb.
@@ -276,17 +283,16 @@ namespace FreeAgencyAuctionAPI
                     h => h.LastName,
                     (mfl, h) => new PlayerEntity
                     {
-                        mflid = mfl.id,
-                        age = _mfl.GetAgeInt(mfl.birthdate),
-                        firstname = mfl.first_name,
-                        lastname = mfl.last_name,
-                        fullname = mfl.name,
-                        headshot = h.Count() > 1 ? h.FirstOrDefault(_ => _.FirstName == mfl.first_name)?.Headshot : h.FirstOrDefault()?.Headshot,
-                        height = Int32.Parse(mfl.height),
-                        weight = Int32.Parse(mfl.weight),
-                        position = mfl.position,
-                        team = mfl.team,
-                        mflidint = Int32.Parse(mfl.id)
+                        Mflid = int.Parse(mfl.id),
+                        Age = _mfl.GetAgeInt(mfl.birthdate),
+                        Firstname = mfl.first_name,
+                        Lastname = mfl.last_name,
+                        Fullname = mfl.name,
+                        Headshot = h.Count() > 1 ? h.FirstOrDefault(_ => _.FirstName == mfl.first_name)?.Headshot : h.FirstOrDefault()?.Headshot,
+                        Height = Int32.Parse(mfl.height),
+                        Weight = Int32.Parse(mfl.weight),
+                        Position = mfl.position,
+                        Team = mfl.team,
                     }
                 ).ToList();
             var mflIdsInDb = playerIdsAndTeamsInDb.Select(p => p.mflId).ToList();
@@ -294,7 +300,7 @@ namespace FreeAgencyAuctionAPI
             var newPlayerList = new List<PlayerEntity>();
             playersToAddWithHeadshots.ForEach(player =>
             {
-                if (mflIdsInDb.Contains(player.mflid))
+                if (mflIdsInDb.Contains(player.Mflid))
                 {
                     teamChangeList.Add(player);
                 }
@@ -306,6 +312,6 @@ namespace FreeAgencyAuctionAPI
             await _pService.UpdateTeamsAndHeadshotsInDb(teamChangeList);
             await _pService.LoadAllFreeAgentsIntoDb(newPlayerList);
             return Ok();
-        }
+        }*/
     }
 }

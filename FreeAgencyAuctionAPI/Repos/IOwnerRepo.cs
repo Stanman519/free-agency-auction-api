@@ -2,17 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IOwnerRepo
     {
-        public Task UpdateCapRoomForAllOwners(List<int> capSpace);
+        //public Task UpdateCapRoomForAllOwners(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         public Task<OwnerEntity> Register(OwnerEntity newUser);
@@ -34,26 +32,45 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var ret = await _db.Owners.FirstOrDefaultAsync(o => 
-                                                                        o.ownername.ToUpper() == owner.Ownername.ToUpper() &&
-                                                                   o.password_hash == owner.Password);
+                        o.Ownername.ToUpper() == owner.Ownername.ToUpper() &&
+                    o.PasswordHash == owner.Password);
                 if (ret == null) return null;
-                return new OwnerDTO
-                {
-                    OwnerId = ret.ownerid,
-                    Ownername = ret.ownername,
-                    CapRoom = ret.caproom,
-                    YearsLeft = ret.yearsleft,
-                    Password = ret.password_hash
-                };
+
+                return await (from o in _db.Owners
+                              join l in _db.LeagueOwners on o.Ownerid equals l.Ownerid into temp
+                              select new OwnerDTO
+                              {
+                                  OwnerId = o.Ownerid,
+                                  Ownername = o.Ownername,
+                                  Password = o.PasswordHash,
+                                  Premium = o.Premium ?? false,
+                                  DisplayName = o.Displayname,
+                                  Leagues = temp.Select(_ => new LeagueOwnerDTO
+                                  {
+                                      CapRoom = _.Caproom ?? 0,
+                                      YearsLeft = _.Yearsleft ?? 0,
+                                      Mflfranchiseid = _.Mflfranchiseid,
+                                      Leagueownerid = _.Leagueownerid,
+                                      League = new LeagueDTO
+                                      {
+                                          LeagueId = _.Leagueid,
+                                          Name = _.League.Name,
+                                          MflHash = _.League.Mflhash,
+                                          CommishCookie = _.League.Commishcookie,
+                                          
+                                      }
+                                  })
+                              }).FirstOrDefaultAsync(o => o.Ownername.ToUpper() == owner.Ownername.ToUpper() && o.Password == owner.Password);
+
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "login exception");
                 return null;
             }
         }
-
-        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
+        //MOVE TO AZURE FUNCTION
+/*        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
         {
             try
             {
@@ -70,7 +87,7 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 _logger.LogError(e.Message);
             }
-        }
+        }*/
 
         public async Task<List<OwnerEntity>> GetAllOwners()
         {

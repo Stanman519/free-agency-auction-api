@@ -8,77 +8,65 @@ using FreeAgencyAuctionAPI.Repos;
 
 namespace FreeAgencyAuctionAPI.Services
 {
-    public interface IPlayerServiceLayer
+    public interface IPlayerService
     {
-        public Task<PlayerDTO> GetPlayerById(string id);
-        public Task<List<PlayerDTO>> GetRosteredPlayers();
-        public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
+        public Task<PlayerDTO> GetPlayerById(int id);
+        public Task<List<PlayerDTO>> GetRosteredPlayers(int leagueId);
+        //public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
         Task<List<PlayerDTO>> GetAllPlayers();
-        public Task<PlayerDTO> WinPlayer(BidDTO bid);
-        public Task<List<PlayerDTO>> GetAllFreeAgents();
-        Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players);
-        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
+        public Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId);
+        //Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players);
+        //Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
         Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip);
     }
-    public class PlayerServiceLayer : IPlayerServiceLayer
+    public class PlayerService : IPlayerService
     {
         private readonly IPlayerRepo _repo;
         private readonly IMapper _mapper;
         private readonly ISharkApi _sharkApi;
+        private readonly IMflApi _mflApi;
 
-        public PlayerServiceLayer(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi)
+        public PlayerService(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi, IMflApi mflApi)
         {
             _repo = playerRepo;
             _mapper = mapper;
             _sharkApi = sharkApi;
+            _mflApi = mflApi;
         }
 
-        public async Task<PlayerDTO> GetPlayerById(string id)
+        public async Task<PlayerDTO> GetPlayerById(int id)
         {
             var entity = await _repo.GetPlayerById(id);
             if (entity == null) return null;
             return _mapper.Map<PlayerEntity, PlayerDTO>(entity);
         }
 
-        public async Task<List<PlayerDTO>> GetRosteredPlayers()
+        public async Task<List<PlayerDTO>> GetRosteredPlayers(int leagueId)
         {
-            var entities = await _repo.GetRosteredPlayers();
+            var entities = await _repo.GetRosteredPlayers(leagueId);
             if (entities == null) return null;
             return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(entities);
         }
 
-        public async Task<PlayerDTO> NominatePlayer(PlayerDTO player)
+/*        public async Task<PlayerDTO> NominatePlayer(PlayerDTO player)
         {
             var owned = _mapper.Map<PlayerDTO, PlayerEntity>(player);
             var ret = await _repo.SetPlayerOwner(owned);
             return _mapper.Map<PlayerEntity, PlayerDTO>(ret);
-        }
-
-        public async Task<PlayerDTO> WinPlayer(BidDTO bid)
-        {
-            var owned = await _repo.WinPlayer(_mapper.Map<BidDTO, BidEntity>(bid));
-            return _mapper.Map<PlayerEntity, PlayerDTO>(owned);
-        }
+        }*/
 
         public async Task<List<PlayerDTO>> GetAllPlayers()
         {
             var freeAgents = await _repo.GetAllPlayers();
             return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
         }
-        public async Task<List<PlayerDTO>> GetAllFreeAgents()
+        public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
         {
-            var freeAgents = await _repo.GetAllFreeAgents();
+            var freeAgentMflIdsRoot = (await _mflApi.GetMflFreeAgents(leagueId));
+            var freeAgentMflIds = freeAgentMflIdsRoot.freeAgents.leagueUnit.player.Select(p => int.Parse(p.id));
+            var freeAgents = await _repo.GetPlayersByMflIds(freeAgentMflIds);
+            //var freeAgents = await _repo.GetAllFreeAgents(leagueId);
             return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
-        }
-
-        public async Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players)
-        {
-            await _repo.AddFreshPlayerInventory(players);
-        }
-
-        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
-        {
-            await _repo.UpdateTeamsAndHeadshotsInDb(teamChangeList);
         }
 
         public async Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip)

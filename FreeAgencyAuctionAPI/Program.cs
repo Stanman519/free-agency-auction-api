@@ -1,11 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace FreeAgencyAuctionAPI
 {
@@ -28,6 +24,17 @@ namespace FreeAgencyAuctionAPI
                 //     //logging.AddTraceSource();
                 //     
                 // })
+                .ConfigureAppConfiguration((hostingContext, config) =>
+                {
+                    config
+                        //.SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                    .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true) 
+                    .AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+                    Console.WriteLine(hostingContext.HostingEnvironment.EnvironmentName);
+                })
+
+
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

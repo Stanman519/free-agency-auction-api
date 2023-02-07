@@ -1,17 +1,17 @@
 using System;
-using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.Extensions.Options;
 using StreamChat.Clients;
 
 namespace FreeAgencyAuctionAPI.Services
 {
     public interface IOwnerServiceLayer
     {
-        public Task UpdateCapSpaceForOwners(List<int> capSpace);
+        //public Task UpdateCapSpaceForOwners(List<int> capSpace);
         public Task<List<OwnerDTO>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
@@ -23,18 +23,17 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IOwnerRepo _repo;
         private StreamClientFactory _factory;
 
-        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo)
+        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IOptionsSnapshot<AppConfig> options)
         {
             _mapper = mapper;
             _repo = repo;
-            _factory = new StreamClientFactory("REDACTED_STREAM_KEY",
-                "REDACTED_STREAM_SECRET");
+            _factory = new StreamClientFactory(options.Value.Stream.Key, options.Value.Stream.Password);
         }
-        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
+/*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
-            await _repo.UpdateCapRoomForAllOwners(capSpace);
+            //await _repo.UpdateCapRoomForAllOwners(leagueId, capSpace);
 
-        }
+        }*/
 
         public async Task<List<OwnerDTO>> GetAllOwners()
         {
@@ -45,11 +44,11 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<OwnerDTO> Login(OwnerDTO owner)
         {
             var plaintextBytes= System.Text.Encoding.UTF8.GetBytes(owner.Password);
-            owner.Password = System.Convert.ToBase64String(plaintextBytes);
+            owner.Password = Convert.ToBase64String(plaintextBytes);
 
             var dbOwner =  await _repo.Login(owner);
             var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 
@@ -64,7 +63,7 @@ namespace FreeAgencyAuctionAPI.Services
             };
             var dbOwner =  await _repo.Login(loginAttempt);
             var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 
@@ -74,10 +73,10 @@ namespace FreeAgencyAuctionAPI.Services
             newUser.Password = System.Convert.ToBase64String(plaintextBytes);
             
             var entity = _mapper.Map<OwnerDTO, OwnerEntity>(newUser);
-            entity.premium = false;
+            entity.Premium = false;
             var dbOwner = _mapper.Map<OwnerEntity, OwnerDTO>(await _repo.Register(entity));
             var userClient = _factory.GetUserClient();
-            dbOwner.Token = userClient.CreateToken(dbOwner.Ownername);
+            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
         

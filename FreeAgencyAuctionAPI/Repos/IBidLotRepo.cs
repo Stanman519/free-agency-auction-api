@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
-using FreeAgencyAuctionAPI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -12,84 +11,59 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IBidLotRepo
     {
-        Task<List<LotDTO>> GetAllLots();
-        Task<LotEntity> ClearThisLot(int lotId);
+        Task<List<LotDTO>> GetAllLots(int leagueId);
+        Task<LotEntity> ClearThisLot(int lotId, int leagueId, int bidId);
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
-        Task<BidDTO> AddBid(BidEntity newBid);
+        Task<BidEntity> AddBid(BidDTO newBid);
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
-        Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId);
-        Task<BidEntity> GetLatestBidForPlayerId(string mflId);
+        Task<List<BidDTO>> GetBidHistoryByPlayerId(int leagueId, string playerId);
+        Task<BidEntity> GetLatestBidForPlayerId(int mflId, int leagueId);
     }
 
     public class BidLotRepo : IBidLotRepo
     {
         private readonly AuctionContext _db;
         private readonly ILogger<BidLotRepo> _logger;
+        private readonly IMapper _mapper;
 
-        public BidLotRepo(AuctionContext db, ILogger<BidLotRepo> logger)
+        public BidLotRepo(AuctionContext db, ILogger<BidLotRepo> logger, IMapper mapper)
         {
             _db = db;
             _logger = logger;
+            _mapper = mapper;
         }
 
-        public async Task<List<LotDTO>> GetAllLots()
+        public async Task<List<LotDTO>> GetAllLots(int leagueId)
         {
             try
             {
-                var activeBids = from lot in _db.Lots
-                    join bid in _db.Bids on lot.bidid equals bid.bidid into bidResult
-                    from br in bidResult.DefaultIfEmpty()
-                    join player in _db.Players on br.mflid equals player.mflid into bidWithPlayer
-                    from p in bidWithPlayer.DefaultIfEmpty()
-                    orderby lot.lotid
-                    select new LotDTO
-                    {
-                        LotId = lot.lotid,
-                        Bid = br.bidid == null ? null : new BidDTO
-                        {
-                            Player = new PlayerDTO
-                            {
-                                Age = p.age,
-                                ContractValue = p.contractvalue == null ? 0 : p.contractvalue,
-                                FirstName = p.firstname,
-                                FullName = p.fullname,
-                                Headshot = p.headshot,
-                                LastName = p.lastname,
-                                Length = p.length,
-                                MflId = p.mflid.ToString(),
-                                Position = p.position,
-                                Team = p.team,
-                                ActionShot = p.actionshot
-                            },
-                            Expires = br.expires,
-                            BidSalary = br.bidsalary == null ? 0 : br.bidsalary,
-                            BidLength = br.bidlength == null ? 0 : br.bidlength,
-                            Ownername = br.ownername ?? "",
-                            BidId = br.bidid == null ? 0 : br.bidid,
-                            LotId = lot.lotid
-                        }
-                    };
-                return activeBids.ToList();
+                var activeBids = await _db.Lots.Where(_ => _.Leagueid == leagueId).ToListAsync();
+                var lots = _mapper.Map<List<LotDTO>>(activeBids);
+                return lots;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "error fetching lots");
                 return null;
             }
         }
 
-        public async Task<LotEntity> ClearThisLot(int lotId)
+        public async Task<LotEntity> ClearThisLot(int lotId, int leagueId, int bidId)
         {
             try
             {
-                var refreshLot = await _db.Lots.FirstAsync(l => l.lotid == lotId);
-                refreshLot.bidid = null;
-                await _db.SaveChangesAsync();
+                var refreshLot = await _db.Lots.FirstAsync(l => l.Lotid == lotId && l.Leagueid == leagueId && l.Bidid == bidId);
+                if (refreshLot != null) 
+                {
+                    refreshLot.Bidid = null;
+                    await _db.SaveChangesAsync();
+                }
+
                 return refreshLot;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "error clearing lot");
                 return null;
             }
         }
@@ -98,72 +72,77 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var lotToUpdate = await _db.Lots.FirstAsync(l => l.lotid == lot.LotId);
+                var lotToUpdate = await _db.Lots.FirstAsync(l => l.Lotid == lot.LotId && l.Leagueid == lot.LeagueId);
                 
-                lotToUpdate.bidid = lot.Bid.BidId;
+                lotToUpdate.Bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "Error updating lot");
                 return null;
             }
         }
 
-        public async Task<List<BidEntity>> GetBidHistoryByPlayerId(string playerId)
+        public async Task<List<BidDTO>> GetBidHistoryByPlayerId(int leagueId, string playerId)
         {
             try
             {
-                var x = await _db.Bids.Where(_ => _.mflid == playerId).ToListAsync();
-                return x;
+                var x = await _db.Bids.Where(_ => _.Mflid == int.Parse(playerId) && _.Leagueid == leagueId)
+                    .Select(b => new BidDTO
+                    {
+                        Ownername = b.LeagueOwner.Owner.Ownername,
+                        BidId = b.Bidid,
+                        BidLength = b.Bidlength,
+                        BidSalary = b.Bidsalary,
+                        OwnerId = b.Ownerid,
+                        Expires = b.Expires,
+                        LeagueId = b.Leagueid,
+                        Player = _mapper.Map<PlayerDTO>(b.Player)
+                    }).ToListAsync();
+                    return x;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "error gettin bid history" );
                 throw;
             }
         }
 
-        public async Task<BidDTO> AddBid(BidEntity newBid)
+        public async Task<BidEntity> AddBid(BidDTO newBid)
         {
             try
             {
-                await _db.Bids.AddAsync(newBid);
+                var bidEntity = _db.Bids.CreateProxy();
+                bidEntity.Bidlength = newBid.BidLength;
+                bidEntity.Bidsalary = newBid.BidSalary;
+                bidEntity.Mflid = newBid.Player.MflId;
+                bidEntity.Expires = newBid.Expires;
+                bidEntity.Leagueid = newBid.LeagueId;
+                bidEntity.Ownerid = newBid.OwnerId;
+                //bidEntity = _mapper.Map<BidEntity>(newBid);
+                await _db.Bids.AddAsync(bidEntity);
                 await _db.SaveChangesAsync();
-                var player = await _db.Players.FirstOrDefaultAsync(p => p.mflid == newBid.mflid);
-                return new BidDTO
-                {
-                    BidId = newBid.bidid,
-                    BidLength = newBid.bidlength,
-                    BidSalary = newBid.bidsalary, 
-                    Ownername = newBid.ownername,
-                    OwnerId = newBid.ownerid,
-                    Expires = newBid.expires,
-                    Player = new PlayerDTO
-                    {
-                        MflId = newBid.mflid.ToString(),
-                        FirstName = player.firstname,
-                        LastName = player.lastname
-                    }
-                };
+                var x = bidEntity.Player;
+                return bidEntity;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "add bid error");
                 return null;
             }
         }
 
-        public async Task<BidEntity> GetLatestBidForPlayerId(string mflId)
+        public async Task<BidEntity> GetLatestBidForPlayerId(int mflId, int leagueId)
         {
             try
             {
-                return await _db.Bids.OrderByDescending(_ => _.bidid).FirstOrDefaultAsync(b => b.mflid == mflId);
+                return await _db.Bids.OrderByDescending(_ => _.Bidid).FirstOrDefaultAsync(b => b.Mflid == mflId && b.Leagueid == leagueId);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, "get latest bid error");
                 throw;
             }
         }
@@ -172,13 +151,12 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var latestDbBid = await _db.Bids.OrderByDescending(_ => _.bidid)
-                    .FirstOrDefaultAsync(b => b.mflid == winningBidEntity.mflid);
-                return latestDbBid.bidid == winningBidEntity.bidid;
+                var latestDbBid = await _db.Bids.OrderByDescending(_ => _.Bidid).FirstOrDefaultAsync(b => b.Mflid == winningBidEntity.Mflid && b.Leagueid == winningBidEntity.Leagueid);
+                return latestDbBid.Bidid == winningBidEntity.Bidid;
             }
             catch (Exception e)
             {
-                _logger.LogError(e.Message);
+                _logger.LogError(e, "latest bid verify error");
                 return false;
             }
         }

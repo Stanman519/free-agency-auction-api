@@ -1,15 +1,14 @@
-using System;
+using Azure.Identity;
 using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Npgsql;
-using RabbitMQ.Client;
 using RestEase;
 
 
@@ -27,11 +26,22 @@ namespace FreeAgencyAuctionAPI
         
         public void ConfigureServices(IServiceCollection services)
         {
+            var appConfig = new AppConfig();
+            Configuration.Bind(appConfig);
             services.AddCors(c =>
             {
                 c.AddPolicy("AllowSpecificOrigin",
-                    options => options.WithOrigins("https://capn-crunch-gm-bot.herokuapp.com", "https://stanfan.herokuapp.com", "http://capn-crunch-gm-bot.herokuapp.com", "http://stanfan.herokuapp.com",
-                            "http://localhost:3000", "https://localhost:3000", "https://capn-crunch.herokuapp.com", "http://capn-crunch.herokuapp.com", "http://localhost:8080", "https://localhost:8080", "https://free-agency-auction.herokuapp.com")
+                    options => options.WithOrigins("https://capn-crunch-gm-bot.herokuapp.com", 
+                            "https://stanfan.herokuapp.com", 
+                            "http://capn-crunch-gm-bot.herokuapp.com", 
+                            "http://stanfan.herokuapp.com",
+                            "http://localhost:3000", 
+                            "https://localhost:3000", 
+                            "https://capn-crunch.herokuapp.com", 
+                            "http://capn-crunch.herokuapp.com", 
+                            "http://localhost:8080", 
+                            "https://localhost:8080",
+                            "https://free-agency-auction.herokuapp.com")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
@@ -40,31 +50,19 @@ namespace FreeAgencyAuctionAPI
             });
             services.AddSignalR();
             services.AddControllers();
-            //services.AddSingleton<IRabbitMqProducer<WinMessage>, WinProducer>();
-            services.AddSingleton(_ =>
-                {
-                    var uri = new Uri("amqps://zafemuwu:f8cock5ulqBvvuwhzRjKX_UVkxkkWKiw@clam.rmq.cloudamqp.com/zafemuwu");
-                    return new ConnectionFactory
-                    {
-                        Uri = uri
-                    };
-                });
-            services.AddSingleton(serviceProvider =>
-            {
-                var uri = new Uri("amqps://zafemuwu:f8cock5ulqBvvuwhzRjKX_UVkxkkWKiw@clam.rmq.cloudamqp.com/zafemuwu");
-                return new ConnectionFactory
-                {
-                    Uri = uri,
-                    DispatchConsumersAsync = true
-                };
-            });
             services.AddSwaggerGen();
-            services.AddSingleton(RestClient.For<IGMBot>("https://capn-crunch-gm-bot.herokuapp.com"));
-            services.AddSingleton(RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com"));
-            services.AddSingleton(RestClient.For<IMflApi>("https://www64.myfantasyleague.com"));
+            services.AddSingleton(RestClient.For<IGMBot>("https://capncrunch-api.azurewebsites.net/Bot"));
+            var mflGlobal = RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com");
+            mflGlobal.CommishCookie = appConfig.Mfl.CommishCookie;
+            services.AddSingleton(mflGlobal);
+            var leagueMfl = RestClient.For<IMflApi>("https://www49.myfantasyleague.com");
+            leagueMfl.CommishCookie = appConfig.Mfl.CommishCookie;
+            services.AddSingleton(leagueMfl);
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
-            services.AddSingleton(RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0"));
-            services.AddScoped<IPlayerServiceLayer, PlayerServiceLayer>();
+            var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
+            bing.BingKey = appConfig.Bing.BingSubscriptionKey;
+            services.AddSingleton(bing);
+            services.AddScoped<IPlayerService, PlayerService>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
             services.AddScoped<IMflService, MflService>();
@@ -74,28 +72,21 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IBidLotRepo, BidLotRepo>();
             //services.AddScoped<IWinSendingSvc, WinSendingSvc>();
             services.AddAutoMapper(typeof(Startup));
-            
 
-            var databaseUrl =
-                @"postgres://REDACTED_HEROKU_PG_USER:REDACTED_HEROKU_PG_PW@ec2-54-161-150-170.compute-1.amazonaws.com:5432/dacgk47k91p2vs";
-            var databaseUri = new Uri(databaseUrl);
-            var userInfo = databaseUri.UserInfo.Split(':');
-            
-            var builder = new NpgsqlConnectionStringBuilder
+            services.AddAzureClients(builder =>
             {
-                Host = databaseUri.Host,
-                Port = databaseUri.Port,
-                Username = userInfo[0],
-                Password = userInfo[1],
-                Database = databaseUri.LocalPath.TrimStart('/'),
-                SslMode = SslMode.Require, 
-                TrustServerCertificate = true
-            };
-            
+                // Use the environment credential by default
+                builder.UseCredential(new DefaultAzureCredential());
+                builder.AddQueueServiceClient(appConfig.QueueConfig.AzureStorageConnectionString)
+                  .ConfigureOptions(c => c.MessageEncoding = Azure.Storage.Queues.QueueMessageEncoding.Base64);
+            });
+
+
             services.AddDbContext<AuctionContext>(
                 options =>
                 {
-                    options.UseNpgsql(builder.ConnectionString);
+                    options.UseSqlServer(appConfig.SqlServerConnectionString);
+                    options.UseLazyLoadingProxies();
                 });
             
         }

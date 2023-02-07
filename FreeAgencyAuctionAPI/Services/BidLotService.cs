@@ -1,24 +1,23 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI.Services
 {
     public interface IBidLotService
     {
-        public Task<List<LotDTO>> GetAllLots();
-        public Task<LotDTO> ClearThisLot(int lotId);
+        public Task<List<LotDTO>> GetAllLots(int leagueId);
+        public Task<LotDTO> ClearThisLot(int lotId, int leagueId, int bidId);
         public Task<LotDTO> UpdateLotWithBid(LotDTO lot);
         public Task<BidDTO> PostNewBid(BidDTO newBid);
         Task<BidDTO> Nominate(BidDTO nomination);
         Task<bool> IsLatestBid(BidDTO winningBid);
-        Task<List<BidDTO>> GetBidHistory(string playerId);
+        Task<List<BidDTO>> GetBidHistory(int leagueId, string playerId);
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
         // Task SendWinningMessage(BidDTO bid);
@@ -26,33 +25,26 @@ namespace FreeAgencyAuctionAPI.Services
 
     public class BidLotService : IBidLotService
     {
+        private readonly IQueueService _queue;
         private readonly IMapper _mapper;
         private readonly IBidLotRepo _repo;
-        private readonly IPlayerRepo _playerRepo;
-        private readonly IMflService _mfl;
-        private readonly IPlayerServiceLayer _pService;
         private readonly IGMBot _bot;
         private readonly ILogger<BidLotService> _logger;
-        private readonly IOwnerServiceLayer _oService;
 
 
-        public BidLotService(IMapper mapper, IBidLotRepo repo, IPlayerRepo playerRepo, IMflService mfl, 
-            IPlayerServiceLayer pService, IOwnerServiceLayer oService, IGMBot bot, ILogger<BidLotService> logger)
+        public BidLotService(IMapper mapper,IQueueService queue, IBidLotRepo repo, IGMBot bot, ILogger<BidLotService> logger)
         {
             _mapper = mapper;
             _repo = repo;
-            _playerRepo = playerRepo;
-            _mfl = mfl;
-            _pService = pService;
-            _oService = oService;
             _bot = bot;
+            _queue = queue;
             _logger = logger;
         }
 
-        public async Task<List<LotDTO>> GetAllLots()
+        public async Task<List<LotDTO>> GetAllLots(int leagueId)
         {
             var rightNowUTC = DateTime.UtcNow;  // NEED TO CHECK IF any times expired 
-            var preCheckedLots =  await _repo.GetAllLots();
+            var preCheckedLots =  await _repo.GetAllLots(leagueId);
             var deadLotsToFix = new List<Task>();
             
             preCheckedLots.ForEach(l =>
@@ -69,15 +61,14 @@ namespace FreeAgencyAuctionAPI.Services
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                throw;
+                _logger.LogError(e, "automated win error");
             }
             return preCheckedLots;
         }
 
-        public async Task<LotDTO> ClearThisLot(int lotId)
+        public async Task<LotDTO> ClearThisLot(int lotId, int leagueId, int bidId)
         {
-            var ret = await _repo.ClearThisLot(lotId);
+            var ret = await _repo.ClearThisLot(lotId, leagueId, bidId);
             return _mapper.Map<LotEntity, LotDTO>(ret);
         }
 
@@ -89,22 +80,16 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<BidDTO> PostNewBid(BidDTO newBid)
         {
-            //TODO: check to make sure thhis is the latest bid
-            var newBidEntity = _mapper.Map<BidDTO, BidEntity>(newBid);
-            var res = await _repo.AddBid(newBidEntity);
-            var playerEntity = await _playerRepo.GetPlayerById(newBid.Player.MflId);
-            var player = _mapper.Map<PlayerDTO>(playerEntity);
-            res.LotId = newBid.LotId;
-            res.Player = player;
-            return res;
+            var res = await _repo.AddBid(newBid);
+            //var playerEntity = await _playerRepo.GetPlayerById(newBid.Player.MflId);
+            var bid = _mapper.Map<BidDTO>(res);
+            return bid;
 
         }
 
-        public async Task<List<BidDTO>> GetBidHistory(string playerId)
+        public async Task<List<BidDTO>> GetBidHistory(int leagueId,string playerId)
         {
-            var bids = await _repo.GetBidHistoryByPlayerId(playerId);
-            Console.WriteLine(bids);
-            return _mapper.Map<List<BidDTO>>(bids);
+            return await _repo.GetBidHistoryByPlayerId(leagueId, playerId);
         }
 
         public async Task<bool> IsLatestBid(BidDTO winningBid)
@@ -112,87 +97,55 @@ namespace FreeAgencyAuctionAPI.Services
             var winningBidEntity = _mapper.Map<BidDTO, BidEntity>(winningBid);
             return await _repo.CheckLatestBidId(winningBidEntity);
         }
-
-        // public async Task SendWinningMessage(BidDTO bid)
-        // {
-        //     // TODO: ?? make sure that this bid is actually a winner.  does the player have an owner already? etc.
-        //     try
-        //     {
-        //         await _rabbit.SendWinMessage(new WinMessage(bid));
-        //         var safeLotId = bid.LotId ?? 0;
-        //         await ClearThisLot(safeLotId);
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine(e);
-        //         throw;
-        //     }
-        // }
         
         public async Task HandleWinningTasks(BidDTO bid)
         {
-            // make this a task of void and just shoot back error messages instead
             var safeLotId = bid.LotId ?? 0;
-            // do two batches because Entity framework cant do async.
-            var lotTask = ClearThisLot(safeLotId);
-            var addPlayerRespTask =  _mfl.AddPlayerToTeam(bid);
-            
-            var playerTask =  _pService.WinPlayer(bid);
-            var contractTask = _mfl.GiveNewContractToPlayer(bid);
-            var capSpaceTask = _mfl.GetSalaryCapRoom();
-            
-            var timer = new Stopwatch();
-            // TODO: we used to do the owner budget call in the win POST ... do it now with SignalR?
+
+            await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
+
             try
             {
-                timer.Start();
-                await Task.WhenAll(lotTask, addPlayerRespTask);
-                await Task.WhenAll(playerTask, contractTask, capSpaceTask);
-                await _oService.UpdateCapSpaceForOwners(capSpaceTask.Result.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
-                timer.Stop();
-                _logger.LogInformation("time for winning tasks to complete: {time}", timer.Elapsed);
+                var msg = JsonConvert.SerializeObject(bid);
+                _queue.SendMessageToQueue(bid);
+                //if (string.IsNullOrEmpty(res.Value.MessageId)) _logger.LogError("win message error", bid.BidId);
             }
             catch (Exception e)
             {
                 try
                 {
-                    _logger.LogError("there was an error syncing player {bid.Player.MflId} to mfl.", bid.Player.MflId);
+                    _logger.LogError("there was an error syncing player {bid.Player.MflId} to mfl.", e);
                     await _bot.NotifyMflError(
                         new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
                 }
                 catch (Exception exception)
                 {
-                    _logger.LogError("GM could not be notified with player win failure.");
-                    // TODO: should i add the player back to the lot to retry the call? ehhh prob no cuz repeat failures
+                    _logger.LogError("GM could not be notified with player win failure.", exception);
                 }
-                throw;
+                return;
+            }
+            finally
+            {
+                
             }
         }
 
         public async Task<BidDTO> Nominate(BidDTO nomination)
         {
-            var bidToSubmit = _mapper.Map<BidEntity>(nomination);
-            var playerToAddTempOwner = new PlayerEntity
-            {
-                ownerid = -1,
-                mflid = nomination.Player.MflId
-            };
             try
             {
-                var submittedBid = await _repo.AddBid(bidToSubmit);
-                var playerWithTempOwner = await _playerRepo.SetPlayerOwner(playerToAddTempOwner); 
-                // var playerEntity = await _playerRepo.GetPlayerById(nomination.Player.MflId);  REDUNDANT
-                var player = _mapper.Map<PlayerDTO>(playerWithTempOwner);
-                if (submittedBid != null && playerWithTempOwner != null)
+                var submittedBid = await _repo.AddBid(nomination);
+                //var playerEntity = await _playerRepo.GetPlayerById(nomination.Player.MflId);
+                if (submittedBid != null)
                 {
-                    submittedBid.LotId = nomination.LotId;
-                    submittedBid.Player = player;
-                    return submittedBid;
+                    //submittedBid.LotId = nomination.LotId;
+                    //submittedBid.Player = _mapper.Map<PlayerDTO>(playerEntity);
+                    return _mapper.Map<BidDTO>(submittedBid);
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                _logger.LogError(e, "nomination error!");
                 return null;
             }
 
@@ -201,8 +154,8 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<bool> ValidateBidForDbEntry(BidDTO bid)
         {
-            var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId);
-            return (latestBid.bidlength * 5) + latestBid.bidsalary < (bid.BidLength * 5) + bid.BidSalary;
+            var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId, bid.LeagueId);
+            return (latestBid.Bidlength * 5) + latestBid.Bidsalary < (bid.BidLength * 5) + bid.BidSalary;
         }
     }
 }

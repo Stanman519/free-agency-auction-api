@@ -13,11 +13,8 @@ namespace FreeAgencyAuctionAPI.Models
         public string? ActionShot { get; set; }
         public int? Salary { set; get; }
         public int? Length { set; get; }
-        public string? OwnerName { set; get; }
         public string? Position { set; get; }
-        public int? OwnerId { set; get; }
-        public string MflId { set; get; }
-        public int PlayerId { set; get; }
+        public int MflId { set; get; }
         public int? ContractValue { set; get; }
     }
     

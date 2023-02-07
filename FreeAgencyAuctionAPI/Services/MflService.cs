@@ -6,6 +6,7 @@ using System.Xml.Serialization;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -13,11 +14,11 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task AddPlayerToTeam(BidDTO bid);
         Task GiveNewContractToPlayer(BidDTO bid);
-        Task<List<OwnerEntity>> GetSalaryCapRoom();
-        Task<List<MflPlayerDetails>> GetAllMflFreeAgents();
+        Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
+        Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
 
-        Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName, string lastName,
-            string position, bool hasAction);
+        Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
+            string lastName, string position, bool hasAction);
 
         int? GetAgeInt(string birthdate);
     }
@@ -30,8 +31,9 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly ILogger<MflService> _logger;
         private readonly IGMBot _gm;
         private readonly IPlayerRepo _pRepo;
+        private readonly IOptionsSnapshot<AppConfig> _options;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IOptionsSnapshot<AppConfig> options)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
@@ -39,6 +41,7 @@ namespace FreeAgencyAuctionAPI.Services
             _logger = logger;
             _gm = gm;
             _pRepo = pRepo;
+            _options = options;
         }
 
         public async Task AddPlayerToTeam(BidDTO bid)
@@ -47,13 +50,13 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 try
                 {
-                    var resp = await _globalApi.AddPlayerToMflTeam(bid.Player.MflId, teamId);
+                    var resp = await _globalApi.AddPlayerToMflTeam(bid.LeagueId, bid.Player.MflId, teamId);
                     var respString = await resp.Content.ReadAsStringAsync();
                     if (respString.ToUpper().Contains("ERROR"))
                     {
                         var error = respString.XmlDeserializeFromString<MflXmlError>();
                         _logger.LogInformation(error.ErrorMsg);
-                        _logger.LogError("{lastname} was not added to a team in mfl.", bid.Player.LastName);
+                        _logger.LogError("${lastname} was not added to a team in mfl.", bid.Player.LastName);
                         await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
                     }
                 }
@@ -65,17 +68,18 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int lastYear, string id, string firstName,
+        public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction)
         {
             var bioTask =
-                _leagueApi.GetMflPlayerDetails(id + ",15237,15281"); // adding two dummy players so that the response will be array lol
+                _leagueApi.GetMflPlayerDetails(leagueId, id + ",15237,15281"); // adding two dummy players so that the response will be array lol
             //Check out other api to add custom json serializer so you dont have to do this.
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
-            var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries();
-            var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(lastYear, position);
-            var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(lastYear - 1, position);
-            var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(lastYear - 2, position);
+            var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
+            var apiKey = _options.Value.Mfl.ApiKey;
+            var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear, position, apiKey);
+            var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 1, position, apiKey);
+            var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 2, position, apiKey);
 
             var taskList = new List<Task>
             {
@@ -116,6 +120,7 @@ namespace FreeAgencyAuctionAPI.Services
                 PrevOwner = lastSeasonTeam?.id == null ? "" : owners.First(_ => _.Value == lastSeasonTeam.id).Key,
                 PositionRanks = allScores.Select((year, index) =>
                 {
+                    if (year == null) return null;
                     var foundIndex = year.FindIndex(p => p?.Id == id);
                     return new MflBioPositionRank
                     {
@@ -140,7 +145,7 @@ namespace FreeAgencyAuctionAPI.Services
             var data = CreateBodyData(bid);
             try
             {
-                var resp = await _leagueApi.AdjustPlayerSalary(data);
+                var resp = await _leagueApi.AdjustPlayerSalary(bid.LeagueId, data);
                 var respString = await resp.Content.ReadAsStringAsync();
                 if (respString.ToUpper().Contains("ERROR"))
                 {
@@ -157,11 +162,11 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        public async Task<List<OwnerEntity>> GetSalaryCapRoom()
+        public async Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId)
         {
-            var bigLeagueTask = _leagueApi.GetBigLeagueObject();
-            var salaryTask = _leagueApi.GetMflSalaryAdjustments();
-            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries();
+            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId);
+            var salaryTask = _leagueApi.GetMflSalaryAdjustments(leagueId);
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
             await Task.WhenAll(bigLeagueTask, salaryTask, rostersTask);
 
             var bigLeagueObject = bigLeagueTask.Result.league.franchises.franchise;
@@ -203,22 +208,22 @@ namespace FreeAgencyAuctionAPI.Services
                 salaryTot => salaryTot.Id,
                 (tm, sal) => new
                 {
-                    Id = tm.Id,
+                    tm.Id,
                     CapSpace = tm.SalaryCapAmount - sal.rosterSalarySum
                 });
             
             var finalCapSpace = preAdjustmentsCapSpace.Join(reducedSalaryAdjustments, cap => cap.Id, adj => adj.Id,
-                (cap, adj) => new OwnerEntity()
+                (cap, adj) => new LeagueOwnerEntity()
                 {
-                    ownerid = int.Parse(cap.Id),
-                    caproom = (int) Math.Floor(cap.CapSpace - adj.SalaryAdjustments)
+                    Mflfranchiseid = int.Parse(cap.Id),
+                    Caproom = (int) Math.Floor(cap.CapSpace - adj.SalaryAdjustments)
                 }).ToList();
             return finalCapSpace;
         }
 
-        public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents()
+        public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId)
         {
-            var freeAgentIds = (await _leagueApi.GetMflFreeAgents()).freeAgents.leagueUnit.player.Select(_ => _.id)
+            var freeAgentIds = (await _leagueApi.GetMflFreeAgents(leagueId)).freeAgents.leagueUnit.player.Select(_ => _.id)
                 .ToList();
 
             var freeAgents1 = new List<string>();
@@ -237,8 +242,8 @@ namespace FreeAgencyAuctionAPI.Services
             freeAgents2.ForEach(p => queryParam2 = $"{queryParam2}{p},");
 
 
-            var playerDetails1Task = await _leagueApi.GetMflPlayerDetails(queryParam1);
-            var playerDetails2Task = await _leagueApi.GetMflPlayerDetails(queryParam2);
+            var playerDetails1Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam1);
+            var playerDetails2Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam2);
 
             //await Task.WhenAll(playerDetails1Task, playerDetails2Task);
 
