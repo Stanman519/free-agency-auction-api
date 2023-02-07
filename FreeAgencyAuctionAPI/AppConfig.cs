@@ -19,11 +19,11 @@
     public class MflKeys
     {
         public string CommishCookie { get; set; }
-        public string ApiKey { get; set; }
+        public string MflApiKey { get; set; }
     }
     public class StreamClient
     {
-        public string Key { get; set; }
-        public string Password { get; set; } 
+        public string StreamKey { get; set; }
+        public string StreamPassword { get; set; } 
     }
 }

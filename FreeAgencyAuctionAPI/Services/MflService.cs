@@ -76,7 +76,7 @@ namespace FreeAgencyAuctionAPI.Services
             //Check out other api to add custom json serializer so you dont have to do this.
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
             var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
-            var apiKey = _options.Value.Mfl.ApiKey;
+            var apiKey = _options.Value.Mfl.MflApiKey;
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear, position, apiKey);
             var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 1, position, apiKey);
             var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 2, position, apiKey);
