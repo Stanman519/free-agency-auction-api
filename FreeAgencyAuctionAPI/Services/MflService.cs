@@ -152,7 +152,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", bid.Player.LastName);
-                    await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
+                    //await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
             }
             catch (Exception e)
@@ -274,7 +274,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
 
-        private Dictionary<string, string> owners = new Dictionary<string, string>()
+        public Dictionary<string, string> owners = new Dictionary<string, string>()
         {
             {"Ryan", "0001"},
             {"tylerwelsh", "0002"},
@@ -287,13 +287,20 @@ namespace FreeAgencyAuctionAPI.Services
             {"Not a noob", "0009"},
             {"Flapjackcarl", "0010"},
             {"Juanard", "0011"},
-            {"Tbux", "0012"}
+            {"dkirsch16", "0012"}
         };
 
         public int? GetAgeInt(string birthdate)
         {
-            return Convert.ToInt32(Math.Floor(
-                (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
+            try
+            {
+                return Convert.ToInt32(Math.Floor(
+                    (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(Int32.Parse(birthdate))).TotalDays / 365));
+            }
+            catch (Exception e)
+            {
+                return null;
+            } 
         }
     }
 

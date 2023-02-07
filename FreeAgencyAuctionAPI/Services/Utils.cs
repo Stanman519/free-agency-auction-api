@@ -5,7 +5,21 @@ namespace FreeAgencyAuctionAPI.Services
     public static class Utils
     {
         public const string ThisYear = "2022";
-
+        public static Dictionary<int, string> Owners = new()
+        {
+            {1, "Ryan"},
+            {2, "tylerwelsh"},
+            {3, "Leb"},
+            {4, "caboroberts"},
+            {5,"turley69"},
+            {6,"CrappieDuster"},
+            {7,"cory"},
+            {8,"jeremimattern"},
+            {9,"Not a noob"},
+            {10,"Flapjackcarl"},
+            {11,"Juanard"},
+            {12,"dkirsch16"}
+        };
 
 
         public static Dictionary<string, PositionAgeCliff> AgeCliffs = new()

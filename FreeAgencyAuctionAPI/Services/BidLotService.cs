@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -20,7 +21,10 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<BidDTO>> GetBidHistory(int leagueId, string playerId);
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
+        Task PostNewBidChangesToGroup();
+        Task HandleWinMessages();
         // Task SendWinningMessage(BidDTO bid);
+        //Task testWin(BidEntity bid);
     }
 
     public class BidLotService : IBidLotService
@@ -39,6 +43,7 @@ namespace FreeAgencyAuctionAPI.Services
             _bot = bot;
             _queue = queue;
             _logger = logger;
+            _mflApi = mflApi;
         }
 
         public async Task<List<LotDTO>> GetAllLots(int leagueId)
@@ -49,15 +54,18 @@ namespace FreeAgencyAuctionAPI.Services
             
             preCheckedLots.ForEach(l =>
             {
-                if (l?.Bid?.Expires < rightNowUTC)
+                if (l?.Bid?.Expires.ToUniversalTime() < rightNowUTC)
                 {
-                    deadLotsToFix.Add(HandleWinningTasks(l.Bid));
+                    deadLotsToFix.Add(l.Bid);
                     l.Bid = null; // don't pass this bid in the lot back to client
                 }
             });
             try
             {
-                deadLotsToFix.ForEach(async l => await l);
+                foreach (var lot in deadLotsToFix)
+                {
+                    await HandleWinningTasks(lot);
+                }
             }
             catch (Exception e)
             {
@@ -157,5 +165,73 @@ namespace FreeAgencyAuctionAPI.Services
             var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId, bid.LeagueId);
             return (latestBid.Bidlength * 5) + latestBid.Bidsalary < (bid.BidLength * 5) + bid.BidSalary;
         }
+
+        public async Task HandleWinMessages()
+        {
+            var allWins = await _repo.GetAllWinMessages();
+            // group all by bid id, then check if any of each group has been processed.  if one has, and others have not, change all to be processed
+            var relevantWins = allWins.GroupBy(w => w.bidid).Where(w => !w.Any(bid => bid.proccessed));
+
+            foreach (var winGroup in relevantWins)
+            {
+                var sampleBid = winGroup.OrderBy(w => w.dummyid).First();
+                var bidDTO = _mapper.Map<BidDTO>(sampleBid);
+                bidDTO.Player = new PlayerDTO
+                {
+                    MflId = sampleBid.mflid
+                };
+                await _mfl.AddPlayerToTeam(bidDTO);
+                await _mfl.GiveNewContractToPlayer(bidDTO);
+                var player = (await _mflApi.GetMflPlayerDetails(sampleBid.mflid + ",15237,15281")).players.player.FirstOrDefault(p => p.id == sampleBid.mflid);
+                await _oService.SendWinningMessageToChat(player?.name, sampleBid.bidsalary,
+                    sampleBid.bidlength, sampleBid.ownername);
+                await _repo.MarkAllWinMessagesAsProcessed(sampleBid.bidid);
+            }
+            // i guess just do this for the hell of it
+            var capSpaceTask = await _mfl.GetSalaryCapRoom();
+            await _oService.UpdateCapSpaceForOwners(capSpaceTask.OrderBy(_ => _.ownerid).Select(c => c.caproom).ToList());
+            
+        }
+
+        public async Task PostNewBidChangesToGroup()
+        {
+            var strForBot = "Players with new bids in the last hour:\n";
+            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour();
+            var emptyLots = (await _repo.GetAllLots()).Where(l => l.Bid == null).ToList();
+            var bidsGroupedByPlayer = bidsFromLastHour.GroupBy(b => b.Player.MflId).ToList();
+            if (!bidsGroupedByPlayer.Any()) return;
+            foreach (var bid in bidsGroupedByPlayer)
+            {
+                var latestBid = bid.OrderByDescending(b => b.Expires).First();
+
+                strForBot +=
+                    $"{latestBid.Player.LastName} - ${latestBid.BidSalary} ({latestBid.Ownername})\n";
+            }
+
+            if (emptyLots.Any())
+            {
+                strForBot += "\nNeeds to nominate:\n";
+                foreach (var lot in emptyLots)
+                {
+                    strForBot += $"{Utils.Owners[lot.LotId]}\n";
+                }
+            }
+            
+            await _bot.NotifyMflError(new ErrorMessage(strForBot));
+        }
+        
+        
+        // public async Task testWin(BidEntity bid)
+        // {
+        //     try
+        //     {
+        //         await _repo.SendWinMessageToDb(bid);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine(e);
+        //         throw;
+        //     }
+        // }
     }
 }

@@ -147,6 +147,23 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
+        public async Task SendWinMessageToDb(BidEntity bid)
+        {
+            var winMsg = new WinMsg
+            {
+                bidid = bid.bidid,
+                bidlength = bid.bidlength,
+                bidsalary = bid.bidsalary,
+                expires = bid.expires,
+                mflid = bid.mflid,
+                ownerid = bid.ownerid,
+                ownername = bid.ownername,
+                proccessed = false
+            };
+            await _db.WinMessages.AddAsync(winMsg);
+            await _db.SaveChangesAsync();
+        }
+
         public async Task<bool> CheckLatestBidId(BidEntity winningBidEntity)
         {
             try
@@ -158,6 +175,63 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 _logger.LogError(e, "latest bid verify error");
                 return false;
+            }
+        }
+
+        public async Task<List<WinMsg>> GetAllWinMessages()
+        {
+            try
+            {
+                return await _db.WinMessages.ToListAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public async Task MarkAllWinMessagesAsProcessed(int bidId)
+        {
+            try
+            {
+                var winsToChange = await _db.WinMessages.Where(w => w.bidid == bidId).ToListAsync();
+                winsToChange.ForEach(w => w.proccessed = true);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        public async Task<List<BidDTO>> GetNewBidsFromTheLastHour()
+        {
+            var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+            try
+            {
+                return await _db.Bids.Where(b => b.expires >= oneHourAgo.AddHours(12)).Join(_db.Players, b => b.mflid, p => p.mflid, (b,p) => new BidDTO
+                {
+                    BidLength = b.bidlength,
+                    BidSalary = b.bidsalary,
+                    BidId = b.bidid,
+                    Expires = b.expires,
+                    OwnerId = b.ownerid,
+                    Ownername = b.ownername,
+                    Player = new PlayerDTO
+                    {
+                        FirstName = p.firstname,
+                        LastName = p.lastname,
+                        Position = p.position,
+                        MflId = p.mflid
+                    }
+                }).ToListAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
             }
         }
     }

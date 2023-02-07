@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -71,22 +73,31 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip)
         {
+            // IF TIP IS ALREADY IN DB RETURN IT
+
+            var existingTip = await _repo.GetTipByIds(tip.OwnerId, tip.MflId);
+            if (existingTip != null) return existingTip;
+            
+            var minTip = new SuggestionEntity(tip.OwnerId, tip.MflId, 1, 1, 2);
             var yearSugg = new int[] {1, 3};
-            var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
+            //var projections = await _sharkApi.GetSharkProjectionsByPosition(tip.Position);
+            var projections = getLocalProjectionByPosition(tip.Position);
             var player = projections.FirstOrDefault(p => p.ID == tip.MflId);
-            var isImpactStarter = (tip.Position == "QB" && player.Rank < 16) || (tip.Position == "RB" && player.Rank < 33) ||
-                              (tip.Position == "WR" && player.Rank < 37) || (tip.Position == "TE" && player.Rank < 11);
             if (player == null)
             {
-                // return null or record 1 in the db for this player
-                return -1;
+                await _repo.AddTipToDb(minTip);
+                return minTip;
             }
-            var positionRange = Utils.PositionRanges.First(pos =>
+            var isImpactStarter = (tip.Position == "QB" && player.Rank < 16) || (tip.Position == "RB" && player.Rank < 33) ||
+                              (tip.Position == "WR" && player.Rank < 37) || (tip.Position == "TE" && player.Rank < 11);
+            
+            // if they are so low THIS BREAKS  - need null as default
+            var positionRange = Utils.PositionRanges.FirstOrDefault(pos =>
                 pos.Position == tip.Position && (pos.RankMax >= player.Rank && pos.RankMin <= player.Rank));
-            if (positionRange.SalaryUpper == 1)
+            if (positionRange == null || positionRange.SalaryUpper == 1)
             {
-                await _repo.AddTipToDb(tip.MflId, tip.OwnerId, 1);
-                return 1;
+                await _repo.AddTipToDb(minTip);
+                return minTip;
             }
             var playerRangeLevel = player.Rank % 12;
             if (playerRangeLevel == 0) playerRangeLevel = 12;  // lower is better except 0. 0 is worst so make it 12
@@ -136,13 +147,41 @@ namespace FreeAgencyAuctionAPI.Services
             if (salary < 25 && yearSugg[1] > 2) yearSugg[1] = 2;
             // TODO: check 2nd highest team cap space, if salary is way over that.. lower the salary
 
-            await _repo.AddTipToDb(tip.MflId, tip.OwnerId, salary);
-            return salary;
+            var tipResponse = new SuggestionEntity(tip.OwnerId, tip.MflId, salary, yearSugg[0], yearSugg[1]);
+            await _repo.AddTipToDb(tipResponse);
+            return tipResponse;
             // 2 years or more younger than RB age cliff ? + 10%
             // 1 year younger + 5
             // 2 years over -10%
+            
+        }
 
+        private List<SharkPlayerProjection> getLocalProjectionByPosition(string tipPosition)
+        {
+            switch (tipPosition.ToUpper())
+            {
+                case "QB":
+                    return parseLocalProjectionByPosition("qb");
+                case "RB":
+                    return parseLocalProjectionByPosition("rb");
+                case "WR":
+                    return parseLocalProjectionByPosition("wr");
+                case "TE":
+                    return parseLocalProjectionByPosition("te");
+                default:
+                    return new List<SharkPlayerProjection>();
+            }
+        }
 
+        private List<SharkPlayerProjection> parseLocalProjectionByPosition(string pos)
+        {
+            using (StreamReader file = File.OpenText($"{pos}.json"))
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                var rawProjections = (List<SharkPlayerProjection>)serializer.Deserialize(file, typeof(List<SharkPlayerProjection>));
+
+                return rawProjections;
+            }
         }
     }
 }

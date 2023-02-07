@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RestEase;
+using StreamChat.Clients;
 
 
 namespace FreeAgencyAuctionAPI
@@ -21,6 +22,7 @@ namespace FreeAgencyAuctionAPI
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            
         }
         
         
@@ -45,8 +47,8 @@ namespace FreeAgencyAuctionAPI
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
-                        .SetIsOriginAllowedToAllowWildcardSubdomains()
-                        .WithExposedHeaders("Access-Control-Allow-Origin"));
+                        .SetIsOriginAllowedToAllowWildcardSubdomains());
+
             });
             services.AddSignalR();
             services.AddControllers();
