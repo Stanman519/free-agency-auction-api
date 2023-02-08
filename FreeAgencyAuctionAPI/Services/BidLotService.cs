@@ -32,7 +32,7 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly ILogger<BidLotService> _logger;
 
 
-        public BidLotService(IMapper mapper,IQueueService queue, IBidLotRepo repo, IGMBot bot, ILogger<BidLotService> logger)
+        public BidLotService(IMapper mapper, IQueueService queue, IBidLotRepo repo, IGMBot bot, ILogger<BidLotService> logger)
         {
             _mapper = mapper;
             _repo = repo;

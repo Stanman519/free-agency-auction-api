@@ -65,6 +65,7 @@ namespace FreeAgencyAuctionAPI
             var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
             bing.BingKey = appConfig.BingImageApi.BingSubscriptionKey;
             services.AddSingleton(bing);
+
             services.AddScoped<IPlayerService, PlayerService>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
@@ -73,7 +74,6 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
-            //services.AddScoped<IWinSendingSvc, WinSendingSvc>();
             services.AddAutoMapper(typeof(Startup));
 
             services.AddAzureClients(builder =>
@@ -83,7 +83,7 @@ namespace FreeAgencyAuctionAPI
                 builder.AddQueueServiceClient(appConfig.AzureMessageQueue.AzureStorageConnectionString)
                   .ConfigureOptions(c => c.MessageEncoding = Azure.Storage.Queues.QueueMessageEncoding.Base64);
             });
-
+            services.AddScoped<IQueueService, AzureQueueService>();
 
             services.AddDbContext<AuctionContext>(
                 options =>
