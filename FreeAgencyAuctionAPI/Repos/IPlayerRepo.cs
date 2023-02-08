@@ -14,10 +14,10 @@ namespace FreeAgencyAuctionAPI.Repos
         //public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
         //public Task<PlayerEntity> WinPlayer(BidEntity bid);
         public Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId);
-       // Task AddFreshPlayerInventory(List<PlayerEntity> players);
+        // Task AddFreshPlayerInventory(List<PlayerEntity> players);
         Task<List<PlayerEntity>> GetAllPlayers();
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
-/*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
+        /*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
         Task<List<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
     }
@@ -126,7 +126,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 return;
             }
         }
-        
+
         public async Task<List<PlayerEntity>> GetAllPlayers()
         {
             try
@@ -138,7 +138,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e, "error getting all players");
                 return null;
             }
-        } 
+        }
 
         public async Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId)
         {
@@ -146,11 +146,11 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 //outer join players and contracts, then remove lot players
                 return await (from p in _db.Players
-                            join c in _db.Contracts.Where(cont => cont.Leagueid == leagueId) on p.Mflid equals c.Mflid into temp
-                            from c in temp.DefaultIfEmpty()
-                            join l in _db.Lots.Where(lot => lot.Leagueid == leagueId) on p.Mflid equals l.Bid.Mflid into temp2
-                            from l in temp2.DefaultIfEmpty()
-                            select new { p, c, l }).Where(_ => _.c == null && _.l == null)
+                              join c in _db.Contracts.Where(cont => cont.Leagueid == leagueId) on p.Mflid equals c.Mflid into temp
+                              from c in temp.DefaultIfEmpty()
+                              join l in _db.Lots.Where(lot => lot.Leagueid == leagueId) on p.Mflid equals l.Bid.Mflid into temp2
+                              from l in temp2.DefaultIfEmpty()
+                              select new { p, c, l }).Where(_ => _.c == null && _.l == null)
                             .Select(_ => _.p)
                             .OrderBy(p => p.Position)
                             .ThenBy(p => p.Lastname)
@@ -163,38 +163,39 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task AddTipToDb(SuggestionEntity suggestion)
+        public async Task AddTipToDb(string tipMflId, int tipOwnerId, int salary)
         {
+            var suggestion = new SuggestionEntity(tipOwnerId, tipMflId, salary);
             _db.Suggestions.Add(suggestion);
             await _db.SaveChangesAsync();
         }
 
-/*        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
-        {
-            try
-            {
-                // get player
-                // if player has a headshot leave it.
-                // change team
-                //save it 
-           
-                var dbPlayers = await _db.Players.Where(p => teamChangeList.Select(tm => tm.mflid).Contains(p.mflid)).ToListAsync();
-                dbPlayers.ForEach(p =>
+        /*        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
                 {
-                    var updatePlayer = teamChangeList.FirstOrDefault(tm => tm.mflid == p.mflid);
-                    if (string.IsNullOrEmpty(p.headshot) && !string.IsNullOrEmpty(updatePlayer?.headshot ?? ""))
-                        p.headshot = updatePlayer?.headshot;
-                    p.team = updatePlayer?.team;
-                });
-                await _db.SaveChangesAsync();
-                
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e.Message);
-                throw;
-            }
-        }*/
+                    try
+                    {
+                        // get player
+                        // if player has a headshot leave it.
+                        // change team
+                        //save it 
+
+                        var dbPlayers = await _db.Players.Where(p => teamChangeList.Select(tm => tm.mflid).Contains(p.mflid)).ToListAsync();
+                        dbPlayers.ForEach(p =>
+                        {
+                            var updatePlayer = teamChangeList.FirstOrDefault(tm => tm.mflid == p.mflid);
+                            if (string.IsNullOrEmpty(p.headshot) && !string.IsNullOrEmpty(updatePlayer?.headshot ?? ""))
+                                p.headshot = updatePlayer?.headshot;
+                            p.team = updatePlayer?.team;
+                        });
+                        await _db.SaveChangesAsync();
+
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e.Message);
+                        throw;
+                    }
+                }*/
 
         /*public async Task AddFreshPlayerInventory(List<PlayerEntity> players)
         {
@@ -208,7 +209,6 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e.Message);
                 throw;
             }
-
         }*/
     }
 }

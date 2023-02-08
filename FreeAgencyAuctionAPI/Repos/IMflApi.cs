@@ -7,11 +7,11 @@ using RestEase;
 
 namespace FreeAgencyAuctionAPI.Repos
 {
-    [Header("cookie")]
+
     public interface IMflApi
     {
         [Header("cookie")]
-        public string CommishCookie { get; set; }
+        public string cookie { get; set; }
 
         [Post("{year}/import?TYPE=salaries&L={leagueId}&APPEND=1")]
         Task<HttpResponseMessage> AdjustPlayerSalary([Path] int leagueId, [Body(BodySerializationMethod.UrlEncoded)] Dictionary<string, string> data, [Path] string year = Utils.ThisYear);

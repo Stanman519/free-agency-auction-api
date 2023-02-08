@@ -58,11 +58,11 @@ namespace FreeAgencyAuctionAPI
             mflGlobal.CommishCookie = appConfig.Mfl.CommishCookie;
             services.AddSingleton(mflGlobal);
             var leagueMfl = RestClient.For<IMflApi>("https://www49.myfantasyleague.com");
-            leagueMfl.CommishCookie = appConfig.Mfl.CommishCookie;
+            leagueMfl.cookie = appConfig.Mfl.CommishCookie;
             services.AddSingleton(leagueMfl);
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
             var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
-            bing.BingKey = appConfig.Bing.BingSubscriptionKey;
+            bing.BingKey = appConfig.BingImageApi.BingSubscriptionKey;
             services.AddSingleton(bing);
             services.AddScoped<IPlayerService, PlayerService>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
@@ -79,7 +79,7 @@ namespace FreeAgencyAuctionAPI
             {
                 // Use the environment credential by default
                 builder.UseCredential(new DefaultAzureCredential());
-                builder.AddQueueServiceClient(appConfig.QueueConfig.AzureStorageConnectionString)
+                builder.AddQueueServiceClient(appConfig.AzureMessageQueue.AzureStorageConnectionString)
                   .ConfigureOptions(c => c.MessageEncoding = Azure.Storage.Queues.QueueMessageEncoding.Base64);
             });
 

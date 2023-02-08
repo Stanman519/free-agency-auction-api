@@ -12,7 +12,6 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         //public Task UpdateCapRoomForAllOwners(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
-        public Task<List<SuggestionEntity>> GetAllTipsByOwnerId(int ownerId);
         public Task<OwnerDTO> Login(OwnerDTO owner);
         public Task<OwnerEntity> Register(OwnerEntity newUser);
     }

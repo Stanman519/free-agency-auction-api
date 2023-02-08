@@ -42,7 +42,7 @@ namespace FreeAgencyAuctionAPI
             _headshot = headshot;
             _logger = logger;
         }
-        
+
         /// <summary>
         /// get data for page load
         /// </summary>
@@ -58,17 +58,17 @@ namespace FreeAgencyAuctionAPI
             var hasCookies = !string.IsNullOrEmpty(loginInfo);
 
             if (hasCookies) profile = await _oService.CookieLogin(loginInfo);
-            
+
             var owners = await _oService.GetAllOwners();
             var lotsQuery = await _bService.GetAllLots(leagueId);
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
-            
+
             var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
             var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId));
 
 
 
-            return Ok( new LoadData
+            return Ok(new LoadData
             {
                 owners = owners,
                 lots = lots,
@@ -77,7 +77,7 @@ namespace FreeAgencyAuctionAPI
             });
             return BadRequest(new ErrorResponse("Initial page load failed."));
         }
-        
+
         /// <summary>
         /// get all mfl bio info for player bio
         /// </summary>
@@ -118,7 +118,7 @@ namespace FreeAgencyAuctionAPI
             }
             return Ok();
         }
-        
+
         /// <summary>
         /// A NEW BID
         /// </summary>
@@ -137,7 +137,7 @@ namespace FreeAgencyAuctionAPI
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
-                LotId = (int) newBid.LotId,
+                LotId = (int)newBid.LotId,
                 Bid = ret,
                 LeagueId = newBid.LeagueId
             };
@@ -172,13 +172,13 @@ namespace FreeAgencyAuctionAPI
             ret.LotId = nomination.LotId;
             var lotToUpdate = new LotDTO
             {
-                LotId = (int) nomination.LotId,
+                LotId = (int)nomination.LotId,
                 Bid = ret,
                 LeagueId = nomination.LeagueId
             };
             var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
             if (updatedLot == null) return BadRequest();
-            
+
             try
             {
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
@@ -188,8 +188,8 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogError("nomination signalR message failed. bid: {bid}", ret.BidId);
             }
             return Ok(ret);
-            
-            
+
+
         }
 
 
@@ -200,15 +200,15 @@ namespace FreeAgencyAuctionAPI
         [HttpPost("login")]
         [Produces("application/json", Type = typeof(OwnerDTO))]
         [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ErrorResponse),StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Login([FromBody] OwnerDTO loginAttempt)
 
         {
             var ret = await _oService.Login(loginAttempt);
-            if (ret == null) return BadRequest(new ErrorResponse {FriendlyMessage = "Incorrect login info"});
+            if (ret == null) return BadRequest(new ErrorResponse { FriendlyMessage = "Incorrect login info" });
             return Ok(ret);
         }
-        
+
         /// <summary>
         /// REGISTER NEW USER
         /// </summary>
@@ -223,8 +223,8 @@ namespace FreeAgencyAuctionAPI
             // if (ret != null)
             return Ok(ret);
         }
-        
-        [HttpGet("leagues/{leagueId}/salaryCap")]
+
+/*        [HttpGet("leagues/{leagueId}/salaryCap")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -234,7 +234,7 @@ namespace FreeAgencyAuctionAPI
             await _oService.UpdateCapSpaceForOwners(capSpace.OrderBy(_ => _.Ownerid).Select(_ => _.Caproom ?? 0)
                 .ToList());
             return Ok();
-        }
+        }*/
 
         [HttpGet("leagues/{leagueId}/players/{playerId}/bid-history")]
         [Produces("application/json")]
@@ -244,7 +244,7 @@ namespace FreeAgencyAuctionAPI
         {
             return Ok(await _bService.GetBidHistory(leagueId, playerId));
         }
-        
+
         [HttpPost("leagues/{leagueId}/tip")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]

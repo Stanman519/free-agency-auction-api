@@ -2,9 +2,9 @@
 {
     public class AppConfig
     {
-        public AzureMessageQueue QueueConfig { get; set; }
+        public AzureMessageQueue AzureMessageQueue { get; set; }
         public string SqlServerConnectionString { get; set; }
-        public BingImageApi Bing { get; set; }
+        public BingImageApi BingImageApi { get; set; }
         public MflKeys Mfl { get; set; }
         public StreamClient Stream { get; set; }
     }

@@ -17,12 +17,13 @@ namespace FreeAgencyAuctionAPI.Services
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
         Task<OwnerDTO> Register(OwnerDTO newUser);
-        Task SendWinningMessageToChat(string name, int salary, int years, string ownername);
+        //Task SendWinningMessageToChat(string name, int salary, int years, string ownername);
     }
     public class OwnerServiceLayer : IOwnerServiceLayer
     {
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
+        private StreamClientFactory _factory;
 
         public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IOptionsSnapshot<AppConfig> options)
         {
@@ -87,10 +88,11 @@ namespace FreeAgencyAuctionAPI.Services
             dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
+        //TODO: THESE GM MESSAGES NEED TO BE LEAGUE SPECIFIC!
         //This should bee somewheere else but the client needs to be wired up in startup and I'm doing this during the auction
-        public async Task SendWinningMessageToChat(string name, int salary, int years, string ownername)
+/*        public async Task SendWinningMessageToChat(string name, int salary, int years, string ownername)
         { 
             await _messageClient.SendMessageAsync("messaging","chat", "cap",$"{ownername} acquired {name} at ${salary}, {years} years.");
-        }
+        }*/
     }
 }

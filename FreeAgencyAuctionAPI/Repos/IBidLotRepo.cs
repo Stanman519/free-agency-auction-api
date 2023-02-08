@@ -53,7 +53,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var refreshLot = await _db.Lots.FirstAsync(l => l.Lotid == lotId && l.Leagueid == leagueId && l.Bidid == bidId);
-                if (refreshLot != null) 
+                if (refreshLot != null)
                 {
                     refreshLot.Bidid = null;
                     await _db.SaveChangesAsync();
@@ -73,7 +73,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.Lotid == lot.LotId && l.Leagueid == lot.LeagueId);
-                
+
                 lotToUpdate.Bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
@@ -101,11 +101,11 @@ namespace FreeAgencyAuctionAPI.Repos
                         LeagueId = b.Leagueid,
                         Player = _mapper.Map<PlayerDTO>(b.Player)
                     }).ToListAsync();
-                    return x;
+                return x;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "error gettin bid history" );
+                _logger.LogError(e, "error gettin bid history");
                 throw;
             }
         }
@@ -147,23 +147,6 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task SendWinMessageToDb(BidEntity bid)
-        {
-            var winMsg = new WinMsg
-            {
-                bidid = bid.bidid,
-                bidlength = bid.bidlength,
-                bidsalary = bid.bidsalary,
-                expires = bid.expires,
-                mflid = bid.mflid,
-                ownerid = bid.ownerid,
-                ownername = bid.ownername,
-                proccessed = false
-            };
-            await _db.WinMessages.AddAsync(winMsg);
-            await _db.SaveChangesAsync();
-        }
-
         public async Task<bool> CheckLatestBidId(BidEntity winningBidEntity)
         {
             try
@@ -177,41 +160,12 @@ namespace FreeAgencyAuctionAPI.Repos
                 return false;
             }
         }
-
-        public async Task<List<WinMsg>> GetAllWinMessages()
-        {
-            try
-            {
-                return await _db.WinMessages.ToListAsync();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
-        }
-
-        public async Task MarkAllWinMessagesAsProcessed(int bidId)
-        {
-            try
-            {
-                var winsToChange = await _db.WinMessages.Where(w => w.bidid == bidId).ToListAsync();
-                winsToChange.ForEach(w => w.proccessed = true);
-                await _db.SaveChangesAsync();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
-        }
-
-        public async Task<List<BidDTO>> GetNewBidsFromTheLastHour()
+        /*public async Task<List<BidDTO>> GetNewBidsFromTheLastHour()
         {
             var oneHourAgo = DateTime.UtcNow.AddHours(-1);
             try
             {
-                return await _db.Bids.Where(b => b.expires >= oneHourAgo.AddHours(12)).Join(_db.Players, b => b.mflid, p => p.mflid, (b,p) => new BidDTO
+                return await _db.Bids.Where(b => b.Expires >= oneHourAgo.AddHours(12)).Join(_db.Players, b => b.Mflid, p => p.Mflid, (b, p) => new BidDTO
                 {
                     BidLength = b.bidlength,
                     BidSalary = b.bidsalary,
@@ -233,6 +187,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 Console.WriteLine(e);
                 throw;
             }
-        }
-    }
+        }*/
+    //}
+}
 }
