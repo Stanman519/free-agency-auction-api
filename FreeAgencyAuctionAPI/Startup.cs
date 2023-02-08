@@ -30,6 +30,7 @@ namespace FreeAgencyAuctionAPI
         {
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
+            services.Configure<AppConfig>(Configuration);
             services.AddCors(c =>
             {
                 c.AddPolicy("AllowSpecificOrigin",
