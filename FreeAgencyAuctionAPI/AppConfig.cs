@@ -6,7 +6,7 @@
         public string SqlServerConnectionString { get; set; }
         public BingImageApi BingImageApi { get; set; }
         public MflKeys Mfl { get; set; }
-        public StreamClient Stream { get; set; }
+        public StreamClient StreamClient { get; set; }
     }
     public class AzureMessageQueue
     {
