@@ -29,7 +29,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             _mapper = mapper;
             _repo = repo;
-            _factory = new StreamClientFactory(options.Value.Stream.StreamKey, options.Value.Stream.StreamPassword);
+            _factory = new StreamClientFactory(options.Value.StreamClient.StreamKey, options.Value.StreamClient.StreamPassword);
         }
 /*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
