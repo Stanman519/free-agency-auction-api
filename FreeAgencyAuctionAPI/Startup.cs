@@ -31,8 +31,9 @@ namespace FreeAgencyAuctionAPI
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
             services.Configure<AppConfig>(Configuration);
-            Console.WriteLine(appConfig.StreamClient.StreamKey);
-            Console.WriteLine(appConfig.StreamClient.StreamPassword);
+            Console.WriteLine($"stream key - {appConfig.StreamClient.StreamKey}");
+            Console.WriteLine($"stream password - {appConfig.StreamClient.StreamPassword}");
+            Console.WriteLine($"sql = {appConfig.SqlServerConnectionString}");
             var streamFactory = new StreamClientFactory(appConfig.StreamClient.StreamKey, appConfig.StreamClient.StreamPassword);
             services.AddCors(c =>
             {
