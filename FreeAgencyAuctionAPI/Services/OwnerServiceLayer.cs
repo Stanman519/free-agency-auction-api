@@ -23,13 +23,16 @@ namespace FreeAgencyAuctionAPI.Services
     {
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
+        private readonly IMessageClient _messageClient;
+        private readonly IUserClient _userClient;
         private StreamClientFactory _factory;
 
-        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IOptionsSnapshot<AppConfig> options)
+        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient)
         {
             _mapper = mapper;
             _repo = repo;
-            _factory = new StreamClientFactory(options.Value.StreamClient.StreamKey, options.Value.StreamClient.StreamPassword);
+            _messageClient = messageClient;
+            _userClient = userClient;
         }
 /*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {

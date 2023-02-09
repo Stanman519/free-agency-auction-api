@@ -31,6 +31,7 @@ namespace FreeAgencyAuctionAPI
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
             services.Configure<AppConfig>(Configuration);
+            var streamFactory = new StreamClientFactory(appConfig.StreamClient.StreamKey, appConfig.StreamClient.StreamPassword);
             services.AddCors(c =>
             {
                 c.AddPolicy("AllowSpecificOrigin",
@@ -65,7 +66,8 @@ namespace FreeAgencyAuctionAPI
             var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
             bing.BingKey = appConfig.BingImageApi.BingSubscriptionKey;
             services.AddSingleton(bing);
-
+            services.AddSingleton(_ => streamFactory.GetMessageClient());
+            services.AddSingleton(_ => streamFactory.GetUserClient());
             services.AddScoped<IPlayerService, PlayerService>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
