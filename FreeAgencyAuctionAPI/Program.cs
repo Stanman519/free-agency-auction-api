@@ -30,7 +30,8 @@ namespace FreeAgencyAuctionAPI
                         //.SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                     .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true) 
-                    .AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+                    .AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                    .AddEnvironmentVariables();
                     Console.WriteLine(hostingContext.HostingEnvironment.EnvironmentName);
                 })
 
