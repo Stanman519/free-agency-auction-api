@@ -255,6 +255,14 @@ namespace FreeAgencyAuctionAPI
             return Ok(await _bService.GetBidHistory(leagueId, tipRequestRequest.MflId));
         }
 
+        [HttpGet("test-data")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> CreateTestLeague()
+        {
+            await _oService.CreateTestLeague();
+            return Ok();
+        }
+
         /*[HttpGet("inventory")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]

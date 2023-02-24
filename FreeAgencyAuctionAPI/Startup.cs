@@ -31,9 +31,7 @@ namespace FreeAgencyAuctionAPI
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
             services.Configure<AppConfig>(Configuration);
-            Console.WriteLine($"stream key - {appConfig.StreamClient.StreamKey}");
-            Console.WriteLine($"stream password - {appConfig.StreamClient.StreamPassword}");
-            Console.WriteLine($"sql = {appConfig.SqlServerConnectionString}");
+
             var streamFactory = new StreamClientFactory(appConfig.StreamClient.StreamKey, appConfig.StreamClient.StreamPassword);
             services.AddCors(c =>
             {
@@ -76,6 +74,7 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
             services.AddScoped<IMflService, MflService>();
             services.AddScoped<IBidLotService, BidLotService>();
+            services.AddScoped<ILeagueService, LeagueService>();
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();

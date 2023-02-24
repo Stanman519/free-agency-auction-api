@@ -16,6 +16,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<LeagueOwnerEntity> LeagueOwners { get; set; }
         public DbSet<LeagueEntity> Leagues { get; set; }
         public DbSet<ContractEntity> Contracts { get; set; }
+        public virtual DbSet<Transaction> Transactions { get; set; }
 
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
@@ -24,13 +25,36 @@ namespace FreeAgencyAuctionAPI
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Transaction>(entity =>
+            {
+                entity.HasKey(e => e.Globalid).HasName("PK_transaction");
+
+                entity.ToTable("transaction");
+
+                entity.Property(e => e.Globalid).HasColumnName("globalid");
+                entity.Property(e => e.Timestamp).HasColumnType("datetime").HasColumnName("timestamp");
+                entity.Property(e => e.Transactionid).HasColumnName("transactionid");
+                entity.Property(e => e.Leagueid).HasColumnName("leagueid");
+                entity.Property(e => e.Franchiseid).HasColumnName("franchiseid");
+                entity.Property(e => e.Salary).HasColumnName("salary");
+                entity.Property(e => e.Amount).HasColumnName("amount");
+                entity.Property(e => e.Playername).HasColumnName("playername");
+                entity.Property(e => e.Position).HasColumnName("position");
+                entity.Property(e => e.Team).HasColumnName("team");
+                entity.Property(e => e.Years).HasColumnName("years");
+                entity.Property(e => e.Yearoftransaction).HasColumnName("yearoftransaction");
+                entity.HasOne(d => d.League).WithMany(p => p.Transactions)
+                    .HasForeignKey(d => d.Leagueid)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_transaction_League");
+            });
             modelBuilder.Entity<BidEntity>(entity =>
             {
                 entity.HasKey(e => e.Bidid).HasName("PK_bidledger");
 
                 entity.ToTable("bid");
 
-                entity.Property(e => e.Bidid).HasColumnName("bidid");
+                entity.Property(e => e.Bidid).HasColumnName("bidid").ValueGeneratedOnAdd();
                 entity.Property(e => e.Bidlength).HasColumnName("bidlength");
                 entity.Property(e => e.Bidsalary).HasColumnName("bidsalary");
                 entity.Property(e => e.Expires)
@@ -134,14 +158,18 @@ namespace FreeAgencyAuctionAPI
                 entity.ToTable("lot");
 
                 entity.Property(e => e.Lotid)
-                    .ValueGeneratedNever()
+                    .ValueGeneratedOnAdd()
                     .HasColumnName("lotid");
                 entity.Property(e => e.Bidid).HasColumnName("bidid");
+                entity.Property(e => e.Nominatedby).HasColumnName("nominatedby");
                 entity.Property(e => e.Leagueid).HasColumnName("leagueid");
 
                 entity.HasOne(d => d.Bid).WithMany(p => p.Lots)
                     .HasForeignKey(d => d.Bidid)
                     .HasConstraintName("FK_bidid_fkey");
+                entity.HasOne(d => d.Nominator).WithMany(p => p.Lots)
+                    .HasForeignKey(d => d.Nominatedby)
+                    .HasConstraintName("FK_lot_leagueowner");
 
                 entity.HasOne(d => d.League).WithMany(p => p.Lots)
                     .HasForeignKey(d => d.Leagueid)
@@ -154,7 +182,7 @@ namespace FreeAgencyAuctionAPI
                 entity.ToTable("owner");
 
                 entity.Property(e => e.Ownerid)
-                    .ValueGeneratedNever()
+                    .ValueGeneratedOnAdd()
                     .HasColumnName("ownerid");
                 entity.Property(e => e.Displayname)
                     .HasMaxLength(50)
@@ -309,6 +337,7 @@ namespace FreeAgencyAuctionAPI
         public int? Caproom { get; set; }
         public int? Yearsleft { get; set; }
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
+        public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual LeagueEntity League { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
@@ -342,6 +371,8 @@ namespace FreeAgencyAuctionAPI
         public int Lotid { get; set; }
         public int? Bidid { get; set; }
         public int Leagueid { get; set; }
+        public int? Nominatedby { get; set; }
+        public virtual LeagueOwnerEntity? Nominator { get; set; }
         public virtual BidEntity? Bid { get; set; }
         public virtual LeagueEntity League { get; set; } = null!;
     }
@@ -354,6 +385,8 @@ namespace FreeAgencyAuctionAPI
         public string? PasswordHash { get; set; }
         public string? Displayname { get; set; }
         public bool? Premium { get; set; }
+        public bool istest { get; set; }
+        public string Avatar { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
     }
 
@@ -365,7 +398,9 @@ namespace FreeAgencyAuctionAPI
         public string? Mflhash { get; set; }
         public string? Commishcookie { get; set; }
         public bool Isauctioning { get; set; }
+        public bool Istest { get; set; }
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
+        public virtual ICollection<Transaction> Transactions { get; } = new List<Transaction>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
@@ -387,6 +422,21 @@ namespace FreeAgencyAuctionAPI
         public virtual PlayerEntity Player { get; set; } = null!;
         public virtual LeagueOwnerEntity Owner { get; set; } = null!;
     }
-
+    public partial class Transaction
+    {
+        public DateTime? Timestamp { get; set; }
+        public int Transactionid { get; set; }
+        public int Franchiseid { get; set; }
+        public int? Salary { get; set; }
+        public decimal Amount { get; set; }
+        public string Playername { get; set; }
+        public string Position { get; set; }
+        public string Team { get; set; }
+        public int Years { get; set; }
+        public int? Yearoftransaction { get; set; }
+        public int Leagueid { get; set; }
+        public int Globalid { get; set; }
+        public virtual LeagueEntity League { get; set; } = null!;
+    }
 
 }
