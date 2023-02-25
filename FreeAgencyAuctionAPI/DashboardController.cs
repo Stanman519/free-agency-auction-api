@@ -49,8 +49,9 @@ namespace FreeAgencyAuctionAPI
             {
                 if (defaultLeagueId != null )
                 {
-                    dashboard.LeagueTransactions = _leagueService.GetAllTransactions((int)defaultLeagueId);
-                    dashboard.LeagueDeadCap = await _leagueService.GetDeadCapData((int)defaultLeagueId);
+                    var deadCapData = await _leagueService.GetDeadCapData((int)defaultLeagueId);
+                    dashboard.LeagueTransactions = deadCapData.LeagueTransactions;
+                    dashboard.TeamDeadCaps = deadCapData.TeamDeadCapData;
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();
                     
                 }

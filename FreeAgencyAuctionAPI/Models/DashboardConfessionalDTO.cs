@@ -6,7 +6,7 @@ namespace FreeAgencyAuctionAPI.Models
     {
         public OwnerDTO Profile { get; set; }
         public List<TransactionDTO> LeagueTransactions { get; set; }
-        public List<DeadCapData> LeagueDeadCap { get; set; }
+        public List<TeamDeadCapData> TeamDeadCaps { get; set; }
         public List<LeagueDTO> Leagues { get; set; }
     }
 }

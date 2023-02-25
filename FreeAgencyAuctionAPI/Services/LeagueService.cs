@@ -12,7 +12,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface ILeagueService
     {
-        Task<List<DeadCapData>> GetDeadCapData(int leagueId);
+        Task<LeagueDeadCapData> GetDeadCapData(int leagueId);
         List<TransactionDTO> GetAllTransactions(int leagueId);
 
     }
@@ -32,22 +32,24 @@ namespace FreeAgencyAuctionAPI.Services
             _logger = logger;
         }
 
-        public async Task<List<DeadCapData>> GetDeadCapData(int leagueId)
+        public async Task<LeagueDeadCapData> GetDeadCapData(int leagueId)
         {
-            var returnData = new List<DeadCapData>();
+            var returnData = new LeagueDeadCapData();
             //get all transactions from table and join with franchise to have team names
+            var teamCaps = new List<TeamDeadCapData>();
             var transactions = new List<Transaction>();
             var franchises = new List<LeagueOwnerEntity>();
-
+            
             try
             {
-                transactions = await _context.Transactions.ToListAsync();
-                franchises = await _context.LeagueOwners.ToListAsync();
+                transactions = await _context.Transactions.Where(l => l.Leagueid == leagueId).ToListAsync();
+                returnData.LeagueTransactions = _mapper.Map<List<TransactionDTO>>(transactions);
+                franchises = await _context.LeagueOwners.Where(l => l.Leagueid == leagueId).ToListAsync();
             }
             catch (Exception e)
             {
                 _logger.LogError("entity framework error", e);
-                return new List<DeadCapData>();
+                return returnData;
             }
 
             var allTransactions = (
@@ -66,19 +68,20 @@ namespace FreeAgencyAuctionAPI.Services
             // go through each transaction - add up amount for each year
             var distinct = allTransactions.GroupBy(t => t.FranchiseId)
                 .Select(grp => grp.First())
-                .Select(t => new DeadCapData(t.FranchiseId, t.TeamName))
+                .Select(t => new TeamDeadCapData(t.FranchiseId, t.TeamName))
                 .ToList();
 
             distinct.ForEach(t =>
             {
-                returnData.Add(new DeadCapData(t.FranchiseId, t.Team));
+                teamCaps.Add(new TeamDeadCapData(t.FranchiseId, t.Team));
             });
 
             allTransactions.ForEach(t =>
             {
                 //get year, then get length.  add ammount to list for each year in that span. 0 = 2020
-                returnData.FirstOrDefault(_ => _.FranchiseId == t.FranchiseId)?.AddPenalties((int)t.TransactionYear, t.DeadAmount, t.NumOfYears);
+                teamCaps.FirstOrDefault(_ => _.FranchiseId == t.FranchiseId)?.AddPenalties((int)t.TransactionYear, t.DeadAmount, t.NumOfYears);
             });
+            returnData.TeamDeadCapData = teamCaps;
             return returnData;
         }
 

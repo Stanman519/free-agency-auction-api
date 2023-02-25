@@ -2,14 +2,20 @@ using System.Collections.Generic;
 
 namespace FreeAgencyAuctionAPI.Models
 {
-    public class DeadCapData
+    public class LeagueDeadCapData
+    {
+        public List<TeamDeadCapData> TeamDeadCapData { get; set; }
+        public List<TransactionDTO> LeagueTransactions { get; set; }
+
+    }
+    public class TeamDeadCapData
     {
         public int StartingYear = 2020;
         public string Team { get; set; }
         public Dictionary<string, decimal> Amount { get; set; }
         public int FranchiseId { get; set; }
 
-        public DeadCapData(int id, string name)
+        public TeamDeadCapData(int id, string name)
         {
             Amount = new Dictionary<string, decimal> { {(StartingYear).ToString(), 0} };
             FranchiseId = id;
