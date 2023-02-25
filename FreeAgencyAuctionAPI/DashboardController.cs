@@ -30,7 +30,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> GetOnLoadInfo([Query] string loginInfo = "")
         {
             //steal login 
-
+            var dashboard = new DashboardConfessionalDTO();
             OwnerDTO profile = null;
             int? defaultLeagueId = null;
             var hasCookies = !string.IsNullOrEmpty(loginInfo);
@@ -38,12 +38,13 @@ namespace FreeAgencyAuctionAPI
             if (!hasCookies) return new BadRequestResult();
 
             profile = await _oService.CookieLogin(loginInfo);
+            dashboard.Profile = profile;
             defaultLeagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
             
                 
             //leagues ids and names only 
             //
-            var dashboard = new DashboardConfessionalDTO();
+            
             try
             {
                 if (defaultLeagueId != null )
@@ -51,6 +52,7 @@ namespace FreeAgencyAuctionAPI
                     dashboard.LeagueTransactions = _leagueService.GetAllTransactions((int)defaultLeagueId);
                     dashboard.LeagueDeadCap = await _leagueService.GetDeadCapData((int)defaultLeagueId);
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();
+                    
                 }
                 return Ok(dashboard); 
             }
