@@ -16,11 +16,11 @@ using RestEase;
 namespace FreeAgencyAuctionAPI
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("free-agency")]
     public class FreeAgencyController : ControllerBase
     {
         private readonly IPlayerService _pService;
-        private readonly IOwnerServiceLayer _oService;
+        private readonly IOwnerService _oService;
         private readonly IBidLotService _bService;
         private readonly IMflService _mfl;
         private readonly IHubContext<AuctionHub> _auctionHub;
@@ -29,7 +29,7 @@ namespace FreeAgencyAuctionAPI
         private readonly ILogger<FreeAgencyController> _logger;
 
 
-        public FreeAgencyController(IPlayerService pService, IOwnerServiceLayer ownerServiceLayer,
+        public FreeAgencyController(IPlayerService pService, IOwnerService ownerServiceLayer,
             IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot,
             IHeadshotLoadingService headshot, ILogger<FreeAgencyController> logger)
         {

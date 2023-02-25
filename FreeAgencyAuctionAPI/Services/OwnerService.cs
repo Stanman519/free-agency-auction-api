@@ -10,7 +10,7 @@ using StreamChat.Clients;
 
 namespace FreeAgencyAuctionAPI.Services
 {
-    public interface IOwnerServiceLayer
+    public interface IOwnerService
     {
         //public Task UpdateCapSpaceForOwners(List<int> capSpace);
         public Task<List<OwnerDTO>> GetAllOwners();
@@ -20,15 +20,15 @@ namespace FreeAgencyAuctionAPI.Services
         Task CreateTestLeague();
         //Task SendWinningMessageToChat(string name, int salary, int years, string ownername);
     }
-    public class OwnerServiceLayer : IOwnerServiceLayer
+    public class OwnerService : IOwnerService
     {
         private readonly IMapper _mapper;
         private readonly IOwnerRepo _repo;
         private readonly IMessageClient _messageClient;
         private readonly IUserClient _userClient;
-        private StreamClientFactory _factory;
 
-        public OwnerServiceLayer(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient)
+
+        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient)
         {
             _mapper = mapper;
             _repo = repo;
@@ -60,8 +60,7 @@ namespace FreeAgencyAuctionAPI.Services
 
            
             var dbOwner =  await _repo.Login(owner);
-            var userClient = _factory.GetUserClient();
-            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
+            dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 
@@ -75,8 +74,8 @@ namespace FreeAgencyAuctionAPI.Services
                 Password = ownerArr[1]
             };
             var dbOwner =  await _repo.Login(loginAttempt);
-            var userClient = _factory.GetUserClient();
-            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
+
+            dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 
@@ -88,8 +87,8 @@ namespace FreeAgencyAuctionAPI.Services
             var entity = _mapper.Map<OwnerDTO, OwnerEntity>(newUser);
             entity.Premium = false;
             var dbOwner = _mapper.Map<OwnerEntity, OwnerDTO>(await _repo.Register(entity));
-            var userClient = _factory.GetUserClient();
-            dbOwner.StreamToken = userClient.CreateToken(dbOwner.Ownername);
+
+            dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 

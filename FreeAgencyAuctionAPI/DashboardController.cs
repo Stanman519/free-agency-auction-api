@@ -13,12 +13,12 @@ namespace FreeAgencyAuctionAPI
     [Route("dashboard")]
     public class DashboardController : ControllerBase
     {
-        private readonly IOwnerServiceLayer _oService;
+        private readonly IOwnerService _oService;
         private readonly ILogger<DashboardController> _logger;
         private ILeagueService _leagueService;
 
 
-        public DashboardController(ILeagueService leagueService, IOwnerServiceLayer ownerServiceLayer, ILogger<DashboardController> logger)
+        public DashboardController(ILeagueService leagueService, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger)
         {
             _leagueService = leagueService;
             _oService = ownerServiceLayer;
@@ -27,7 +27,7 @@ namespace FreeAgencyAuctionAPI
 
 
         [HttpGet("home")]
-        public async Task<IActionResult> GetAllTransactions([Query] string loginInfo = "")
+        public async Task<IActionResult> GetOnLoadInfo([Query] string loginInfo = "")
         {
             //steal login 
 
@@ -54,10 +54,9 @@ namespace FreeAgencyAuctionAPI
                 }
                 return Ok(dashboard); 
             }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
-
-                throw;
+                return BadRequest();
             }
 
         }

@@ -71,7 +71,7 @@ namespace FreeAgencyAuctionAPI
             services.AddSingleton(_ => streamFactory.GetUserClient());
             services.AddScoped<IPlayerService, PlayerService>();
             services.AddScoped<IHeadshotLoadingService, HeadshotLoadingService>();
-            services.AddScoped<IOwnerServiceLayer, OwnerServiceLayer>();
+            services.AddScoped<IOwnerService, OwnerService>();
             services.AddScoped<IMflService, MflService>();
             services.AddScoped<IBidLotService, BidLotService>();
             services.AddScoped<ILeagueService, LeagueService>();
