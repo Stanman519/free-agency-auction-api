@@ -16,6 +16,7 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId);
         // Task AddFreshPlayerInventory(List<PlayerEntity> players);
         Task<List<PlayerEntity>> GetAllPlayers();
+        Task<List<PlayerEntity>> GetPlayersByListOfIds(List<int> mflIds);
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
         /*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
@@ -132,6 +133,19 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 return await _db.Players.ToListAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error getting all players");
+                return null;
+            }
+        }
+
+        public async Task<List<PlayerEntity>> GetPlayersByListOfIds(List<int> mflIds)
+        {
+            try
+            {
+                return await _db.Players.Where(p => mflIds.Contains(p.Mflid)).ToListAsync();
             }
             catch (Exception e)
             {

@@ -74,8 +74,8 @@ namespace FreeAgencyAuctionAPI.Services
                 Password = ownerArr[1]
             };
             var dbOwner =  await _repo.Login(loginAttempt);
+            if (dbOwner != null) dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
 
-            dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
 

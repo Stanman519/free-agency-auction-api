@@ -14,7 +14,6 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task<LeagueDeadCapData> GetDeadCapData(int leagueId);
         List<TransactionDTO> GetAllTransactions(int leagueId);
-
     }
 
     public class LeagueService : ILeagueService
@@ -99,9 +98,6 @@ namespace FreeAgencyAuctionAPI.Services
             }
 
         }
-
-
-
 
     }
 }

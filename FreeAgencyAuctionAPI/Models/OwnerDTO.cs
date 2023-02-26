@@ -16,10 +16,19 @@ namespace FreeAgencyAuctionAPI.Models
 
     public class LeagueOwnerDTO 
     {
+        public List<TagCandidate> TagCandidates { get; set; }
         public int CapRoom { get; set; }
         public int YearsLeft { get; set; }
         public int Mflfranchiseid { get; set; }
         public int Leagueownerid { get; set; }
         public LeagueDTO League { get; set; }
+    }
+
+    public class TagCandidate
+    {
+        public PlayerDTO Player { get; set; }
+        public int LastSeasonSalary { get; set; }
+        public int TagAmount { get; set; }
+
     }
 }

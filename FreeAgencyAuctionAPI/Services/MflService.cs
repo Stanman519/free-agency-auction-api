@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using Microsoft.Extensions.Logging;
@@ -21,6 +23,7 @@ namespace FreeAgencyAuctionAPI.Services
             string lastName, string position, bool hasAction);
 
         int? GetAgeInt(string birthdate);
+        Task<List<TagCandidate>> GetTagInfos(int defaultLeagueId, int franchiseId);
     }
 
     public class MflService : IMflService
@@ -31,9 +34,10 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly ILogger<MflService> _logger;
         private readonly IGMBot _gm;
         private readonly IPlayerRepo _pRepo;
+        private readonly IMapper _mapper;
         private readonly IOptionsSnapshot<AppConfig> _options;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IOptionsSnapshot<AppConfig> options)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IMapper mapper, IOptionsSnapshot<AppConfig> options)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
@@ -41,6 +45,7 @@ namespace FreeAgencyAuctionAPI.Services
             _logger = logger;
             _gm = gm;
             _pRepo = pRepo;
+            _mapper = mapper;
             _options = options;
         }
 
@@ -259,7 +264,28 @@ namespace FreeAgencyAuctionAPI.Services
 
             return playerDetailsList;
         }
+        public async Task<List<TagCandidate>> GetTagInfos(int defaultLeagueId, int franchiseId)
+        {
+            try
+            {
+                var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(defaultLeagueId, Utils.ThisYear - 1);
+                var myExpiringPlayersLastYear = rosterRoot.rosters.franchise.First(f => int.Parse(f.id) == franchiseId).player.Where(p => p.contractYear == "1");
+                var dbPlayers = await _pRepo.GetPlayersByListOfIds(myExpiringPlayersLastYear.Select(p => int.Parse(p.id)).ToList());
+                return myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
+                {
+                    Player = _mapper.Map<PlayerDTO>(db),
+                    LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0
 
+                }).ToList();
+
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "retrieval of last year tag players. bad franchise id?");
+                throw;
+            }
+
+        }
 
         private Dictionary<string, string> CreateBodyData(BidDTO bid)
         {

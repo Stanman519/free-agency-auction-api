@@ -16,11 +16,12 @@ namespace FreeAgencyAuctionAPI
         private readonly IOwnerService _oService;
         private readonly ILogger<DashboardController> _logger;
         private ILeagueService _leagueService;
+        private readonly IMflService _mfl;
 
-
-        public DashboardController(ILeagueService leagueService, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger)
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger)
         {
             _leagueService = leagueService;
+            _mfl = mfl;
             _oService = ownerServiceLayer;
             _logger = logger;
         }
@@ -40,7 +41,10 @@ namespace FreeAgencyAuctionAPI
             profile = await _oService.CookieLogin(loginInfo);
             dashboard.Profile = profile;
             defaultLeagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
-            
+            if (profile != null && defaultLeagueId != null)
+            {
+                profile.Leagues.FirstOrDefault().TagCandidates = await _mfl.GetTagInfos((int) defaultLeagueId, profile.Leagues.FirstOrDefault().Mflfranchiseid);
+            }
                 
             //leagues ids and names only 
             //
@@ -53,7 +57,6 @@ namespace FreeAgencyAuctionAPI
                     dashboard.LeagueTransactions = deadCapData.LeagueTransactions;
                     dashboard.TeamDeadCaps = deadCapData.TeamDeadCapData;
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();
-                    
                 }
                 return Ok(dashboard); 
             }
