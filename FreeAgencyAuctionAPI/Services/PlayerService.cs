@@ -47,7 +47,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var entities = await _repo.GetRosteredPlayers(leagueId);
             if (entities == null) return null;
-            return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(entities);
+            return _mapper.Map<List<PlayerDTO>>(entities);
         }
 
 /*        public async Task<PlayerDTO> NominatePlayer(PlayerDTO player)
@@ -60,7 +60,7 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<List<PlayerDTO>> GetAllPlayers()
         {
             var freeAgents = await _repo.GetAllPlayers();
-            return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
+            return _mapper.Map<List<PlayerDTO>>(freeAgents);
         }
         public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
         {
@@ -68,7 +68,7 @@ namespace FreeAgencyAuctionAPI.Services
             var freeAgentMflIds = freeAgentMflIdsRoot.freeAgents.leagueUnit.player.Select(p => int.Parse(p.id));
             var freeAgents = await _repo.GetPlayersByMflIds(freeAgentMflIds);
             //var freeAgents = await _repo.GetAllFreeAgents(leagueId);
-            return _mapper.Map<List<PlayerEntity>, List<PlayerDTO>>(freeAgents);
+            return _mapper.Map<List<PlayerDTO>>(freeAgents);
         }
 
         public async Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip)

@@ -40,14 +40,14 @@ namespace FreeAgencyAuctionAPI
 
             profile = await _oService.CookieLogin(loginInfo);
             dashboard.Profile = profile;
-            defaultLeagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
+            var defaultLeague = profile.Leagues.FirstOrDefault();
+            defaultLeagueId = defaultLeague.League.LeagueId;
             if (profile != null && defaultLeagueId != null)
             {
-                profile.Leagues.FirstOrDefault().TagCandidates = await _mfl.GetTagInfos((int) defaultLeagueId, profile.Leagues.FirstOrDefault().Mflfranchiseid);
+                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)defaultLeagueId, defaultLeague.Mflfranchiseid);
+                defaultLeague.TagCandidates = ownerOffseasonData.TagCandidates;
+                defaultLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
             }
-                
-            //leagues ids and names only 
-            //
             
             try
             {

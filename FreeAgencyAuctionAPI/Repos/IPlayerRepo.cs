@@ -10,17 +10,17 @@ namespace FreeAgencyAuctionAPI.Repos
     public interface IPlayerRepo
     {
         public Task<PlayerEntity> GetPlayerById(int playerId);
-        public Task<List<PlayerEntity>> GetRosteredPlayers(int leagueId);
+        public Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId);
         //public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
         //public Task<PlayerEntity> WinPlayer(BidEntity bid);
-        public Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId);
+        public Task<IEnumerable<PlayerEntity>> GetAllFreeAgents(int leagueId);
         // Task AddFreshPlayerInventory(List<PlayerEntity> players);
-        Task<List<PlayerEntity>> GetAllPlayers();
-        Task<List<PlayerEntity>> GetPlayersByListOfIds(List<int> mflIds);
+        Task<IEnumerable<PlayerEntity>> GetAllPlayers();
+        Task<IEnumerable<PlayerEntity>> GetPlayersByListOfIds(IEnumerable<int> mflIds);
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
         /*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
-        Task<List<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
+        Task<IEnumerable<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -46,7 +46,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<List<PlayerEntity>> GetRosteredPlayers(int leagueId)
+        public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
         {
             try
             {
@@ -75,7 +75,7 @@ namespace FreeAgencyAuctionAPI.Repos
                         return null;
                     }
                 }*/
-        public async Task<List<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds)
+        public async Task<IEnumerable<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds)
         {
             try
             {
@@ -128,7 +128,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<List<PlayerEntity>> GetAllPlayers()
+        public async Task<IEnumerable<PlayerEntity>> GetAllPlayers()
         {
             try
             {
@@ -141,7 +141,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<List<PlayerEntity>> GetPlayersByListOfIds(List<int> mflIds)
+        public async Task<IEnumerable<PlayerEntity>> GetPlayersByListOfIds(IEnumerable<int> mflIds)
         {
             try
             {
@@ -154,7 +154,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<List<PlayerEntity>> GetAllFreeAgents(int leagueId)
+        public async Task<IEnumerable<PlayerEntity>> GetAllFreeAgents(int leagueId)
         {
             try
             {
