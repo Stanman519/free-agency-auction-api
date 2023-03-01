@@ -18,6 +18,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<OwnerDTO> CookieLogin(string login);
         Task<OwnerDTO> Register(OwnerDTO newUser);
         Task CreateTestLeague();
+
         //Task SendWinningMessageToChat(string name, int salary, int years, string ownername);
     }
     public class OwnerService : IOwnerService

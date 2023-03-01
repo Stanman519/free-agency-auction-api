@@ -276,12 +276,16 @@ namespace FreeAgencyAuctionAPI.Services
                 var myTaxiPlayersNow = thisRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == franchiseId).player.Where(p => p.status == "TAXI_SQUAD");
                 var queryIds = myExpiringPlayersLastYear.Select(p => int.Parse(p.id)).Concat(myTaxiPlayersNow.Select(p => int.Parse(p.id)));
                 var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds);
+                var leagueTagData = await _pRepo.GetLeagueTagInfo(defaultLeagueId, Utils.ThisYear);
                 retOwner.TagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
                 {
                     Player = _mapper.Map<PlayerDTO>(db),
-                    LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0
+                    LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                    TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
 
                 }).ToList();
+
+
                 retOwner.TaxiPlayers = myTaxiPlayersNow.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
                 {
                     
@@ -308,6 +312,23 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
+        private int GetTagValueFromPosition(string position, FranchiseTagLeague l)
+        {
+             switch (position.ToUpper())
+            {
+                case "QB":
+                    return l.QB;
+                case "RB":
+                    return l.RB;
+                case "WR":
+                    return l.WR;
+                case "TE":
+                    return l.TE;
+                default: 
+                    return 0;
+            }
+
+        }
 
         private Dictionary<string, string> CreateBodyData(BidDTO bid)
         {

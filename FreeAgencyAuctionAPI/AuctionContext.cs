@@ -16,6 +16,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<LeagueOwnerEntity> LeagueOwners { get; set; }
         public DbSet<LeagueEntity> Leagues { get; set; }
         public DbSet<ContractEntity> Contracts { get; set; }
+        public DbSet<FranchiseTagPlayer> FranchiseTagPlayers { get; set; }
+        public DbSet<FranchiseTagLeague> FranchiseTagLeagues { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
 
 
@@ -272,10 +274,82 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.YearMax).HasColumnName("yearMax");
                 entity.Property(e => e.YearMin).HasColumnName("yearMin");
             });
+            modelBuilder.Entity<FranchiseTagLeague>(entity =>
+            {
+                entity.ToTable("franchisetagleague");
 
+                entity.Property(e => e.Mflleagueid)
+                    .HasColumnName("mflleagueid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.QB)
+                    .HasColumnName("qb");
+                entity.Property(e => e.RB)
+                    .HasColumnName("rb");
+                entity.Property(e => e.WR)
+                    .HasColumnName("wr");
+                entity.Property(e => e.TE)
+                    .HasColumnName("te");
+                entity.HasOne(e => e.League)
+                .WithMany(l => l.FranchiseTagLeagues)
+                .HasForeignKey(d => d.Mflleagueid)
+                    .HasConstraintName("FK_franchisetagleauge_League"); 
+
+                entity.HasKey(e => new {
+                    e.Mflleagueid,
+                    e.Year
+                    });
+            });
+
+            modelBuilder.Entity<FranchiseTagPlayer>(entity =>
+            {
+                entity.ToTable("franchisetagplayer");
+
+                entity.Property(e => e.Mflplayerid)
+                    .HasColumnName("mflplayerid");
+                entity.Property(e => e.Mflleagueid)
+                    .HasColumnName("mflleagueid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.Leagueownerid)
+                    .HasColumnName("leagueownerid");
+                entity.Property(e => e.Franchisetagid)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("franchisetagid");
+                entity.Property(e => e.Originalsalary)
+                    .HasColumnName("originalsalary");
+                entity.Property(e => e.Tagprice)
+                    .HasColumnName("tagprice");
+                entity.Property(e => e.Position)
+                     .HasMaxLength(8)
+                    .IsUnicode(false)
+                    .HasColumnName("position");
+                entity.Property(e => e.Fullname)
+                    .HasMaxLength(80)
+                    .IsUnicode(false)
+                      .HasColumnName("fullname");
+                entity.HasOne(e => e.Player)
+                    .WithMany(p => p.FranchiseTags)
+                     .HasForeignKey(d => d.Mflplayerid)
+                    .HasConstraintName("FK_franchisetagplayer_player");
+                entity.HasOne(e => e.Leagueowner)
+                    .WithMany(p => p.FranchiseTags)
+                    .HasForeignKey(d => d.Leagueownerid)
+                    .HasConstraintName("FK_franchisetagplayer_leagueowner");
+                entity.HasOne(e => e.FranchiseTagLeagueData)
+                    .WithMany(p => p.FranchiseTagPlayers)
+                    .HasForeignKey(d => new
+                    {
+                        d.Mflleagueid,
+                        d.Year
+                    })
+                    .HasConstraintName("FK_franchisetagplayer_franchisetagleauge");
+            });
 
             OnModelCreatingPartial(modelBuilder);
         }
+
+
 
         partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }
@@ -307,6 +381,7 @@ namespace FreeAgencyAuctionAPI
         public string? Rotoworldid { get; set; }
         public decimal? Lastseasonpts { get; set; }
         public bool? IsActive { get; set; }
+        public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
 
@@ -336,6 +411,8 @@ namespace FreeAgencyAuctionAPI
         public int Mflfranchiseid { get; set; }
         public int? Caproom { get; set; }
         public int? Yearsleft { get; set; }
+        public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
+
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
@@ -400,6 +477,7 @@ namespace FreeAgencyAuctionAPI
         public bool Isauctioning { get; set; }
         public bool Istest { get; set; }
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
+        public virtual ICollection<FranchiseTagLeague> FranchiseTagLeagues { get; } = new List<FranchiseTagLeague>();
         public virtual ICollection<Transaction> Transactions { get; } = new List<Transaction>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
@@ -421,6 +499,7 @@ namespace FreeAgencyAuctionAPI
         public virtual LeagueEntity? League { get; set; }
         public virtual PlayerEntity Player { get; set; } = null!;
         public virtual LeagueOwnerEntity Owner { get; set; } = null!;
+
     }
     public partial class Transaction
     {
@@ -438,5 +517,34 @@ namespace FreeAgencyAuctionAPI
         public int Globalid { get; set; }
         public virtual LeagueEntity League { get; set; } = null!;
     }
+    public partial class FranchiseTagPlayer
+    {
 
+        public int Mflplayerid { get; set; }
+        [Key]
+        public int Franchisetagid { get; set; }
+        public int Year { get; set; }
+        public int Leagueownerid { get; set; }
+        public int Mflleagueid { get; set; }
+        public int Originalsalary { get; set; }
+        public int Tagprice { get; set; }
+        public string Position { get; set; }
+        public string Fullname { get; set; }
+        public virtual LeagueOwnerEntity Leagueowner { get; set; }
+        public virtual PlayerEntity Player { get; set; }
+        public virtual FranchiseTagLeague FranchiseTagLeagueData { get; set; }
+    }
+    public partial class FranchiseTagLeague
+    {
+        [Key]
+        public int Mflleagueid { get; set; }
+        [Key]
+        public int Year { get; set; }
+        public int QB { get; set; }
+        public int RB { get; set; }
+        public int WR { get; set; }
+        public int TE { get; set; }
+        public virtual LeagueEntity League { get; set; }
+        public virtual ICollection<FranchiseTagPlayer> FranchiseTagPlayers { get; } = new List<FranchiseTagPlayer>();
+    }
 }

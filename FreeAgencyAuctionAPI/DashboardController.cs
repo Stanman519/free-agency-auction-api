@@ -25,9 +25,12 @@ namespace FreeAgencyAuctionAPI
             _oService = ownerServiceLayer;
             _logger = logger;
         }
-
-
-        [HttpGet("home")]
+/*        [HttpGet("test")]
+        public async Task<IActionResult> Test()
+        {
+            return Ok(await _oService.getTest());
+        }*/
+            [HttpGet("home")]
         public async Task<IActionResult> GetOnLoadInfo([Query] string loginInfo = "")
         {
             //steal login 
