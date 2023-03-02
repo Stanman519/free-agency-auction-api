@@ -32,4 +32,18 @@ namespace FreeAgencyAuctionAPI.Models
         public int TagAmount { get; set; }
 
     }
+    public class FranchiseTagRequestBody
+    {
+        public int leagueId { get; set; }
+        public int mflPlayerId { get; set; }
+        public int mflFranchiseId { get; set; }
+        public int tagSalary { get; set; }
+    }
+    public class TaxiCutRequestBody
+    {
+        public int leagueId { get; set; }
+        public PlayerDTO player { get; set; }
+        public int mflFranchiseId { get; set; }
+        public double rebate { get; set; }
+    }
 }

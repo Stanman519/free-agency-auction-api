@@ -25,12 +25,8 @@ namespace FreeAgencyAuctionAPI
             _oService = ownerServiceLayer;
             _logger = logger;
         }
-/*        [HttpGet("test")]
-        public async Task<IActionResult> Test()
-        {
-            return Ok(await _oService.getTest());
-        }*/
-            [HttpGet("home")]
+
+        [HttpGet("home")]
         public async Task<IActionResult> GetOnLoadInfo([Query] string loginInfo = "")
         {
             //steal login 
@@ -68,6 +64,21 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest();
             }
 
+        }
+
+        [HttpPost("tag-player")]
+        public async Task<IActionResult> FranchiseTagPlayer([FromBody] FranchiseTagRequestBody body)
+        {
+            await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary);
+            return NoContent();
+        }
+        [HttpPost("taxi-cut")]
+        public async Task<IActionResult> CutTaxiPlayer([FromBody] TaxiCutRequestBody body)
+        {
+            await _mfl.FreeDropTaxiPlayer(body);
+            return NoContent();
+            
         }
     }
 }

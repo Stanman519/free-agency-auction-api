@@ -14,8 +14,10 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IMflService
     {
-        Task AddPlayerToTeam(BidDTO bid);
-        Task GiveNewContractToPlayer(BidDTO bid);
+        Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
+
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary);
+        Task FreeDropTaxiPlayer(TaxiCutRequestBody request);
         Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
 
@@ -49,20 +51,20 @@ namespace FreeAgencyAuctionAPI.Services
             _options = options;
         }
 
-        public async Task AddPlayerToTeam(BidDTO bid)
+        public async Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId)
         {
-            if (owners.TryGetValue(bid.Ownername, out var teamId))
-            {
+            var strFrId = franchiseId.ToString("D4");
+
                 try
                 {
-                    var resp = await _globalApi.AddPlayerToMflTeam(bid.LeagueId, bid.Player.MflId, teamId);
+                    var resp = await _globalApi.AddPlayerToMflTeam(leaugeId, playerId, strFrId);
                     var respString = await resp.Content.ReadAsStringAsync();
                     if (respString.ToUpper().Contains("ERROR"))
                     {
                         var error = respString.XmlDeserializeFromString<MflXmlError>();
                         _logger.LogInformation(error.ErrorMsg);
-                        _logger.LogError("${lastname} was not added to a team in mfl.", bid.Player.LastName);
-                        await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
+                        _logger.LogError("${playerId} was not added to a team in mfl.", playerId);
+                        await _gm.NotifyMflError(new ErrorMessage( $"{playerId} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
                     }
                 }
                 catch (Exception e)
@@ -70,7 +72,7 @@ namespace FreeAgencyAuctionAPI.Services
                     Console.WriteLine(e);
                     throw;
                 }
-            }
+            
         }
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
@@ -145,24 +147,24 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
 
-        public async Task GiveNewContractToPlayer(BidDTO bid)
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary)
         {
-            var data = CreateBodyData(bid);
+            var data = CreateBodyDataForNewContract(mflPlayerId, salary);
             try
             {
-                var resp = await _leagueApi.AdjustPlayerSalary(bid.LeagueId, data);
+                var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
                 var respString = await resp.Content.ReadAsStringAsync();
                 if (respString.ToUpper().Contains("ERROR"))
                 {
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
-                    _logger.LogError("{lastname}'s contract was not updated in mfl.", bid.Player.LastName);
-                    //await _gm.NotifyMflError(new ErrorMessage( $"{bid.Player.FirstName} {bid.Player.LastName}'s contract was not updated in mfl. \n\n${error.ErrorMsg}"));
+                    _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
+                    await _gm.NotifyMflError(new ErrorMessage( $"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, "New Contract mfl");
                 return;
             }
         }
@@ -311,6 +313,45 @@ namespace FreeAgencyAuctionAPI.Services
             }
 
         }
+        public async Task FreeDropTaxiPlayer(TaxiCutRequestBody req)
+        {
+            var franchiseStr = req.mflFranchiseId.ToString("D4");
+            try { 
+                var dropRequest = await _leagueApi.DropPlayerFromTaxi(req.leagueId, req.player.MflId, franchiseStr);
+                var respString = await dropRequest.Content.ReadAsStringAsync();
+                if (respString.ToUpper().Contains("ERROR"))
+                {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
+                    _logger.LogInformation(respString);
+                    _logger.LogError("{mflPlayerId}'s contract was not updated in mfl.", req.player.FullName);
+                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not be taxi cut. \n\n${error.ErrorMsg}"));
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "New Contract mfl");
+                return;
+            }
+            try
+            {
+                var data = CreateBodyDataForNewSalaryAdj(franchiseStr, req.rebate, req.player);
+                var dropRequest = await _leagueApi.AddSalaryAdjustment(req.leagueId, data);
+                var respString = await dropRequest.Content.ReadAsStringAsync();
+                if (respString.ToUpper().Contains("ERROR"))
+                {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
+                    _logger.LogInformation(respString);
+                    _logger.LogError("{mflPlayerId}'s salary adjustment was not added in mfl.", req.player.FullName);
+                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly be taxi cut. \n\n${error.ErrorMsg}"));
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "New Contract mfl");
+                return;
+            }
+
+        }
 
         private int GetTagValueFromPosition(string position, FranchiseTagLeague l)
         {
@@ -330,13 +371,25 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        private Dictionary<string, string> CreateBodyData(BidDTO bid)
+        private Dictionary<string, string> CreateBodyDataForNewSalaryAdj(string franchiseId, double positiveRefundAmount, PlayerDTO player, int length = 1)
         {
             var ret = new Dictionary<string, string>()
             {
                 {
                     "DATA",
-                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{bid.Player.MflId}\" salary=\"{bid.BidSalary}\" contractYear=\"{bid.BidLength}\"/></leagueUnit></salaries>"
+                    $"<?xml version='1.0' encoding='UTF-8' ?><salary_adjustments><salary_adjustment franchise_id=\"{franchiseId}\" amount=\"-{positiveRefundAmount}\" explanation=\"TAXI_REBATE {player.LastName}, {player.FirstName} {player.Team} {player.Position} (Salary: ${player.Salary}, years left: {length})\"/></salary_adjustments>"
+                }
+            };
+            return ret;
+        }
+
+        private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1)
+        {
+            var ret = new Dictionary<string, string>()
+            {
+                {
+                    "DATA",
+                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{playerId}\" salary=\"{salary}\" contractYear=\"{length}\"/></leagueUnit></salaries>"
                 }
             };
             return ret;
