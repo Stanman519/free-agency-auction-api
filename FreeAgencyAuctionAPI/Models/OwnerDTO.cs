@@ -18,10 +18,12 @@ namespace FreeAgencyAuctionAPI.Models
     {
         public List<TagCandidate> TagCandidates { get; set; }
         public List<PlayerDTO> TaxiPlayers { get; set; }
+        public List<PlayerDTO> CutCandidates { get; set; }
         public int CapRoom { get; set; }
         public int YearsLeft { get; set; }
         public int Mflfranchiseid { get; set; }
         public int Leagueownerid { get; set; }
+        public string TeamName { get; set; }
         public LeagueDTO League { get; set; }
     }
 

@@ -26,18 +26,29 @@ namespace FreeAgencyAuctionAPI
             _logger = logger;
         }
 
-        [HttpGet("home")]
-        public async Task<IActionResult> GetOnLoadInfo([Query] string loginInfo = "")
+        [HttpPost("home")]
+        public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user)
         {
-            //steal login 
+            // assuming we have auth login info:
+
+            // new method,
+            // check db first for owner, with this userid, return it or create one if it doesnt exist.
+
+            // if it doesn't exist they wont be tied to any league or team, so that's an issue for another day. (but, we want the auth user to be in the body so we can take name and image, and email).
+            // get all big league objects, and check the emails/usernames to see if there is a match with this user, assign them to that team/league
+
+            // if it does exist, continue this flow as is?
+
+             
             var dashboard = new DashboardConfessionalDTO();
             OwnerDTO profile = null;
             int? defaultLeagueId = null;
-            var hasCookies = !string.IsNullOrEmpty(loginInfo);
+            var hasLogin = !string.IsNullOrEmpty(user.Sub);
 
-            if (!hasCookies) return new BadRequestResult();
+            if (!hasLogin) return new BadRequestResult();
 
-            profile = await _oService.CookieLogin(loginInfo);
+            //profile = await _oService.CookieLogin(loginInfo);
+            profile = await _oService.SynchronizeAuthorizedUser(user);
             dashboard.Profile = profile;
             var defaultLeague = profile.Leagues.FirstOrDefault();
             defaultLeagueId = defaultLeague.League.LeagueId;

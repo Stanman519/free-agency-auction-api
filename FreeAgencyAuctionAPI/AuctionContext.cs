@@ -139,6 +139,7 @@ namespace FreeAgencyAuctionAPI
 
                 entity.Property(e => e.Leagueownerid).HasColumnName("leagueownerid");
                 entity.Property(e => e.Caproom).HasColumnName("caproom");
+                entity.Property(e => e.Teamname).HasColumnName("teamname");
                 entity.Property(e => e.Leagueid).HasColumnName("leagueid");
                 entity.Property(e => e.Mflfranchiseid).HasColumnName("mflfranchiseid");
                 entity.Property(e => e.Ownerid).HasColumnName("ownerid");
@@ -411,6 +412,7 @@ namespace FreeAgencyAuctionAPI
         public int Mflfranchiseid { get; set; }
         public int? Caproom { get; set; }
         public int? Yearsleft { get; set; }
+        public string Teamname { get; set; }
         public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
 
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
@@ -464,6 +466,7 @@ namespace FreeAgencyAuctionAPI
         public bool? Premium { get; set; }
         public bool istest { get; set; }
         public string Avatar { get; set; }
+        public string authid { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
     }
 

@@ -12,9 +12,13 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IOwnerRepo
     {
+        public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises);
+
         //public Task UpdateCapRoomForAllOwners(List<int> capSpace);
         public Task<List<OwnerEntity>> GetAllOwners();
-        public Task<OwnerDTO> Login(OwnerDTO owner);
+        public Task<IEnumerable<int>> GetAllRealLeagueIds();
+        public Task<OwnerDTO> GetOwnerByAuthId(string sub);
+        public Task<OwnerDTO> Login(OwnerDTO owner, string? sub = "");
         public Task MakeTestLeague();
         public Task<OwnerEntity> Register(OwnerEntity newUser);
     }
@@ -30,13 +34,23 @@ namespace FreeAgencyAuctionAPI.Repos
             _logger = logger;
         }
 
-        public async Task<OwnerDTO> Login(OwnerDTO owner)
+        public async Task<OwnerDTO> GetOwnerByAuthId(string authId)
+        {
+            return await Login(new OwnerDTO(), authId);
+        }
+
+        public async Task<IEnumerable<int>> GetAllRealLeagueIds()
+        {
+            return (await _db.Leagues.Where(_ => _.Mflid > 0).ToListAsync()).Select(_ => _.Mflid);
+        }
+
+        public async Task<OwnerDTO> Login(OwnerDTO owner, string? sub = "")
         {
             try
             {
                 var ret = await _db.Owners.FirstOrDefaultAsync(o => 
-                        o.Ownername.ToUpper() == owner.Ownername.ToUpper() &&
-                    o.PasswordHash == owner.Password);
+                       ( o.Ownername.ToUpper() == owner.Ownername.ToUpper() &&
+                    o.PasswordHash == owner.Password) || o.authid == sub);
                 if (ret == null) return null;
 
                 return await (from o in _db.Owners
@@ -54,6 +68,7 @@ namespace FreeAgencyAuctionAPI.Repos
                                       YearsLeft = _.Yearsleft ?? 0,
                                       Mflfranchiseid = _.Mflfranchiseid,
                                       Leagueownerid = _.Leagueownerid,
+                                      TeamName = _.Teamname,
                                       League = new LeagueDTO
                                       {
                                           LeagueId = _.Leagueid,
@@ -72,25 +87,101 @@ namespace FreeAgencyAuctionAPI.Repos
                 return null;
             }
         }
-        //MOVE TO AZURE FUNCTION
-/*        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
+
+        public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises)
         {
-            try
+            if (franchises.Count == 0) 
             {
-                var owners = _db.Owners;
-                for (int i = 0; i < capSpace.Count; i++)
+            
+            }
+            var owner = new OwnerEntity
+            {
+                authid = user.Sub,
+                Avatar = user.Picture,
+                Displayname = !string.IsNullOrEmpty(user.Name) ? user.Name :
+                    !string.IsNullOrEmpty(user.Nickname) ? user.Nickname :
+                    !string.IsNullOrEmpty(user.GivenName) ? user.GivenName :
+                    !string.IsNullOrEmpty(user.PreferredUsername) ? user.PreferredUsername :
+                    (franchises.Count > 0 && !string.IsNullOrEmpty(franchises[0].owner_name)) ? franchises[0].owner_name :
+                    (franchises.Count > 0 && !string.IsNullOrEmpty(franchises[0].username)) ? franchises[0].username :
+                    user.Email,
+                istest = false,
+                Premium = false,
+                PasswordHash = string.Empty,
+                Ownername = !string.IsNullOrEmpty(user.Name) ? user.Name :
+                    !string.IsNullOrEmpty(user.Nickname) ? user.Nickname :
+                    !string.IsNullOrEmpty(user.GivenName) ? user.GivenName :
+                    !string.IsNullOrEmpty(user.PreferredUsername) ? user.PreferredUsername :
+                    (franchises.Count > 0 && !string.IsNullOrEmpty(franchises[0].owner_name)) ? franchises[0].owner_name :
+                    (franchises.Count > 0 && !string.IsNullOrEmpty(franchises[0].username)) ? franchises[0].username :
+                    user.Email
+            };
+            await _db.Owners.AddAsync(owner);
+            await _db.SaveChangesAsync();
+            var ownerId = owner.Ownerid;
+            var newFranchises = new List<LeagueOwnerEntity>();
+            foreach (var fran in franchises)
+            {
+                var leagueOwner = new LeagueOwnerEntity
                 {
-                    var teamToUpdate = owners.FirstOrDefault(o => o.ownerid == i + 1);
-                    if(teamToUpdate != null) 
-                        teamToUpdate.caproom = capSpace[i];
-                }
-                await _db.SaveChangesAsync();
+                    Caproom = 500,
+                    Ownerid = ownerId,
+                    Leagueid = fran.leagueId,
+                    Yearsleft = 75,
+                    Mflfranchiseid = int.TryParse(fran.id, out var x) ? x : 0,
+                    Teamname = fran.name
+                };
+                newFranchises.Add(leagueOwner);
             }
-            catch (Exception e)
+            await _db.LeagueOwners.AddRangeAsync(newFranchises);
+            await _db.SaveChangesAsync();
+
+            return new OwnerDTO
             {
-                _logger.LogError(e.Message);
-            }
-        }*/
+                OwnerId = ownerId,
+                Ownername = owner.Ownername,
+                Password = owner.PasswordHash,
+                Premium = owner.Premium ?? false,
+                DisplayName = owner.Displayname,
+                Leagues = newFranchises.Select(_ => new LeagueOwnerDTO
+                {
+                    CapRoom = _.Caproom ?? 0,
+                    YearsLeft = _.Yearsleft ?? 0,
+                    Mflfranchiseid = _.Mflfranchiseid,
+                    Leagueownerid = _.Leagueownerid,
+                    TeamName = _.Teamname,
+                    League = new LeagueDTO
+                    {
+                        LeagueId = _.Leagueid,
+                        Name = _.League.Name,
+                        MflHash = _.League.Mflhash,
+                        CommishCookie = _.League.Commishcookie,
+
+                    }
+                })
+            };
+        }
+
+
+        //MOVE TO AZURE FUNCTION
+        /*        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
+                {
+                    try
+                    {
+                        var owners = _db.Owners;
+                        for (int i = 0; i < capSpace.Count; i++)
+                        {
+                            var teamToUpdate = owners.FirstOrDefault(o => o.ownerid == i + 1);
+                            if(teamToUpdate != null) 
+                                teamToUpdate.caproom = capSpace[i];
+                        }
+                        await _db.SaveChangesAsync();
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e.Message);
+                    }
+                }*/
 
         public async Task<List<OwnerEntity>> GetAllOwners()
         {

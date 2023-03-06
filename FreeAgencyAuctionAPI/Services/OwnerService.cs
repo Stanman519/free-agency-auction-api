@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.Extensions.Options;
 using StreamChat.Clients;
 
@@ -13,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Services
     public interface IOwnerService
     {
         //public Task UpdateCapSpaceForOwners(List<int> capSpace);
+        Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user);
         public Task<List<OwnerDTO>> GetAllOwners();
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
@@ -27,20 +29,22 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IOwnerRepo _repo;
         private readonly IMessageClient _messageClient;
         private readonly IUserClient _userClient;
+        private readonly IMflApi _mfl;
 
-
-        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient)
+        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient, IMflApi mfl)
         {
             _mapper = mapper;
             _repo = repo;
             _messageClient = messageClient;
             _userClient = userClient;
+            _mfl = mfl;
         }
 /*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
             //await _repo.UpdateCapRoomForAllOwners(leagueId, capSpace);
 
         }*/
+
 
         public async Task<List<OwnerDTO>> GetAllOwners()
         {
@@ -53,6 +57,44 @@ namespace FreeAgencyAuctionAPI.Services
             // });
             return owners;
         }
+
+        public async Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user)
+        {
+            // check db first for owner, with this userid, return it or create one if it doesnt exist.
+            var entity = await _repo.GetOwnerByAuthId(user.Sub);
+            
+            if (entity == null)
+            {
+                var matchingFranchises = new List<Franchise>();
+                var leagues = await _repo.GetAllRealLeagueIds();
+                foreach (var league in leagues)
+                {
+                    var root = await _mfl.GetBigLeagueObject(league);
+                    var franchises = root.league.franchises.franchise;
+                    var foundFranchise = franchises.FirstOrDefault(franchise =>
+                    {
+                        return franchise.email.ToLower() == user.Email.ToLower() ||
+                            franchise.username.ToLower() == user.Nickname.ToLower() ||
+                            franchise.username.ToLower() == user.PreferredUsername.ToLower() ||
+                            franchise.owner_name.ToLower() == user.Name.ToLower();
+                    });
+                    if (foundFranchise != null)
+                    {
+                        foundFranchise.leagueId = league;
+                        matchingFranchises.Add(foundFranchise);
+                    }          
+                }
+                entity = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
+                // if it doesn't exist they wont be tied to any league or team, so that's an issue for another day. (but, we want the auth user to be in the body so we can take name and image, and email).
+                // get all big league objects, and check the emails/usernames to see if there is a match with this user, assign them to that team/league
+
+            }
+            return entity;
+            // if it does exist, continue this flow as is?
+        }
+
+
+
 
         public async Task<OwnerDTO> Login(OwnerDTO owner)
         {

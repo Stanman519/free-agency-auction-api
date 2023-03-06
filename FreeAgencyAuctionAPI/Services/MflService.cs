@@ -274,9 +274,11 @@ namespace FreeAgencyAuctionAPI.Services
                 var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(defaultLeagueId, Utils.ThisYear - 1);
                 var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(defaultLeagueId, Utils.ThisYear);
                 await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
+                var myCurrentRoster = thisRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == franchiseId).player;
                 var myExpiringPlayersLastYear = lastRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == franchiseId).player.Where(p => p.contractYear == "1");
-                var myTaxiPlayersNow = thisRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == franchiseId).player.Where(p => p.status == "TAXI_SQUAD");
-                var queryIds = myExpiringPlayersLastYear.Select(p => int.Parse(p.id)).Concat(myTaxiPlayersNow.Select(p => int.Parse(p.id)));
+                var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
+                var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD");
+                var queryIds = myExpiringPlayersLastYear.Select(p => int.Parse(p.id)).Concat(myTaxiPlayersNow.Select(p => int.Parse(p.id))).Concat(cutCandidates.Select(p => int.Parse(p.id)));
                 var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds);
                 var leagueTagData = await _pRepo.GetLeagueTagInfo(defaultLeagueId, Utils.ThisYear);
                 retOwner.TagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
@@ -304,6 +306,23 @@ namespace FreeAgencyAuctionAPI.Services
                     Length = int.TryParse(mfl.contractYear, out var l) ? l : 0
 
                 }).ToList();
+                retOwner.CutCandidates = cutCandidates.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
+                {
+
+                    ActionShot = db.Actionshot,
+                    Age = db.Age,
+                    FirstName = db.Firstname,
+                    FullName = db.Fullname,
+                    Headshot = db.Headshot,
+                    LastName = db.Lastname,
+                    Salary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                    MflId = db.Mflid,
+                    Position = db.Position,
+                    Team = db.Team,
+                    Length = int.TryParse(mfl.contractYear, out var l) ? l : 0
+
+                }).ToList();
+
                 return retOwner;
             }
             catch (Exception e)

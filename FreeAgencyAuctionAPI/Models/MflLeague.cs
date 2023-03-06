@@ -12,6 +12,10 @@ namespace FreeAgencyAuctionAPI.Models
         public string salaryCapAmount { get; set; }
         public string id { get; set; }
         public string stadium { get; set; }
+        public string email { get; set; }
+        public string username { get; set; }
+        public string owner_name { get; set; }
+        public int leagueId { get; set; } // doesn't come from API, my use only
     }
 
     public class Franchises
