@@ -158,7 +158,7 @@ namespace FreeAgencyAuctionAPI.Repos
                         CommishCookie = _.League.Commishcookie,
 
                     }
-                })
+                }).ToList()
             };
         }
 
