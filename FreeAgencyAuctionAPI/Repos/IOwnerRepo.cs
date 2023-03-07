@@ -48,43 +48,39 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var ret = await _db.Owners.FirstOrDefaultAsync(o => 
-                       ( o.Ownername.ToUpper() == owner.Ownername.ToUpper() &&
-                    o.PasswordHash == owner.Password) || o.authid == sub);
+                var ret = await _db.Owners.FirstOrDefaultAsync(o => o.authid == sub);
                 if (ret == null) return null;
 
-                return await (from o in _db.Owners
-                              join l in _db.LeagueOwners on o.Ownerid equals l.Ownerid into temp
-                              select new OwnerDTO
-                              {
-                                  OwnerId = o.Ownerid,
-                                  Ownername = o.Ownername,
-                                  Password = o.PasswordHash,
-                                  Premium = o.Premium ?? false,
-                                  DisplayName = o.Displayname,
-                                  Leagues = temp.Select(_ => new LeagueOwnerDTO
-                                  {
-                                      CapRoom = _.Caproom ?? 0,
-                                      YearsLeft = _.Yearsleft ?? 0,
-                                      Mflfranchiseid = _.Mflfranchiseid,
-                                      Leagueownerid = _.Leagueownerid,
-                                      TeamName = _.Teamname,
-                                      League = new LeagueDTO
-                                      {
-                                          LeagueId = _.Leagueid,
-                                          Name = _.League.Name,
-                                          MflHash = _.League.Mflhash,
-                                          CommishCookie = _.League.Commishcookie,
-                                          
-                                      }
-                                  })
-                              }).FirstOrDefaultAsync(o => o.Ownername.ToUpper() == owner.Ownername.ToUpper() && o.Password == owner.Password);
+                return new OwnerDTO
+                {
+                    OwnerId = ret.Ownerid,
+                    Ownername = ret.Ownername,
+                    Password = ret.PasswordHash,
+                    Premium = ret.Premium ?? false,
+                    DisplayName = ret.Displayname,
+                    Leagues = ret.Leagueowners.Select(_ => new LeagueOwnerDTO
+                    {
+                        CapRoom = _.Caproom ?? 0,
+                        YearsLeft = _.Yearsleft ?? 0,
+                        Mflfranchiseid = _.Mflfranchiseid,
+                        Leagueownerid = _.Leagueownerid,
+                        TeamName = _.Teamname,
+                        League = new LeagueDTO
+                        {
+                            LeagueId = _.Leagueid,
+                            Name = _.League.Name,
+                            MflHash = _.League.Mflhash,
+                            CommishCookie = _.League.Commishcookie,
+
+                        }
+                    }).ToList()
+                };
 
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "login exception");
-                return null;
+                return new OwnerDTO();
             }
         }
 

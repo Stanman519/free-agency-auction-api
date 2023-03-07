@@ -28,18 +28,7 @@ namespace FreeAgencyAuctionAPI
 
         [HttpPost("home")]
         public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user)
-        {
-            // assuming we have auth login info:
-
-            // new method,
-            // check db first for owner, with this userid, return it or create one if it doesnt exist.
-
-            // if it doesn't exist they wont be tied to any league or team, so that's an issue for another day. (but, we want the auth user to be in the body so we can take name and image, and email).
-            // get all big league objects, and check the emails/usernames to see if there is a match with this user, assign them to that team/league
-
-            // if it does exist, continue this flow as is?
-
-             
+        {           
             var dashboard = new DashboardConfessionalDTO();
             OwnerDTO profile = null;
             int? defaultLeagueId = null;
@@ -47,7 +36,6 @@ namespace FreeAgencyAuctionAPI
 
             if (!hasLogin) return new BadRequestResult();
 
-            //profile = await _oService.CookieLogin(loginInfo);
             profile = await _oService.SynchronizeAuthorizedUser(user);
             dashboard.Profile = profile;
             var defaultLeague = profile.Leagues.FirstOrDefault();
@@ -57,6 +45,7 @@ namespace FreeAgencyAuctionAPI
                 var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)defaultLeagueId, defaultLeague.Mflfranchiseid);
                 defaultLeague.TagCandidates = ownerOffseasonData.TagCandidates;
                 defaultLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
+                defaultLeague.CutCandidates = ownerOffseasonData.CutCandidates; 
             }
             
             try

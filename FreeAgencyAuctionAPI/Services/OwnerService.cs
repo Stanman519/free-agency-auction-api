@@ -85,12 +85,8 @@ namespace FreeAgencyAuctionAPI.Services
                     }          
                 }
                 entity = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
-                // if it doesn't exist they wont be tied to any league or team, so that's an issue for another day. (but, we want the auth user to be in the body so we can take name and image, and email).
-                // get all big league objects, and check the emails/usernames to see if there is a match with this user, assign them to that team/league
-
             }
             return entity;
-            // if it does exist, continue this flow as is?
         }
 
 
