@@ -18,6 +18,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<ContractEntity> Contracts { get; set; }
         public DbSet<FranchiseTagPlayer> FranchiseTagPlayers { get; set; }
         public DbSet<FranchiseTagLeague> FranchiseTagLeagues { get; set; }
+        public DbSet<Buyout> Buyouts { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
 
 
@@ -302,6 +303,39 @@ namespace FreeAgencyAuctionAPI
                     });
             });
 
+            modelBuilder.Entity<Buyout>(entity =>
+            {
+                entity.ToTable("buyout");
+
+                entity.Property(e => e.BuyoutId)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("buyoutid");
+                entity.Property(e => e.LeagueId)
+                    .HasColumnName("leagueid");
+                entity.Property(e => e.PlayerId)
+                    .HasColumnName("playerid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.LeagueOwnerId)
+                    .HasColumnName("leagueownerid");
+                entity.Property(e => e.OriginalSalary)
+                    .HasColumnName("originalsalary");
+                entity.HasOne(e => e.League)
+                .WithMany(l => l.Buyouts)
+                .HasForeignKey(d => d.LeagueId)
+                .HasConstraintName("FK_buyout_League");
+                entity.HasOne(e => e.Player)
+                .WithMany(l => l.Buyouts)
+                .HasForeignKey(d => d.PlayerId)
+                .HasConstraintName("FK_buyout_player");
+                entity.HasOne(e => e.LeagueOwner)
+                .WithMany(l => l.Buyouts)
+                .HasForeignKey(d => d.LeagueOwnerId)
+                .HasConstraintName("FK_buyout_leagueowner");
+
+                entity.HasKey(e => e.BuyoutId);
+            });
+
             modelBuilder.Entity<FranchiseTagPlayer>(entity =>
             {
                 entity.ToTable("franchisetagplayer");
@@ -382,6 +416,7 @@ namespace FreeAgencyAuctionAPI
         public string? Rotoworldid { get; set; }
         public decimal? Lastseasonpts { get; set; }
         public bool? IsActive { get; set; }
+        public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
@@ -414,7 +449,7 @@ namespace FreeAgencyAuctionAPI
         public int? Yearsleft { get; set; }
         public string Teamname { get; set; }
         public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
-
+        public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
@@ -479,6 +514,7 @@ namespace FreeAgencyAuctionAPI
         public string? Commishcookie { get; set; }
         public bool Isauctioning { get; set; }
         public bool Istest { get; set; }
+        public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<FranchiseTagLeague> FranchiseTagLeagues { get; } = new List<FranchiseTagLeague>();
         public virtual ICollection<Transaction> Transactions { get; } = new List<Transaction>();
@@ -549,5 +585,19 @@ namespace FreeAgencyAuctionAPI
         public int TE { get; set; }
         public virtual LeagueEntity League { get; set; }
         public virtual ICollection<FranchiseTagPlayer> FranchiseTagPlayers { get; } = new List<FranchiseTagPlayer>();
+    }
+    public partial class Buyout
+    {
+        [Key]
+        public int BuyoutId { get; set; }
+        public int LeagueId { get; set; }
+        public int PlayerId { get; set; }
+        public int Year { get; set; }
+        public int LeagueOwnerId { get; set; }
+        public int OriginalSalary { get; set; }
+        public double BuyoutPenalty { get; set; }
+        public virtual LeagueEntity League { get; set; }
+        public virtual LeagueOwnerEntity LeagueOwner { get; set; }
+        public virtual PlayerEntity Player { get; set; }
     }
 }

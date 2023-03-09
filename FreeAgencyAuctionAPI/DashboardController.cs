@@ -74,11 +74,18 @@ namespace FreeAgencyAuctionAPI
             return NoContent();
         }
         [HttpPost("taxi-cut")]
-        public async Task<IActionResult> CutTaxiPlayer([FromBody] TaxiCutRequestBody body)
+        public async Task<IActionResult> CutTaxiPlayer([FromBody] CutRequestBody body)
         {
             await _mfl.FreeDropTaxiPlayer(body);
             return NoContent();
             
+        }
+        [HttpPost("buyout")]
+        public async Task<IActionResult> BuyoutPlayer([FromBody] CutRequestBody body)
+        {
+            await _mfl.BuyoutPlayer(body);
+            return NoContent();
+
         }
     }
 }

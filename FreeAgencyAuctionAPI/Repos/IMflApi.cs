@@ -34,8 +34,11 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=players&L={leagueId}&APIKEY=&DETAILS=1&SINCE=&PLAYERS={ids}&JSON=1")]
         Task<MflPlayerDetailsRoot> GetMflPlayerDetails([Path] int leagueId, [Path] string ids, [Path] int year = Utils.ThisYear);
-        
-        [Get("2021/export?TYPE=playerScores&L={leagueId}&APIKEY={apiKey}&W=YTD&YEAR={year}&PLAYERS=&POSITION={position}&STATUS=&RULES=1&COUNT=&JSON=1")]
+
+        [Get("{year}/import?TYPE=fcfsWaiver&L={leagueId}&DROP={playerId}&FRANCHISE_ID={franchiseId}")]
+        Task<HttpResponseMessage> DropPlayer([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year = Utils.ThisYear);
+
+        [Get("{year}/export?TYPE=playerScores&L={leagueId}&APIKEY={apiKey}&W=YTD&YEAR={year}&PLAYERS=&POSITION={position}&STATUS=&RULES=1&COUNT=&JSON=1")]
         Task<MflPositionRanks> GetMflPositionScoresByYear([Path] int leagueId, [Path] int year, [Path] string position, [Path] string apiKey);
         [Get("{year}/import?TYPE=taxi_squad&L={leagueId}&PROMOTE=&DEMOTE=&DROP={playerId}&FRANCHISE_ID={franchiseId}")]
         Task<HttpResponseMessage> DropPlayerFromTaxi([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year = Utils.ThisYear);

@@ -41,7 +41,7 @@ namespace FreeAgencyAuctionAPI.Models
         public int mflFranchiseId { get; set; }
         public int tagSalary { get; set; }
     }
-    public class TaxiCutRequestBody
+    public class CutRequestBody
     {
         public int leagueId { get; set; }
         public PlayerDTO player { get; set; }

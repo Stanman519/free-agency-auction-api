@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using FreeAgencyAuctionAPI.Models;
+using FreeAgencyAuctionAPI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -22,6 +24,7 @@ namespace FreeAgencyAuctionAPI.Repos
         /*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
         Task<IEnumerable<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
+        Task AddBuyoutPlayer(CutRequestBody body);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -45,6 +48,24 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e, "get player error");
                 return null;
             }
+        }
+
+        public async Task AddBuyoutPlayer(CutRequestBody body)
+        {
+            var leagueOwner = await _db.LeagueOwners.FirstOrDefaultAsync(o => o.Mflfranchiseid == body.mflFranchiseId && o.Leagueid == body.leagueId);
+            if (leagueOwner == null) return;
+            await _db.Buyouts.AddAsync(new Buyout
+            {
+                LeagueId = body.leagueId,
+                LeagueOwnerId = leagueOwner.Leagueownerid,
+                OriginalSalary = body.player.Salary ?? 0,
+                Year = Utils.ThisYear,
+                PlayerId = body.player.MflId,
+                BuyoutPenalty = Math.Round((body.player.Salary ?? 0) * 0.2, 2)
+
+
+            });
+            await _db.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
