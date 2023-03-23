@@ -41,7 +41,7 @@ namespace FreeAgencyAuctionAPI
                             "https://localhost:3000", 
                             "http://localhost:8080", 
                             "https://localhost:8080",
-                            "https://stanfan.net")
+                            "https://www.stanfan.net")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
