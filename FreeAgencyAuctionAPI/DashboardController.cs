@@ -42,7 +42,7 @@ namespace FreeAgencyAuctionAPI
             defaultLeagueId = defaultLeague.League.LeagueId;
             if (profile != null && defaultLeagueId != null)
             {
-                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)defaultLeagueId, defaultLeague.Mflfranchiseid);
+                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)defaultLeagueId, defaultLeague);
                 defaultLeague.TagCandidates = ownerOffseasonData.TagCandidates;
                 defaultLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
                 defaultLeague.CutCandidates = ownerOffseasonData.CutCandidates; 

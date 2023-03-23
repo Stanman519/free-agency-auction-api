@@ -25,6 +25,8 @@ namespace FreeAgencyAuctionAPI.Repos
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
         Task<IEnumerable<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
         Task AddBuyoutPlayer(CutRequestBody body);
+        List<Buyout> GetBuyoutsUsedForTeam(LeagueOwnerDTO leagueOwner);
+        List<FranchiseTagPlayer> GetTagsUsedForTeam(LeagueOwnerDTO leagueOwner);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -68,7 +70,16 @@ namespace FreeAgencyAuctionAPI.Repos
             await _db.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
+        public List<Buyout> GetBuyoutsUsedForTeam(LeagueOwnerDTO leagueOwner)
+        {
+            return _db.Buyouts.Where(b => b.LeagueOwnerId == leagueOwner.Leagueownerid && b.Year == Utils.ThisYear).ToList();
+        }
+        public List<FranchiseTagPlayer> GetTagsUsedForTeam(LeagueOwnerDTO leagueOwner)
+        {
+            return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueOwner.Leagueownerid && t.Year == Utils.ThisYear).ToList();
+        }
+
+public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
         {
             try
             {

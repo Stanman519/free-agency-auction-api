@@ -15,7 +15,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         //public Task UpdateCapSpaceForOwners(List<int> capSpace);
         Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user);
-        public Task<List<OwnerDTO>> GetAllOwners();
+        public Task<List<LeagueOwnerDTO>> GetAllOwners(int leaugeId);
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
         Task<OwnerDTO> Register(OwnerDTO newUser);
@@ -46,11 +46,26 @@ namespace FreeAgencyAuctionAPI.Services
         }*/
 
 
-        public async Task<List<OwnerDTO>> GetAllOwners()
+        public async Task<List<LeagueOwnerDTO>> GetAllOwners(int leagueId)
         {
-            var ret = await _repo.GetAllOwners();
-            
-            var owners = _mapper.Map<List<OwnerEntity>, List<OwnerDTO>>(ret);
+            var ret = await _repo.GetAllOwners(leagueId);
+
+            var owners = ret.Select(_ => new LeagueOwnerDTO
+            {
+                CapRoom = _.Caproom ?? 0,
+                YearsLeft = _.Yearsleft ?? 0,
+                Mflfranchiseid = _.Mflfranchiseid,
+                Leagueownerid = _.Leagueownerid,
+                TeamName = _.Teamname,
+                League = new LeagueDTO
+                {
+                    LeagueId = _.Leagueid,
+                    Name = _.League.Name,
+                    MflHash = _.League.Mflhash,
+                    CommishCookie = _.League.Commishcookie,
+
+                }
+            }).ToList();
             // owners.ForEach(o =>
             // {
             //     o.TipsUsed = allTips.FirstOrDefault(t => t.Key == o.OwnerId)?.Select(t => t).ToList();

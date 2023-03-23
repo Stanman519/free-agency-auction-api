@@ -59,7 +59,7 @@ namespace FreeAgencyAuctionAPI
 
             if (hasCookies) profile = await _oService.CookieLogin(loginInfo);
 
-            var owners = await _oService.GetAllOwners();
+            var owners = await _oService.GetAllOwners(leagueId);
             var lotsQuery = await _bService.GetAllLots(leagueId);
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
 

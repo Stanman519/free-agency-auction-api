@@ -15,7 +15,7 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises);
 
         //public Task UpdateCapRoomForAllOwners(List<int> capSpace);
-        public Task<List<OwnerEntity>> GetAllOwners();
+        public Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId);
         public Task<IEnumerable<int>> GetAllRealLeagueIds();
         public Task<OwnerDTO> GetOwnerByAuthId(string sub);
         public Task<OwnerDTO> Login(OwnerDTO owner, string? sub = "");
@@ -179,11 +179,11 @@ namespace FreeAgencyAuctionAPI.Repos
                     }
                 }*/
 
-        public async Task<List<OwnerEntity>> GetAllOwners()
+        public async Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId)
         {
             try
             {
-                return await _db.Owners.ToListAsync();
+                return await _db.LeagueOwners.Where(_ => _.Leagueid == leagueId).ToListAsync();
             }
             catch (Exception e)
             {
