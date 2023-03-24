@@ -88,10 +88,10 @@ namespace FreeAgencyAuctionAPI.Services
                     var franchises = root.league.franchises.franchise;
                     var foundFranchise = franchises.FirstOrDefault(franchise =>
                     {
-                        return franchise.email.ToLower() == user.Email.ToLower() ||
-                            franchise.username.ToLower() == user.Nickname.ToLower() ||
-                            franchise.username.ToLower() == user.PreferredUsername.ToLower() ||
-                            franchise.owner_name.ToLower() == user.Name.ToLower();
+                        return franchise.email.ToLower() == user.Email?.ToLower() ||
+                            franchise.username.ToLower() == user.Nickname?.ToLower() ||
+                            franchise.username.ToLower() == user.PreferredUsername?.ToLower() ||
+                            franchise.owner_name.ToLower() == user.Name?.ToLower();
                     });
                     if (foundFranchise != null)
                     {
