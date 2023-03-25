@@ -162,6 +162,7 @@ namespace FreeAgencyAuctionAPI.Services
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
                     await _gm.NotifyMflError(new ErrorMessage( $"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
+                else await _gm.SendBotNotification(message: new ErrorMessage($"Someone got franchise tagged but Ryan forgot to add player name here. Any way it was player {mflPlayerId} for ${salary}."));
             }
             catch (Exception e)
             {
@@ -387,6 +388,7 @@ namespace FreeAgencyAuctionAPI.Services
                     _logger.LogError("{mflPlayerId}'s taxi rebate salary adjustment was not added in mfl.", req.player.FullName);
                     await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly be taxi cut."));
                 }
+                else await _gm.SendBotNotification(message: new ErrorMessage($"New taxi cut submitted on stanfan.net\n{req.player.FullName} was cut."));
             }
             catch (Exception e)
             {
@@ -439,6 +441,7 @@ namespace FreeAgencyAuctionAPI.Services
                     await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout penalty salary adjustment."));
                 }
                 await _pRepo.AddBuyoutPlayer(req);
+                await _gm.SendBotNotification(message: new ErrorMessage($"New buyout submitted on stanfan.net\n{req.player.FullName} was cut."));
             }
             catch (Exception e)
             {

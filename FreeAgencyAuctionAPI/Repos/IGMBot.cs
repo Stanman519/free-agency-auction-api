@@ -7,6 +7,8 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         [Post("Bot/auctionError")]
         Task NotifyMflError([Body] ErrorMessage message);
+        [Post("Bot/stanfan-msg")]
+        Task SendBotNotification([Body] ErrorMessage message);
     }
 
     public class ErrorMessage
