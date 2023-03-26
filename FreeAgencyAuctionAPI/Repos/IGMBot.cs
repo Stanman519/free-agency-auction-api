@@ -5,9 +5,9 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IGMBot
     {
-        [Post("Bot/auctionError")]
+        [Post("auctionError")]
         Task NotifyMflError([Body] ErrorMessage message);
-        [Post("Bot/stanfan-msg")]
+        [Post("stanfan-msg")]
         Task SendBotNotification([Body] ErrorMessage message);
     }
 
