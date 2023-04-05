@@ -24,7 +24,19 @@ namespace FreeAgencyAuctionAPI.Models
         public int Mflfranchiseid { get; set; }
         public int Leagueownerid { get; set; }
         public string TeamName { get; set; }
+        public string Ownername { get; set; }
         public LeagueDTO League { get; set; }
+    }
+
+    public class OpposingFranchiseDTO
+    {
+        public int CapRoom { get; set; }
+        public int YearsLeft { get; set; }
+        public int Mflfranchiseid { get; set; }
+        public int Leagueownerid { get; set; }
+        public string TeamName { get; set; }
+        public string OwnerName { get; set; }
+        public string Avatar { get; set; }
     }
 
     public class TagCandidate
