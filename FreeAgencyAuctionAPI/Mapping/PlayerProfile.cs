@@ -58,9 +58,10 @@ namespace FreeAgencyAuctionAPI.Mapping
         {
             //_mapper = mapper;
             CreateMap<LotEntity, LotDTO>()
-                .ForMember(dest => dest.Bid, opt => opt.MapFrom((lot, lotDTO, i, context ) => context.Mapper.Map<BidDTO>(lot.Bid)))
-                ;
+                .ForMember(dest => dest.NominatedBy, opt => opt.MapFrom(src => src.Nominatedby))
+                .ForMember(dest => dest.Bid, opt => opt.MapFrom((lot, lotDTO, i, context ) => context.Mapper.Map<BidDTO>(lot.Bid)));
             CreateMap<LotDTO, LotEntity>()
+                .ForMember(dest => dest.Nominatedby, opt => opt.MapFrom(src => src.NominatedBy))
                 .ForMember(dest => dest.Bid, opt => opt.MapFrom((lotDTO, lot, i, context) => context.Mapper.Map<BidEntity>(lotDTO.Bid)));
         }
     }
