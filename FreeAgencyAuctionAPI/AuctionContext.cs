@@ -198,6 +198,8 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.PasswordHash)
                     .IsUnicode(false)
                     .HasColumnName("password_hash");
+                entity.Property(e => e.StreamToken)
+                    .HasColumnName("streamtoken");
                 entity.Property(e => e.Premium).HasColumnName("premium");
             });
 
@@ -502,6 +504,7 @@ namespace FreeAgencyAuctionAPI
         public bool istest { get; set; }
         public string Avatar { get; set; }
         public string authid { get; set; }
+        public string StreamToken { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
     }
 

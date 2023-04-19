@@ -71,7 +71,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
             var entity = await _repo.GetOwnerByAuthId(user.Sub);
-            
+            if (string.IsNullOrEmpty(entity.StreamToken)) await AddStreamTokenToOwner(entity);
             if (entity == null)
             {
                 var matchingFranchises = new List<Franchise>();
@@ -111,6 +111,16 @@ namespace FreeAgencyAuctionAPI.Services
             dbOwner.StreamToken = _userClient.CreateToken(dbOwner.Ownername);
             return dbOwner;
         }
+
+        public async Task<OwnerDTO> AddStreamTokenToOwner(OwnerDTO owner)
+        {
+            var token = _userClient.CreateToken(owner.OwnerId.ToString());
+            await _repo.UpdateOwnerStreamToken(owner, token);
+            owner.StreamToken = token;
+            return owner;
+        }
+
+
 
         public async Task<OwnerDTO> CookieLogin(string login)
         {

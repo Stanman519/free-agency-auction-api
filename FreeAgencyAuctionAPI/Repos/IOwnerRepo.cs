@@ -19,6 +19,7 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task<IEnumerable<int>> GetAllRealLeagueIds();
         public Task<OwnerDTO> GetOwnerByAuthId(string sub);
         public Task<OwnerDTO> Login(OwnerDTO owner, string? sub = "");
+        public Task UpdateOwnerStreamToken(OwnerDTO owner, string token);
         public Task MakeTestLeague();
         public Task<OwnerEntity> Register(OwnerEntity newUser);
     }
@@ -42,6 +43,14 @@ namespace FreeAgencyAuctionAPI.Repos
         public async Task<IEnumerable<int>> GetAllRealLeagueIds()
         {
             return (await _db.Leagues.Where(_ => _.Mflid > 0).ToListAsync()).Select(_ => _.Mflid);
+        }
+
+        public async Task UpdateOwnerStreamToken(OwnerDTO owner, string token)
+        {
+            var entity = await _db.Owners.FirstOrDefaultAsync(o => o.Ownerid == owner.OwnerId);
+            if (entity == null) return;
+            entity.StreamToken = token;
+            await _db.SaveChangesAsync();
         }
 
         public async Task<OwnerDTO> Login(OwnerDTO owner, string? sub = "")
