@@ -57,8 +57,9 @@ namespace FreeAgencyAuctionAPI
             OwnerDTO profile = null;
             var hasCookies = !string.IsNullOrEmpty(loginInfo);
 
-            if (hasCookies) profile = await _oService.CookieLogin(loginInfo);
-
+            if (hasCookies) profile = await _oService.GetOwnerDTOByAuthUserSub(loginInfo);
+            if (leagueId == 0 && (profile == null || profile.Leagues.FirstOrDefault() == null)) return BadRequest(new ErrorResponse("No profile or league information."));
+            leagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
             var owners = await _oService.GetAllOwners(leagueId);
             var lotsQuery = await _bService.GetAllLots(leagueId);
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
@@ -75,7 +76,6 @@ namespace FreeAgencyAuctionAPI
                 freeAgents = filterOutAuctionPlayers.ToList(),
                 profile = hasCookies ? profile : null
             });
-            return BadRequest(new ErrorResponse("Initial page load failed."));
         }
 
         /// <summary>

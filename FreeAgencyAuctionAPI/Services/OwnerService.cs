@@ -8,6 +8,7 @@ using FreeAgencyAuctionAPI.Repos;
 using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.Extensions.Options;
 using StreamChat.Clients;
+using StreamChat.Models;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -15,6 +16,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         //public Task UpdateCapSpaceForOwners(List<int> capSpace);
         Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user);
+        Task<OwnerDTO> GetOwnerDTOByAuthUserSub(string userSub);
         public Task<List<OpposingFranchiseDTO>> GetAllOwners(int leaugeId);
         public Task<OwnerDTO> Login(OwnerDTO owner);
         Task<OwnerDTO> CookieLogin(string login);
@@ -67,11 +69,18 @@ namespace FreeAgencyAuctionAPI.Services
             return owners;
         }
 
+        public async Task<OwnerDTO> GetOwnerDTOByAuthUserSub(string userSub)
+        {
+            var dto = await _repo.GetOwnerByAuthId(userSub);
+            dto.StreamToken = await GetStreamToken(dto);
+            return dto;
+        }
+
+
         public async Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user)
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
             var dto = await _repo.GetOwnerByAuthId(user.Sub);
-            Console.WriteLine($"{dto.OwnerId}");
             dto.StreamToken = await GetStreamToken(dto);
             if (dto == null)
             {
