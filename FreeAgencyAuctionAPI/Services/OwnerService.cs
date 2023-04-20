@@ -70,9 +70,10 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user)
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
-            var entity = await _repo.GetOwnerByAuthId(user.Sub);
-            if (string.IsNullOrEmpty(entity.StreamToken)) entity = await AddStreamTokenToOwner(entity, user.Sub);
-            if (entity == null)
+            var dto = await _repo.GetOwnerByAuthId(user.Sub);
+            Console.WriteLine($"{dto.OwnerId}");
+            dto.StreamToken = await GetStreamToken(dto);
+            if (dto == null)
             {
                 var matchingFranchises = new List<Franchise>();
                 var leagues = await _repo.GetAllRealLeagueIds();
@@ -93,9 +94,9 @@ namespace FreeAgencyAuctionAPI.Services
                         matchingFranchises.Add(foundFranchise);
                     }          
                 }
-                entity = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
+                dto = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
             }
-            return entity;
+            return dto;
         }
 
 
@@ -112,12 +113,13 @@ namespace FreeAgencyAuctionAPI.Services
             return dbOwner;
         }
 
-        public async Task<OwnerDTO> AddStreamTokenToOwner(OwnerDTO owner, string userSub)
+        //saving to db doesn't work?
+        public async Task<string> GetStreamToken(OwnerDTO owner)
         {
-            var token = _userClient.CreateToken(userSub);
-            await _repo.UpdateOwnerStreamToken(owner, token);
-            owner.StreamToken = token;
-            return owner;
+            return _userClient.CreateToken($"{owner.OwnerId}");
+            //await _repo.UpdateOwnerStreamToken(owner, token);
+/*            owner.StreamToken = token;
+            return owner;*/
         }
 
 
