@@ -27,32 +27,38 @@ namespace FreeAgencyAuctionAPI
         }
 
         [HttpPost("home")]
-        public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user)
+        public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user, [Query] string leagueId)
         {           
             var dashboard = new DashboardConfessionalDTO();
             OwnerDTO profile = null;
-            int? defaultLeagueId = null;
+            int? chosenLeagueId = null;
             var hasLogin = !string.IsNullOrEmpty(user.Sub);
-
+            var safeLeagueId = 0;
+            var queryLeague = false;
+            if (!string.IsNullOrEmpty(leagueId))
+            {
+                queryLeague = true;
+                int.TryParse(leagueId, out safeLeagueId);
+            }
             if (!hasLogin) return new BadRequestResult();
-
+            
             profile = await _oService.SynchronizeAuthorizedUser(user);
             dashboard.Profile = profile;
-            var defaultLeague = profile.Leagues.FirstOrDefault();
-            defaultLeagueId = defaultLeague.League.LeagueId;
-            if (profile != null && defaultLeagueId != null)
+            var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ? profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) : profile.Leagues.FirstOrDefault();
+            chosenLeagueId =  chosenLeague.League.LeagueId;
+            if (profile != null && chosenLeagueId != null)
             {
-                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)defaultLeagueId, defaultLeague);
-                defaultLeague.TagCandidates = ownerOffseasonData.TagCandidates;
-                defaultLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
-                defaultLeague.CutCandidates = ownerOffseasonData.CutCandidates; 
+                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)chosenLeagueId, chosenLeague);
+                chosenLeague.TagCandidates = ownerOffseasonData.TagCandidates;
+                chosenLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
+                chosenLeague.CutCandidates = ownerOffseasonData.CutCandidates; 
             }
             
             try
             {
-                if (defaultLeagueId != null )
+                if (chosenLeagueId != null )
                 {
-                    var deadCapData = await _leagueService.GetDeadCapData((int)defaultLeagueId);
+                    var deadCapData = await _leagueService.GetDeadCapData((int)chosenLeagueId);
                     dashboard.LeagueTransactions = deadCapData.LeagueTransactions;
                     dashboard.TeamDeadCaps = deadCapData.TeamDeadCapData;
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();

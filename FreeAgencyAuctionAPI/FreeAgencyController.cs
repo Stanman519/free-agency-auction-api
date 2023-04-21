@@ -56,10 +56,10 @@ namespace FreeAgencyAuctionAPI
             //TODO: THIS NEEDS BETTER ERROR HANDLING AND WIN MESSAGES
             OwnerDTO profile = null;
             var hasCookies = !string.IsNullOrEmpty(loginInfo);
-
-            if (hasCookies) profile = await _oService.GetOwnerDTOByAuthUserSub(loginInfo);
-            if (leagueId == 0 && (profile == null || profile.Leagues.FirstOrDefault() == null)) return BadRequest(new ErrorResponse("No profile or league information."));
-            leagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
+            if (!hasCookies) return BadRequest(new ErrorResponse("You are not logged in"));
+            profile = await _oService.GetOwnerDTOByAuthUserSub(loginInfo);
+            if (leagueId == 0 && profile.Leagues.FirstOrDefault() == null) return BadRequest(new ErrorResponse("No profile or league information."));
+            if (leagueId == 0) leagueId = profile.Leagues.FirstOrDefault().League.LeagueId;
             var owners = await _oService.GetAllOwners(leagueId);
             var lotsQuery = await _bService.GetAllLots(leagueId);
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
@@ -74,7 +74,7 @@ namespace FreeAgencyAuctionAPI
                 owners = owners,
                 lots = lots,
                 freeAgents = filterOutAuctionPlayers.ToList(),
-                profile = hasCookies ? profile : null
+                profile = profile
             });
         }
 
