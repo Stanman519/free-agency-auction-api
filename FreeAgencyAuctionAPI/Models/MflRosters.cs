@@ -24,6 +24,7 @@ namespace FreeAgencyAuctionAPI.Models
 
     public class RostersRoot
     {
+        public string error { get; set; }
         public Rosters rosters { get; set; }
         public string version { get; set; }
         public string encoding { get; set; }

@@ -268,19 +268,20 @@ namespace FreeAgencyAuctionAPI.Services
 
             return playerDetailsList;
         }
-        public async Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner)
+        public async Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int leagueId, LeagueOwnerDTO leagueOwner)
         {
             var retOwner = new LeagueOwnerDTO();
+            retOwner.TagCandidates = new List<TagCandidate>();
             try
             {
-                var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(defaultLeagueId, Utils.ThisYear - 1);
-                var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(defaultLeagueId, Utils.ThisYear);
+                var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear - 1);
+                var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
                 await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
 
                 var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwner);
                 var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwner);
 
-                var myCurrentRoster = thisRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player;
+                var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player : new List<Player>();
 
                 IEnumerable<Player> myExpiringPlayersLastYear = new List<Player>();
 
@@ -291,29 +292,22 @@ namespace FreeAgencyAuctionAPI.Services
 
                 if (previousTags.Count == 0)
                 {
-                    myExpiringPlayersLastYear = lastRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player.Where(p => p.contractYear == "1").ToList();
+                    myExpiringPlayersLastYear = lastRosterRootTask.Result.error == null ? lastRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player.Where(p => p.contractYear == "1").ToList() : new List<Player>();
                     queryIds = queryIds.Concat(myExpiringPlayersLastYear.Select(p => int.Parse(p.id)));
                 }
 
-                var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds);
-                if (previousTags.Count == 0) 
+                var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+                if (previousTags.Count == 0 && myExpiringPlayersLastYear.Count() > 0) 
                 {
-                    var leagueTagData = await _pRepo.GetLeagueTagInfo(defaultLeagueId, Utils.ThisYear);
+                    var leagueTagData = await _pRepo.GetLeagueTagInfo(leagueId, Utils.ThisYear);
                     retOwner.TagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
                         {
                             Player = _mapper.Map<PlayerDTO>(db),
                             LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
                             TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
-
                         }).ToList();
                 }
                 
-
-
-
-
-
-
                 retOwner.TaxiPlayers = myTaxiPlayersNow.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
                 {
                     ActionShot = db.Actionshot,
