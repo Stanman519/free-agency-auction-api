@@ -23,6 +23,7 @@ namespace FreeAgencyAuctionAPI.Models
 
     public class FreeAgentsRoot
     {
+        public string error { get; set; }
         public FreeAgents freeAgents { get; set; }
         public string version { get; set; }
         public string encoding { get; set; }

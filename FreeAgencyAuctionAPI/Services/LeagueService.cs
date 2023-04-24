@@ -50,6 +50,10 @@ namespace FreeAgencyAuctionAPI.Services
                 _logger.LogError("entity framework error", e);
                 return returnData;
             }
+            franchises.ForEach(f =>
+            {
+                teamCaps.Add(new TeamDeadCapData(f.Mflfranchiseid, f.Owner.Displayname));
+            });
 
             var allTransactions = (
                 from t in transactions
@@ -70,10 +74,10 @@ namespace FreeAgencyAuctionAPI.Services
                 .Select(t => new TeamDeadCapData(t.FranchiseId, t.TeamName))
                 .ToList();
 
-            distinct.ForEach(t =>
+/*            distinct.ForEach(t =>
             {
                 teamCaps.Add(new TeamDeadCapData(t.FranchiseId, t.Team));
-            });
+            });*/
 
             allTransactions.ForEach(t =>
             {
