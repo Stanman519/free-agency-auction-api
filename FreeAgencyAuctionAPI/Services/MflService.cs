@@ -404,7 +404,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{mflPlayerId}'s contract was not updated in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not be taxi cut."));
+                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not be bought out."));
                 }
             }
             catch (Exception e)

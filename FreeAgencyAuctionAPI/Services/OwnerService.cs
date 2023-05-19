@@ -6,6 +6,7 @@ using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using Microsoft.AspNetCore.Routing.Template;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StreamChat.Clients;
 using StreamChat.Models;
@@ -32,14 +33,16 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IMessageClient _messageClient;
         private readonly IUserClient _userClient;
         private readonly IMflApi _mfl;
+        private readonly IGMBot _gm;
 
-        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient, IMflApi mfl)
+        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient, IMflApi mfl, IGMBot gm)
         {
             _mapper = mapper;
             _repo = repo;
             _messageClient = messageClient;
             _userClient = userClient;
             _mfl = mfl;
+            _gm = gm;
         }
 /*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
         {
@@ -125,7 +128,15 @@ namespace FreeAgencyAuctionAPI.Services
         //saving to db doesn't work?
         public async Task<string> GetStreamToken(OwnerDTO owner)
         {
-            return _userClient.CreateToken($"{owner.OwnerId}");
+            try
+            {
+                return _userClient.CreateToken($"{owner.OwnerId}");
+            }
+            catch (Exception e)
+            {
+                await _gm.NotifyMflError(new ErrorMessage($"stream error: {e.Message}"));
+            }
+            return "";
             //await _repo.UpdateOwnerStreamToken(owner, token);
 /*            owner.StreamToken = token;
             return owner;*/
