@@ -6,6 +6,7 @@ using RestEase;
 
 namespace FreeAgencyAuctionAPI.Repos
 {
+    [Header("User-Agent", "CapnCrunch")]
     public interface IGlobalMflApi
     {
         [Header("cookie")]
