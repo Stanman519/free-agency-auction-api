@@ -45,7 +45,7 @@ namespace FreeAgencyAuctionAPI
             profile = await _oService.SynchronizeAuthorizedUser(user);
             dashboard.Profile = profile;
             var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ? profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) : profile.Leagues.FirstOrDefault();
-            chosenLeagueId =  chosenLeague.League.LeagueId;
+            chosenLeagueId =  chosenLeague?.League?.LeagueId ?? null;
             if (profile != null && chosenLeagueId != null)
             {
                 var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)chosenLeagueId, chosenLeague);

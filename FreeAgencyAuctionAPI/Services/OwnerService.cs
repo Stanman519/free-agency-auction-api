@@ -84,8 +84,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
             var dto = await _repo.GetOwnerByAuthId(user.Sub);
-            dto.StreamToken = await GetStreamToken(dto);
-            if (dto == null)
+            if (dto?.OwnerId < 1 || dto == null)
             {
                 var matchingFranchises = new List<Franchise>();
                 var leagues = await _repo.GetAllRealLeagueIds();
@@ -108,6 +107,7 @@ namespace FreeAgencyAuctionAPI.Services
                 }
                 dto = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
             }
+            dto.StreamToken = await GetStreamToken(dto);
             return dto;
         }
 
