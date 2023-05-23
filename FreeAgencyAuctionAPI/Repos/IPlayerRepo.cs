@@ -63,7 +63,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 OriginalSalary = body.player.Salary ?? 0,
                 Year = Utils.ThisYear,
                 PlayerId = body.player.MflId,
-                BuyoutPenalty = Math.Round((body.player.Salary ?? 0) * 0.2, 2)
+                BuyoutPenalty = (decimal)Math.Round((body.player.Salary ?? 0) * 0.2, 2)
 
 
             });

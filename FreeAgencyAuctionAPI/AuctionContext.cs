@@ -598,7 +598,7 @@ namespace FreeAgencyAuctionAPI
         public int Year { get; set; }
         public int LeagueOwnerId { get; set; }
         public int OriginalSalary { get; set; }
-        public double BuyoutPenalty { get; set; }
+        public decimal BuyoutPenalty { get; set; }
         public virtual LeagueEntity League { get; set; }
         public virtual LeagueOwnerEntity LeagueOwner { get; set; }
         public virtual PlayerEntity Player { get; set; }
