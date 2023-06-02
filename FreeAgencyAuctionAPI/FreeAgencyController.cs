@@ -133,7 +133,7 @@ namespace FreeAgencyAuctionAPI
             if (newBid.LotId == null || newBid.LeagueId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             if (!await _bService.ValidateBidForDbEntry(newBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddDays(200);
+            newBid.Expires = DateTime.UtcNow.AddHours(18);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -167,7 +167,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogCritical("Somehow a null lotId or leagueId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddDays(200);
+            nomination.Expires = DateTime.UtcNow.AddHours(18);
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
             var lotToUpdate = new LotDTO
