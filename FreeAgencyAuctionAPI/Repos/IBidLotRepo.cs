@@ -18,6 +18,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
         Task<List<BidDTO>> GetBidHistoryByPlayerId(int leagueId, string playerId);
         Task<BidEntity> GetLatestBidForPlayerId(int mflId, int leagueId);
+        Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -160,25 +161,25 @@ namespace FreeAgencyAuctionAPI.Repos
                 return false;
             }
         }
-        /*public async Task<List<BidDTO>> GetNewBidsFromTheLastHour()
+        public async Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId)
         {
             var oneHourAgo = DateTime.UtcNow.AddHours(-1);
             try
             {
-                return await _db.Bids.Where(b => b.Expires >= oneHourAgo.AddHours(12)).Join(_db.Players, b => b.Mflid, p => p.Mflid, (b, p) => new BidDTO
+                return await _db.Bids.Where(b => b.Expires >= oneHourAgo.AddHours(24) && b.Leagueid == leagueId).Join(_db.Players, b => b.Mflid, p => p.Mflid, (b, p) => new BidDTO
                 {
-                    BidLength = b.bidlength,
-                    BidSalary = b.bidsalary,
-                    BidId = b.bidid,
-                    Expires = b.expires,
-                    OwnerId = b.ownerid,
-                    Ownername = b.ownername,
+                    BidLength = b.Bidlength,
+                    BidSalary = b.Bidsalary,
+                    BidId = b.Bidid,
+                    Expires = b.Expires,
+                    OwnerId = b.Ownerid,
+                    Ownername = b.LeagueOwner.Owner.Ownername,
                     Player = new PlayerDTO
                     {
-                        FirstName = p.firstname,
-                        LastName = p.lastname,
-                        Position = p.position,
-                        MflId = p.mflid
+                        FirstName = p.Firstname,
+                        LastName = p.Lastname,
+                        Position = p.Position,
+                        MflId = p.Mflid
                     }
                 }).ToListAsync();
             }
@@ -187,7 +188,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 Console.WriteLine(e);
                 throw;
             }
-        }*/
+        }
     //}
 }
 }

@@ -14,7 +14,7 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises);
 
-        //public Task UpdateCapRoomForAllOwners(List<int> capSpace);
+        public Task UpdateCapRoomForAllOwners(List<int> capSpace, int leagueId);
         public Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId);
         public Task<IEnumerable<int>> GetAllRealLeagueIds();
         public Task<OwnerDTO> GetOwnerByAuthId(string sub);
@@ -168,25 +168,26 @@ namespace FreeAgencyAuctionAPI.Repos
         }
 
 
-        //MOVE TO AZURE FUNCTION
-        /*        public async Task UpdateCapRoomForAllOwners(List<int> capSpace)
+
+        public async Task UpdateCapRoomForAllOwners(List<int> capSpace, int leagueId)
+        {
+            try
+            {
+                var owners = await _db.LeagueOwners.Where(l => l.Leagueid == leagueId).ToListAsync();
+
+                for (int i = 0; i < capSpace.Count; i++)
                 {
-                    try
-                    {
-                        var owners = _db.Owners;
-                        for (int i = 0; i < capSpace.Count; i++)
-                        {
-                            var teamToUpdate = owners.FirstOrDefault(o => o.ownerid == i + 1);
-                            if(teamToUpdate != null) 
-                                teamToUpdate.caproom = capSpace[i];
-                        }
-                        await _db.SaveChangesAsync();
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e.Message);
-                    }
-                }*/
+                    var teamToUpdate = owners.FirstOrDefault(o => o.Mflfranchiseid == i + 1);
+                    if (teamToUpdate != null)
+                        teamToUpdate.Caproom = capSpace[i];
+                }
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e.Message);
+            }
+        }
 
         public async Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId)
         {

@@ -133,7 +133,7 @@ namespace FreeAgencyAuctionAPI
             if (newBid.LotId == null || newBid.LeagueId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             if (!await _bService.ValidateBidForDbEntry(newBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddHours(18);
+            newBid.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.PostNewBid(newBid);
             var lotToUpdate = new LotDTO
             {
@@ -167,7 +167,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogCritical("Somehow a null lotId or leagueId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddHours(18);
+            nomination.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
             var lotToUpdate = new LotDTO
@@ -224,7 +224,7 @@ namespace FreeAgencyAuctionAPI
             return Ok(ret);
         }
 
-/*        [HttpGet("leagues/{leagueId}/salaryCap")]
+        [HttpGet("leagues/{leagueId}/salaryCap")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -232,9 +232,9 @@ namespace FreeAgencyAuctionAPI
         {
             var capSpace = await _mfl.GetSalaryCapRoom(leagueId);
             await _oService.UpdateCapSpaceForOwners(capSpace.OrderBy(_ => _.Ownerid).Select(_ => _.Caproom ?? 0)
-                .ToList());
+                .ToList(), leagueId);
             return Ok();
-        }*/
+        }
 
         [HttpGet("leagues/{leagueId}/players/{playerId}/bid-history")]
         [Produces("application/json")]
@@ -243,6 +243,16 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> GetBidHisotry([FromRoute] int leagueId, [FromRoute] string playerId)
         {
             return Ok(await _bService.GetBidHistory(leagueId, playerId));
+        }
+
+        [HttpGet("leagues/{leagueId}/bid-updates")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> PostNewBids([FromRoute] int leagueId)
+        {
+            await _bService.PostNewBidChangesToGroup(leagueId);
+            return Ok();
         }
 
         [HttpPost("leagues/{leagueId}/tip")]
