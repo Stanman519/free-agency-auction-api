@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
@@ -20,6 +21,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<BidDTO>> GetBidHistory(int leagueId, string playerId);
         Task HandleWinningTasks(BidDTO bid);
         Task<bool> ValidateBidForDbEntry(BidDTO bid);
+        public Task PostNewBidChangesToGroup(int leagueId);
         // Task SendWinningMessage(BidDTO bid);
     }
 
@@ -151,11 +153,11 @@ namespace FreeAgencyAuctionAPI.Services
 
             return null;
         }
-/*        public async Task PostNewBidChangesToGroup()
+        public async Task PostNewBidChangesToGroup(int leagueId)
         {
             var strForBot = "Players with new bids in the last hour:\n";
-            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour();
-            var emptyLots = (await _repo.GetAllLots()).Where(l => l.Bid == null).ToList();
+            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour(leagueId);/*
+            var emptyLots = (await _repo.GetAllLots(leagueId)).Where(l => l.Bid == null).ToList();*/
             var bidsGroupedByPlayer = bidsFromLastHour.GroupBy(b => b.Player.MflId).ToList();
             if (!bidsGroupedByPlayer.Any()) return;
             foreach (var bid in bidsGroupedByPlayer)
@@ -165,7 +167,7 @@ namespace FreeAgencyAuctionAPI.Services
                 strForBot +=
                     $"{latestBid.Player.LastName} - ${latestBid.BidSalary} ({latestBid.Ownername})\n";
             }
-
+/*
             if (emptyLots.Any())
             {
                 strForBot += "\nNeeds to nominate:\n";
@@ -173,10 +175,10 @@ namespace FreeAgencyAuctionAPI.Services
                 {
                     strForBot += $"{Utils.Owners[lot.LotId]}\n";
                 }
-            }
+            }*/
 
-            await _bot.NotifyMflError(new ErrorMessage(strForBot));
-        }*/
+            await _bot.SendBotNotification(new ErrorMessage(strForBot));
+        }
         public async Task<bool> ValidateBidForDbEntry(BidDTO bid)
         {
             var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId, bid.LeagueId);

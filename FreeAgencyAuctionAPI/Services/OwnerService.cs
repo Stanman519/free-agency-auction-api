@@ -15,7 +15,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IOwnerService
     {
-        //public Task UpdateCapSpaceForOwners(List<int> capSpace);
+        public Task UpdateCapSpaceForOwners(List<int> capSpace, int leagueId);
         Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user);
         Task<OwnerDTO> GetOwnerDTOByAuthUserSub(string userSub);
         public Task<List<OpposingFranchiseDTO>> GetAllOwners(int leaugeId);
@@ -44,11 +44,11 @@ namespace FreeAgencyAuctionAPI.Services
             _mfl = mfl;
             _gm = gm;
         }
-/*        public async Task UpdateCapSpaceForOwners(List<int> capSpace)
+        public async Task UpdateCapSpaceForOwners(List<int> capSpace, int leagueId)
         {
-            //await _repo.UpdateCapRoomForAllOwners(leagueId, capSpace);
+            await _repo.UpdateCapRoomForAllOwners(capSpace, leagueId);
 
-        }*/
+        }
 
 
         public async Task<List<OpposingFranchiseDTO>> GetAllOwners(int leagueId)
