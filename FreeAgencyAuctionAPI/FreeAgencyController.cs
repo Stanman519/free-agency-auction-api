@@ -170,6 +170,7 @@ namespace FreeAgencyAuctionAPI
             nomination.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
+            ret.Expires = nomination.Expires;
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)nomination.LotId,

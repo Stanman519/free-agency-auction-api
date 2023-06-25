@@ -25,6 +25,7 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.Player, opt => opt.MapFrom((bid, bidDTO, i, context)  => context.Mapper.Map<PlayerDTO>(bid.Player)))
                 .ForMember(dest => dest.BidLength, opt => opt.MapFrom(src => src.Bidlength))
                 .ForMember(dest => dest.BidSalary, opt => opt.MapFrom(src => src.Bidsalary))
+                .ForMember(dest => dest.Expires, opt => opt.MapFrom(src => src.Expires))
                 .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.Ownerid));
 
             CreateMap<BidDTO, BidEntity>()

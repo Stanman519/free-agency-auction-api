@@ -171,7 +171,7 @@ namespace FreeAgencyAuctionAPI
                 entity.HasOne(d => d.Bid).WithMany(p => p.Lots)
                     .HasForeignKey(d => d.Bidid)
                     .HasConstraintName("FK_bidid_fkey");
-                entity.HasOne(d => d.Nominator).WithMany(p => p.Lots)
+                entity.HasOne(d => d.LotOwner).WithMany(p => p.Lots)
                     .HasForeignKey(d => d.Nominatedby)
                     .HasConstraintName("FK_lot_leagueowner");
 
@@ -488,7 +488,7 @@ namespace FreeAgencyAuctionAPI
         public int? Bidid { get; set; }
         public int Leagueid { get; set; }
         public int? Nominatedby { get; set; }
-        public virtual LeagueOwnerEntity? Nominator { get; set; }
+        public virtual LeagueOwnerEntity? LotOwner { get; set; }
         public virtual BidEntity? Bid { get; set; }
         public virtual LeagueEntity League { get; set; } = null!;
     }
