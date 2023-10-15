@@ -49,7 +49,7 @@ namespace FreeAgencyAuctionAPI
 
             });
             services.AddSignalR();
-            services.AddControllers();
+            services.AddControllers().AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
             services.AddSwaggerGen();
             services.AddSingleton(RestClient.For<IGMBot>("https://capncrunch-api.azurewebsites.net/Bot"));
             var mflGlobal = RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com");

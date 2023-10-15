@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using FreeAgencyAuctionAPI;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI
@@ -20,7 +22,14 @@ namespace FreeAgencyAuctionAPI
         public DbSet<FranchiseTagLeague> FranchiseTagLeagues { get; set; }
         public DbSet<Buyout> Buyouts { get; set; }
         public virtual DbSet<Transaction> Transactions { get; set; }
+        public DbSet<NflTeam> NflTeams { get; set; }
+        public DbSet<NflTeamMatchup> NflTeamMatchups { get; set; }
+        public DbSet<Pick> NflPicks { get; set; }
 
+        /*
+                public DbSet<NflTeamEntity> NflTeams { get; set; }
+                public DbSet<NflOverPickEntity> NflPicks { get; set; }
+        */
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -28,6 +37,64 @@ namespace FreeAgencyAuctionAPI
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
+            modelBuilder.Entity<NflTeam>(entity =>
+            {
+                entity.HasKey(e => e.Tricode).HasName("PK_nflteam");
+                entity.ToTable("nflteam");
+                entity.Property(e => e.Name).HasColumnName("name");
+                entity.Property(e => e.Tricode).HasColumnName("tricode");
+                entity.Property(e => e.City).HasColumnName("city");
+                entity.Property(e => e.Logo).HasColumnName("logo");
+                entity.Property(e => e.SecondaryLogo).HasColumnName("secondaryLogo");
+                entity.Property(e => e.Primary).HasColumnName("primary");
+                entity.Property(e => e.Secondary).HasColumnName("secondary");
+                entity.Property(e => e.Tricode).HasColumnName("tricode");
+
+            });
+
+            modelBuilder.Entity<Pick>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK_pick");
+                entity.ToTable("pick");
+                entity.Property(e => e.OwnerId).HasColumnName("ownerid");
+                entity.Property(e => e.MatchupId).HasColumnName("matchupid");
+                entity.Property(e => e.Choice).HasColumnName("choice");
+                entity.Property(e => e.Points).HasColumnName("points");
+                entity.HasOne(d => d.Owner).WithMany(p => p.ConfidencePicks)
+                    .HasForeignKey(d => d.OwnerId)
+                    .HasConstraintName("FK_pick_owner");
+                entity.HasOne(d => d.ChosenTeam).WithMany(p => p.ChosenPicks)
+                    .HasForeignKey(d => d.Choice)
+                    .HasConstraintName("FK_pick_nflteam");
+                entity.HasOne(d => d.NflTeamMatchup).WithMany(p => p.ChosenPicks)
+                    .HasForeignKey(d => d.MatchupId)
+                    .HasConstraintName("FK_pick_matchup");
+
+            });
+            modelBuilder.Entity<NflTeamMatchup>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK_matchup");
+                entity.ToTable("matchup");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Left).HasColumnName("left");
+                entity.Property(e => e.Right).HasColumnName("right");
+                entity.Property(e => e.Year).HasColumnName("year");
+                entity.Property(e => e.Week).HasColumnName("week");
+                entity.Property(e => e.Pickable).HasColumnName("pickable");
+                entity.Property(e => e.Winner).HasColumnName("winner");
+                entity.HasOne(e => e.LeftTeam).WithMany(e => e.LeftMatchups).HasForeignKey(d => d.Left).HasConstraintName("FK_matchup_nflteam_left");
+                entity.HasOne(e => e.RightTeam).WithMany(e => e.RightMatchups).HasForeignKey(d => d.Right).HasConstraintName("FK_matchup_nflteam_right");
+                entity.HasOne(e => e.WinningTeam).WithMany(e => e.WinMatchups).HasForeignKey(d => d.Winner).HasConstraintName("FK_matchup_nflteam_winner");
+            });
+            /*            modelBuilder.Entity<NflOverPickEntity>(entity =>
+                        {
+                            entity.Property(e => e.PlayerId).HasColumnName("playerid");
+                            entity.Property(e => e.Pick).HasColumnName("pick");
+                            entity.Property(e => e.PickId).HasColumnName("pickid");
+                            entity.Property(e => e.Tricode).HasColumnName("tricode");
+
+                        });*/
             modelBuilder.Entity<Transaction>(entity =>
             {
                 entity.HasKey(e => e.Globalid).HasName("PK_transaction");
@@ -297,12 +364,13 @@ namespace FreeAgencyAuctionAPI
                 entity.HasOne(e => e.League)
                 .WithMany(l => l.FranchiseTagLeagues)
                 .HasForeignKey(d => d.Mflleagueid)
-                    .HasConstraintName("FK_franchisetagleauge_League"); 
+                    .HasConstraintName("FK_franchisetagleauge_League");
 
-                entity.HasKey(e => new {
+                entity.HasKey(e => new
+                {
                     e.Mflleagueid,
                     e.Year
-                    });
+                });
             });
 
             modelBuilder.Entity<Buyout>(entity =>
@@ -506,6 +574,7 @@ namespace FreeAgencyAuctionAPI
         public string authid { get; set; }
         public string StreamToken { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
+        public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
     }
 
     public partial class LeagueEntity
@@ -524,6 +593,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
+
     }
 
     public partial class ContractEntity
@@ -602,5 +672,51 @@ namespace FreeAgencyAuctionAPI
         public virtual LeagueEntity League { get; set; }
         public virtual LeagueOwnerEntity LeagueOwner { get; set; }
         public virtual PlayerEntity Player { get; set; }
+    }
+
+    public partial class NflTeam
+    {
+        [Key]
+        public string Tricode { get; set; }
+        public string City { get; set; }
+        public string Name { get; set; }
+        public string Primary { get; set; }
+        public string Secondary { get; set; }
+        public string Logo { get; set; }
+        public string SecondaryLogo { get; set; }
+        public virtual ICollection<NflTeamMatchup> LeftMatchups { get; } = new List<NflTeamMatchup>();
+        public virtual ICollection<NflTeamMatchup> RightMatchups { get; } = new List<NflTeamMatchup>();
+        public virtual ICollection<NflTeamMatchup> WinMatchups { get; } = new List<NflTeamMatchup>();
+        public virtual ICollection<Pick> ChosenPicks { get; } = new List<Pick>();
+    }
+
+    public partial class NflTeamMatchup
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Left { get; set; }
+        public string Right { get; set; }
+        public int Year { get; set; }
+        public int Week { get; set; }
+        public string Winner { get; set; }
+        public bool Pickable { get; set; }
+        public virtual NflTeam LeftTeam { get; set; }
+        public virtual NflTeam RightTeam { get; set; }
+        public virtual NflTeam? WinningTeam { get; set; }
+        public virtual ICollection<Pick> ChosenPicks { get; } = new List<Pick>();
+    }
+
+    public partial class Pick
+    {
+        [Key]
+        public int Id { get; set; }
+        public int OwnerId { get; set; }
+        public int MatchupId { get; set; }
+        public string Choice { get; set; }
+        public int Points { get; set; }
+        public virtual NflTeam ChosenTeam { get; set; }
+        public virtual OwnerEntity Owner { get; set; }
+        public virtual NflTeamMatchup NflTeamMatchup { get; set; }
+
     }
 }

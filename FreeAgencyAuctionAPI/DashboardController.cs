@@ -1,6 +1,8 @@
 ﻿using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RestEase;
 using System.Collections.Generic;
@@ -15,21 +17,60 @@ namespace FreeAgencyAuctionAPI
     {
         private readonly IOwnerService _oService;
         private readonly ILogger<DashboardController> _logger;
+        private AuctionContext _db;
         private ILeagueService _leagueService;
         private readonly IMflService _mfl;
 
-        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger)
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger, AuctionContext db)
         {
             _leagueService = leagueService;
             _mfl = mfl;
             _oService = ownerServiceLayer;
             _logger = logger;
+            _db = db;
         }
 
-        [HttpPost("home")]
+        [HttpGet("test-stuff")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AddNflTeams()
+        {
+
+
+            return Ok(new
+            {
+                matchups = await _db.NflTeamMatchups.ToListAsync(),
+                teams = await _db.NflTeams.ToListAsync(),
+                picks = await _db.NflPicks.ToListAsync()
+
+            });
+
+        }
+
+        /*        [HttpPost("add-nfl-teams")]
+                [Produces("application/json")]
+                [ProducesResponseType(StatusCodes.Status200OK)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                public async Task<IActionResult> AddNflTeams([Body] List<NflTeam> teams)
+                {
+                    await _db.NflTeams.AddRangeAsync(teams);
+                    await _db.SaveChangesAsync();
+                    return Ok();
+
+                }*/
+
+        /*        [HttpPost("games-home")] 
+                public Task<IActionResult> GetGamesMenu([Body] AuthUser user)
+                {
+                    if (string.IsNullOrEmpty(user.Sub)) return new BadRequestResult();
+                }*/
+
+        [HttpPost("league-home")] //NEED TO CHANGE NAME ON CLIENT
         public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user, [Query] string leagueId)
         {           
-            var dashboard = new DashboardConfessionalDTO();
+            // this is fucking disgusting. fix it
+            var dashboard = new LeagueDashboardDTO();
             OwnerDTO profile = null;
             int? chosenLeagueId = null;
             var hasLogin = !string.IsNullOrEmpty(user.Sub);

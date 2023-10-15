@@ -84,7 +84,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
             var dto = await _repo.GetOwnerByAuthId(user.Sub);
-            if (dto?.OwnerId < 1 || dto == null)
+            if (dto?.OwnerId < 1 || dto == null) // With addition of games, how do we skip this process?? new screen i guess.
             {
                 var matchingFranchises = new List<Franchise>();
                 var leagues = await _repo.GetAllRealLeagueIds();

@@ -1,5 +1,6 @@
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
+using FreeAgencyAuctionAPI.Models.Confidence;
 using System.Linq;
 
 namespace FreeAgencyAuctionAPI.Mapping
@@ -12,6 +13,33 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.ActionShot, opt => opt.MapFrom(src => src.Actionshot));
             CreateMap<PlayerDTO, PlayerEntity>();
 
+        }
+    }
+    public class MatchupProfile : Profile
+    {
+        public MatchupProfile()
+        {
+            CreateMap<NflTeamMatchup, NflMatchupDTO>()
+                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam))
+                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam)).ReverseMap();
+        }
+    }
+    public class NflPickProfile : Profile
+    {
+        public NflPickProfile()
+        {
+            CreateMap<NflPicksDTO, Pick>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.MatchupId, opt => opt.MapFrom(src => src.MatchupId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId)).ReverseMap();
+        }
+    }
+    public class NflTeamProfile : Profile
+    {
+        public NflTeamProfile()
+        {
+            CreateMap<NflTeam, NflTeamDTO>().ReverseMap();
         }
     }
 
