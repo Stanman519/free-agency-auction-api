@@ -138,8 +138,12 @@ namespace FreeAgencyAuctionAPI.Repos
                 };
                 newFranchises.Add(leagueOwner);
             }
-            await _db.LeagueOwners.AddRangeAsync(newFranchises);
-            await _db.SaveChangesAsync();
+            if (newFranchises.Any())
+            {
+                await _db.LeagueOwners.AddRangeAsync(newFranchises);
+                await _db.SaveChangesAsync();
+            }
+
 
             return new OwnerDTO
             {

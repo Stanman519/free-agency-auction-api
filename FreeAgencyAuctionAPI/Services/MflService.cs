@@ -19,9 +19,11 @@ namespace FreeAgencyAuctionAPI.Services
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
+        Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
+        Task<List<PlayerDTO>> GetTaxiSquadPlayers(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
-
+        Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction);
 
@@ -268,6 +270,100 @@ namespace FreeAgencyAuctionAPI.Services
 
             return playerDetailsList;
         }
+        public async Task<List<PlayerDTO>> GetTaxiSquadPlayers(int leagueId, int leagueOwnerId, int mflFranchiseId)
+        {
+            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
+            var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
+            var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
+            var queryIds = myTaxiPlayersNow.Select(p => int.Parse(p.id));
+            var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+
+            return myTaxiPlayersNow.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
+            {
+                ActionShot = db.Actionshot,
+                Age = db.Age,
+                FirstName = db.Firstname,
+                FullName = db.Fullname,
+                Headshot = db.Headshot,
+                LastName = db.Lastname,
+                Salary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                MflId = db.Mflid,
+                Position = db.Position,
+                Team = db.Team,
+                Length = int.TryParse(mfl.contractYear, out var l) ? l : 0
+
+            }).ToList();
+
+        }
+        public async Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
+        {
+            var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear - 1);
+            var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
+            await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
+
+
+            var leagueTagData = await _pRepo.GetLeagueTagInfo(leagueId, Utils.ThisYear);
+            var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwnerId);
+
+            var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
+
+            IEnumerable<Player> myExpiringPlayersLastYear = new List<Player>();
+
+            var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
+            var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD");
+            IEnumerable<int> queryIds = new List<int>();
+            var tagCandidates = new List<TagCandidate>();
+
+            if (previousTags.Count == 0)
+            {
+                myExpiringPlayersLastYear = lastRosterRootTask.Result.error == null ? lastRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == mflFranchiseId).player.Where(p => p.contractYear == "1").ToList() : new List<Player>();
+                queryIds = queryIds.Concat(myExpiringPlayersLastYear.Select(p => int.Parse(p.id)));
+            }
+            var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+            if (previousTags.Count == 0 && myExpiringPlayersLastYear.Count() > 0)
+            {
+                tagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
+                {
+                    Player = _mapper.Map<PlayerDTO>(db),
+                    LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                    TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
+                }).ToList();
+            }
+            return tagCandidates;
+        }
+        public async Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
+        {
+            var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwnerId);
+            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
+            var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
+
+            var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD").ToList();
+            var queryIds = cutCandidates.Select(p => int.Parse(p.id));
+            var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+            var fullCutCandidates = new List<PlayerDTO>();
+            if (previousBuyouts.Count == 0)
+            {
+                fullCutCandidates = cutCandidates.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
+                {
+
+                    ActionShot = db.Actionshot,
+                    Age = db.Age,
+                    FirstName = db.Firstname,
+                    FullName = db.Fullname,
+                    Headshot = db.Headshot,
+                    LastName = db.Lastname,
+                    Salary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                    MflId = db.Mflid,
+                    Position = db.Position,
+                    Team = db.Team,
+                    Length = int.TryParse(mfl.contractYear, out var l) ? l : 0
+
+                }).ToList();
+            }
+            return fullCutCandidates;
+        }
+
+
         public async Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int leagueId, LeagueOwnerDTO leagueOwner)
         {
             var retOwner = new LeagueOwnerDTO();
@@ -278,8 +374,8 @@ namespace FreeAgencyAuctionAPI.Services
                 var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
                 await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
 
-                var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwner);
-                var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwner);
+                var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwner.Leagueownerid);
+                var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwner.Leagueownerid);
 
                 var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player : new List<Player>();
 
