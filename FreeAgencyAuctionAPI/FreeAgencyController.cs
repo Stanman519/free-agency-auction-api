@@ -135,6 +135,8 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
             newBid.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.PostNewBid(newBid);
+            ret.Expires = newBid.Expires;
+            ret.Expires.ToUniversalTime();
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)newBid.LotId,
@@ -170,6 +172,8 @@ namespace FreeAgencyAuctionAPI
             nomination.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
+            ret.Expires = nomination.Expires;
+            ret.Expires.ToUniversalTime();
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)nomination.LotId,

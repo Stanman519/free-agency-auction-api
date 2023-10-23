@@ -12,6 +12,7 @@ namespace FreeAgencyAuctionAPI.Repos
     public interface IBidLotRepo
     {
         Task<List<LotDTO>> GetAllLots(int leagueId);
+        Task<List<LotEntity>> GetAllLotEntities(int leagueId);
         Task<LotEntity> ClearThisLot(int lotId, int leagueId, int bidId);
         Task<LotEntity> UpdateLotWithBid(LotDTO lot);
         Task<BidEntity> AddBid(BidDTO newBid);
@@ -47,6 +48,11 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e, "error fetching lots");
                 return null;
             }
+        }
+
+        public async Task<List<LotEntity>> GetAllLotEntities(int leagueId)
+        {
+            return await _db.Lots.Where(_ => _.Leagueid == leagueId).ToListAsync(); 
         }
 
         public async Task<LotEntity> ClearThisLot(int lotId, int leagueId, int bidId)

@@ -84,10 +84,11 @@ namespace FreeAgencyAuctionAPI.Services
         {
             // check db first for owner, with this userid, return it or create one if it doesnt exist.
             var dto = await _repo.GetOwnerByAuthId(user.Sub);
-            if (dto?.OwnerId < 1 || dto == null)
+            // With addition of games, how do we skip this process?? new screen i guess.
+            if (dto == null || dto.OwnerId < 1) 
             {
                 var matchingFranchises = new List<Franchise>();
-                var leagues = await _repo.GetAllRealLeagueIds();
+                /*var leagues = await _repo.GetAllRealLeagueIds();
                 foreach (var league in leagues)
                 {
                     var root = await _mfl.GetBigLeagueObject(league);
@@ -104,7 +105,7 @@ namespace FreeAgencyAuctionAPI.Services
                         foundFranchise.leagueId = league;
                         matchingFranchises.Add(foundFranchise);
                     }          
-                }
+                }*/
                 dto = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
             }
             dto.StreamToken = await GetStreamToken(dto);

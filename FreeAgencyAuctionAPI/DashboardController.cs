@@ -1,6 +1,9 @@
-﻿using FreeAgencyAuctionAPI.Models;
+﻿using Azure;
+using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RestEase;
 using System.Collections.Generic;
@@ -15,21 +18,123 @@ namespace FreeAgencyAuctionAPI
     {
         private readonly IOwnerService _oService;
         private readonly ILogger<DashboardController> _logger;
+        private AuctionContext _db;
         private ILeagueService _leagueService;
         private readonly IMflService _mfl;
 
-        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger)
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger, AuctionContext db)
         {
             _leagueService = leagueService;
             _mfl = mfl;
             _oService = ownerServiceLayer;
             _logger = logger;
+            _db = db;
         }
 
-        [HttpPost("home")]
+        [HttpGet("test-stuff")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AddNflTeams()
+        {
+
+
+            return Ok(new
+            {
+                matchups = await _db.NflTeamMatchups.ToListAsync(),
+                teams = await _db.NflTeams.ToListAsync(),
+                picks = await _db.NflPicks.ToListAsync()
+
+            });
+
+        }
+
+        /*        [HttpPost("add-nfl-teams")]
+                [Produces("application/json")]
+                [ProducesResponseType(StatusCodes.Status200OK)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                public async Task<IActionResult> AddNflTeams([Body] List<NflTeam> teams)
+                {
+                    await _db.NflTeams.AddRangeAsync(teams);
+                    await _db.SaveChangesAsync();
+                    return Ok();
+
+                }*/
+
+        /*        [HttpPost("games-home")] 
+                public Task<IActionResult> GetGamesMenu([Body] AuthUser user)
+                {
+                    if (string.IsNullOrEmpty(user.Sub)) return new BadRequestResult();
+                }*/
+
+
+
+
+        // THESE ARE THE NEW CALLS TO SPLIT INTO
+        [HttpPost("auth")] //NEED TO CHANGE NAME ON CLIENT
+        public async Task<IActionResult> SynchronizeAuth0ToDbOwner([Body] AuthUser user, [Query] string leagueId)
+        {
+            var hasLogin = !string.IsNullOrEmpty(user.Sub);
+            if (!hasLogin) return new BadRequestResult();
+            return Ok(await _oService.SynchronizeAuthorizedUser(user));
+        }
+
+
+
+        //get tag candidates
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/tag-candidates")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetFranchiseTagCandidates([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var tags = await _mfl.GetFranchiseTagCandidates(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(tags);
+        }
+
+        //get taxi players
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/taxi-squad")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetTaxiSqauadPlayers([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var taxi = await _mfl.GetTaxiSquadPlayers(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(taxi);
+        }
+
+        // get cut candidates
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/buyout-candidates")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetBuyoutCandidates([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var candidates = await _mfl.GetBuyoutCandidates(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(candidates);
+        }
+        // get league transactions and team dead caps
+        [HttpGet("leagues/{leagueId}/league-caps")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetLeagueTransactionsAndCaps([Path] int leagueId)
+        {
+            var deadCapData = await _leagueService.GetDeadCapData(leagueId);
+            return Ok(deadCapData);
+        }
+
+
+
+        // if multi leagues ever becomes a thing, need a get leagues endpoint. but not necessary rn
+
+
+
+        [HttpPost("league-home")] //NEED TO CHANGE NAME ON CLIENT
         public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user, [Query] string leagueId)
         {           
-            var dashboard = new DashboardConfessionalDTO();
+            // this is fucking disgusting. separate into multiple calls.
+            var dashboard = new LeagueDashboardDTO();
             OwnerDTO profile = null;
             int? chosenLeagueId = null;
             var hasLogin = !string.IsNullOrEmpty(user.Sub);
@@ -42,9 +147,17 @@ namespace FreeAgencyAuctionAPI
             }
             if (!hasLogin) return new BadRequestResult();
             
-            profile = await _oService.SynchronizeAuthorizedUser(user);
+            profile = await _oService.SynchronizeAuthorizedUser(user); 
             dashboard.Profile = profile;
-            var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ? profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) : profile.Leagues.FirstOrDefault();
+
+            if (profile.Leagues.Any())
+            {
+
+            }
+            var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ? 
+                                    profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) : 
+                                    profile.Leagues.FirstOrDefault();
+
             chosenLeagueId =  chosenLeague?.League?.LeagueId ?? null;
             if (profile != null && chosenLeagueId != null)
             {
@@ -56,11 +169,8 @@ namespace FreeAgencyAuctionAPI
             
             try
             {
-                if (chosenLeagueId != null )
+                if (chosenLeagueId != null)
                 {
-                    var deadCapData = await _leagueService.GetDeadCapData((int)chosenLeagueId);
-                    dashboard.LeagueTransactions = deadCapData.LeagueTransactions;
-                    dashboard.TeamDeadCaps = deadCapData.TeamDeadCapData;
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();
                 }
                 return Ok(dashboard); 

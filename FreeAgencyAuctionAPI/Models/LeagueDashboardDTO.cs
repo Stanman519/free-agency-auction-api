@@ -2,7 +2,7 @@
 
 namespace FreeAgencyAuctionAPI.Models
 {
-    public class DashboardConfessionalDTO
+    public class LeagueDashboardDTO
     {
         public OwnerDTO Profile { get; set; }
         public List<TransactionDTO> LeagueTransactions { get; set; }

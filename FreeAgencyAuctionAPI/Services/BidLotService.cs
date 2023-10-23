@@ -156,8 +156,8 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task PostNewBidChangesToGroup(int leagueId)
         {
             var strForBot = "Players with new bids in the last hour:\n";
-            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour(leagueId);/*
-            var emptyLots = (await _repo.GetAllLots(leagueId)).Where(l => l.Bid == null).ToList();*/
+            var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour(leagueId);
+            var emptyLots = (await _repo.GetAllLotEntities(leagueId)).Where(l => l.Bid == null).ToList();
             var bidsGroupedByPlayer = bidsFromLastHour.GroupBy(b => b.Player.MflId).ToList();
             if (!bidsGroupedByPlayer.Any()) return;
             foreach (var bid in bidsGroupedByPlayer)
@@ -167,15 +167,15 @@ namespace FreeAgencyAuctionAPI.Services
                 strForBot +=
                     $"{latestBid.Player.LastName} - ${latestBid.BidSalary} ({latestBid.Ownername})\n";
             }
-/*
+
             if (emptyLots.Any())
             {
                 strForBot += "\nNeeds to nominate:\n";
                 foreach (var lot in emptyLots)
                 {
-                    strForBot += $"{Utils.Owners[lot.LotId]}\n";
+                    strForBot += $"{lot.LotOwner.Owner.Displayname}\n";
                 }
-            }*/
+            }
 
             await _bot.SendBotNotification(new ErrorMessage(strForBot));
         }
