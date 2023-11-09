@@ -170,6 +170,8 @@
                     .GroupBy(_ => _.OwnerId)
                     .Select(_ => new ConfidencePlayerResult
                     {
+                        
+                        Avatar = _.FirstOrDefault().Owner.Avatar,
                         DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                         OwnerId = _.Key,
                         TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
@@ -190,6 +192,11 @@
                         })
                     })
                     .ToList(); //rawPoolMatchups.Select(m => m.Id).Contains(_.MatchupId)).ToList();
+                var scores = results.Select(r => r.TotalPoints).ToList();
+                results.ForEach(res =>
+                {
+                    res.Rank = (from s in scores where s > res.TotalPoints select s).Count() + 1;
+                });
                 var ret = new ConfidencePoolResultsResponse
                 {
                     PoolResults = results.OrderByDescending(r => r.TotalPoints)
