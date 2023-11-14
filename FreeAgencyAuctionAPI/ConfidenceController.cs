@@ -1,6 +1,7 @@
 ﻿namespace FreeAgencyAuctionAPI
 {
     using AutoMapper;
+    using FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
@@ -84,7 +85,7 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> GetCurrentMatchupsForm([Query] int year = Utils.ThisYear)
+            public async Task<IActionResult> GetCurrentMatchupsForm([Query] int year = Utils.ThisYear, [Query] string user = "")
             {
                 //switch for demo to take negative pool?
 
@@ -93,20 +94,50 @@
 
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).First().Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
-
+                if (!string.IsNullOrEmpty(user) && thisWeek.Any(m => m.Pickable))
+                {
+                    var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
+                    thisWeek.ForEach(mat =>
+                    {
+                        var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
+                        if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
+                    });
+                }
                 return Ok(thisWeek);
 
             }
-            [HttpPost("matchups")]
+            [HttpPost("admin/new-matchups")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups)
             {
-                var dbMatchups = _mapper.Map<NflTeamMatchup>(matchups);
+                var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
+                dbMatchups.ForEach(matchup => matchup.Pickable = true);
                 _db.NflTeamMatchups.AddRange(dbMatchups);
                 _db.SaveChanges();
                 return Ok(dbMatchups);
+            }
+            [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] string winningTricode)
+            {
+                var dbMatchupToUpdate = _db.NflTeamMatchups.FirstOrDefault(m => m.Id == matchupId);
+                if (dbMatchupToUpdate != null) 
+                {
+                    try
+                    {
+                        dbMatchupToUpdate.Winner = winningTricode;
+                        _db.SaveChanges();
+                    }
+                    catch (System.Exception e)
+                    {
+                        return BadRequest(e.Message);
+                    }    
+                }
+                return Ok();
             }
 
             [HttpPost("lock-matchups")]

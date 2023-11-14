@@ -11,6 +11,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public int Week { get; set; }
         public NflTeamDTO? Winner { get; set; }
         public bool Pickable { get; set; }
+        public NflPicksDTO Pick { get; set; }
     }
     public class NflTeamDTO
     {
