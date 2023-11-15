@@ -39,6 +39,8 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
     }
     public class ConfidencePlayerResult
     {
+        public int Rank { get; set; }
+        public string Avatar { get; set; }
         public string DisplayName { get; set; }
         public int OwnerId { get; set; }
         public int TotalPoints { get; set; } = 0;

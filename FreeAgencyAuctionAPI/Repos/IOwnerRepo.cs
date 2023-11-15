@@ -59,7 +59,7 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 var ret = await _db.Owners.FirstOrDefaultAsync(o => o.authid == sub);
                 if (ret == null) return null;
-
+                
                 return new OwnerDTO
                 {
                     OwnerId = ret.Ownerid,
@@ -89,7 +89,7 @@ namespace FreeAgencyAuctionAPI.Repos
             catch (Exception e)
             {
                 _logger.LogError(e, "login exception");
-                return new OwnerDTO();
+                return null;
             }
         }
 
