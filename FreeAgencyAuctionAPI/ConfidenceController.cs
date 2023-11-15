@@ -37,7 +37,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetAllNflTeams()
             {
-                var teams = _mapper.Map<NflTeamDTO>(_db.NflTeams.ToList());
+                var teams = _mapper.Map<List<NflTeamDTO>>(_db.NflTeams.ToList());
                 return Ok(teams);
             }
 

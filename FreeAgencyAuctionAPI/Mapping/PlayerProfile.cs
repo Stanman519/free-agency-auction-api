@@ -39,7 +39,8 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public NflTeamProfile()
         {
-            CreateMap<NflTeam, NflTeamDTO>().ReverseMap();
+            CreateMap<NflTeam, NflTeamDTO>()
+                .ReverseMap();
         }
     }
 
