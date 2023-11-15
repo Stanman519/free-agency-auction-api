@@ -1,7 +1,6 @@
 ﻿namespace FreeAgencyAuctionAPI
 {
     using AutoMapper;
-    using FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
@@ -199,29 +198,31 @@
                 //var rawPoolMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 var results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
                     .GroupBy(_ => _.OwnerId)
-                    .Select(_ => new ConfidencePlayerResult
-                    {
-                        
-                        Avatar = _.FirstOrDefault().Owner.Avatar,
-                        DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
-                        OwnerId = _.Key,
-                        TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
-                        WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
+                    .Select(_ =>  new ConfidencePlayerResult
                         {
-                            Week = wk.Key,
-                            TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
-                            Results = wk.Select(wRes => new PickResult
+                            PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true : 
+                                (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week).FirstOrDefault().Choice)))),
+                            Avatar = _.FirstOrDefault().Owner.Avatar,
+                            DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
+                            OwnerId = _.Key,
+                            TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
+                            WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
                             {
-                                Id = wRes.Id,
-                                OwnerId = wRes.OwnerId,
-                                MatchupId = wRes.MatchupId,
-                                Choice = wRes.Choice,
-                                Points = wRes.Points,
-                                Correct = wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                PickTeam = _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                Week = wk.Key,
+                                TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
+                                Results = wk.Select(wRes => new PickResult
+                                {
+                                    Id = wRes.Id,
+                                    OwnerId = wRes.OwnerId,
+                                    MatchupId = wRes.MatchupId,
+                                    Choice = wRes.Choice,
+                                    Points = wRes.Points,
+                                    Correct = wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                    PickTeam = _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                })
                             })
-                        })
-                    })
+                    }
+                    )
                     .ToList(); //rawPoolMatchups.Select(m => m.Id).Contains(_.MatchupId)).ToList();
                 var scores = results.Select(r => r.TotalPoints).ToList();
                 results.ForEach(res =>
