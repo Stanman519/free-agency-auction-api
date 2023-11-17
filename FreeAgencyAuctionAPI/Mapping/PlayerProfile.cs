@@ -20,9 +20,9 @@ namespace FreeAgencyAuctionAPI.Mapping
         public MatchupProfile()
         {
             CreateMap<NflTeamMatchup, NflMatchupDTO>()
-                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam))
-                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam))
-                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam)).ReverseMap();
+                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam.Tricode))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam.Tricode))
+                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam.Tricode)).ReverseMap();
         }
     }
     public class NflPickProfile : Profile
