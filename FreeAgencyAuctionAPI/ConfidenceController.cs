@@ -1,6 +1,8 @@
 ﻿namespace FreeAgencyAuctionAPI
 {
     using AutoMapper;
+    using FreeAgencyAuctionAPI.Models;
+    using global::FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
@@ -113,8 +115,16 @@
             {
                 var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
                 dbMatchups.ForEach(matchup => matchup.Pickable = true);
-                _db.NflTeamMatchups.AddRange(dbMatchups);
-                _db.SaveChanges();
+                try
+                {
+                    _db.NflTeamMatchups.AddRange(dbMatchups);
+                    _db.SaveChanges();
+                }
+                catch (System.Exception e)
+                {
+                    return BadRequest(new ErrorResponse(e.Message));
+                }
+
                 return Ok(dbMatchups);
             }
             [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
