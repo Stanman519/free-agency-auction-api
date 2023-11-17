@@ -1,7 +1,6 @@
 ﻿namespace FreeAgencyAuctionAPI
 {
     using AutoMapper;
-    using FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
