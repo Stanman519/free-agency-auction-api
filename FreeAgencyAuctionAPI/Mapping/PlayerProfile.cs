@@ -31,9 +31,9 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
                 .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
                 .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
-                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.Right))
-                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner))
-                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.Left));
+                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam))
+                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam));
         }
     }
     public class NflPickProfile : Profile
@@ -43,7 +43,14 @@ namespace FreeAgencyAuctionAPI.Mapping
             CreateMap<NflPicksDTO, Pick>()
                 .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
                 .ForMember(dest => dest.MatchupId, opt => opt.MapFrom(src => src.MatchupId))
-                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId)).ReverseMap();
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points));
+            CreateMap<Pick, NflPicksDTO>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.MatchupId, opt => opt.MapFrom(src => src.MatchupId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points))
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
     public class NflTeamProfile : Profile
