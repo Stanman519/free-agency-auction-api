@@ -19,10 +19,21 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public MatchupProfile()
         {
+            CreateMap<NflMatchupDTO, NflTeamMatchup>()
+                .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
+                .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
+                .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
+                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.Right.Tricode))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner.Tricode))
+                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.Left.Tricode));
             CreateMap<NflTeamMatchup, NflMatchupDTO>()
-                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam.Tricode))
-                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam.Tricode))
-                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam.Tricode)).ReverseMap();
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
+                .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
+                .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
+                .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.Right))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner))
+                .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.Left));
         }
     }
     public class NflPickProfile : Profile
