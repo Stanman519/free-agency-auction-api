@@ -55,7 +55,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
     }
     public class PickResult : NflPicksDTO
     {
-        public bool Correct { get; set; }
+        public bool? Correct { get; set; }
         public NflTeamDTO PickTeam { get; set; }
 
     }

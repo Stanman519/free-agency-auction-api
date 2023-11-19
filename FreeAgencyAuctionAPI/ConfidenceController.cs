@@ -226,7 +226,7 @@
                                     MatchupId = wRes.MatchupId,
                                     Choice = wRes.Choice,
                                     Points = wRes.Points,
-                                    Correct = wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                    Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
                                     PickTeam = _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                 })
                             })
