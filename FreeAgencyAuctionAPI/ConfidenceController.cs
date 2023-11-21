@@ -95,7 +95,7 @@
                 // if the matchups are ready for picking, send them back.  If they're live, send them back and let the client handle non form mode
 
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
-                var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).First().Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
+                var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
                 if (!string.IsNullOrEmpty(user) && thisWeek.Any(m => m.Pickable))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
@@ -116,8 +116,16 @@
             {
                 var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
                 dbMatchups.ForEach(matchup => matchup.Pickable = true);
-                _db.NflTeamMatchups.AddRange(dbMatchups);
-                _db.SaveChanges();
+                try
+                {
+                    _db.NflTeamMatchups.AddRange(dbMatchups);
+                    _db.SaveChanges();
+                }
+                catch (System.Exception e)
+                {
+                    return BadRequest(new ErrorResponse(e.Message));
+                }
+
                 return Ok(dbMatchups);
             }
             [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
@@ -204,7 +212,8 @@
                     .Select(_ =>  new ConfidencePlayerResult
                         {
                             PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true : 
-                                (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week).FirstOrDefault().Choice)))),
+                                (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week)
+                                .FirstOrDefault().Choice)))),
                             Avatar = _.FirstOrDefault().Owner.Avatar,
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                             OwnerId = _.Key,
@@ -218,10 +227,10 @@
                                     Id = wRes.Id,
                                     OwnerId = wRes.OwnerId,
                                     MatchupId = wRes.MatchupId,
-                                    Choice = wRes.Choice,
+                                    Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
                                     Points = wRes.Points,
-                                    Correct = wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                    PickTeam = _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                    Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                    PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                 })
                             })
                     }
