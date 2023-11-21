@@ -112,6 +112,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups)
             {
+                if (matchups.Any(_ => !_.Pickable)) return BadRequest(new ErrorResponse("You have submitted picks for matchups that are locked."));
                 var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
                 dbMatchups.ForEach(matchup => matchup.Pickable = true);
                 try
