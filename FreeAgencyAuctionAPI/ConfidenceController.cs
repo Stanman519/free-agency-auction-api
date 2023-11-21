@@ -237,7 +237,7 @@
                                     Points = wRes.Points,
                                     Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
                                     PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
-                                })
+                                }).OrderByDescending(r => r.Points)
                             })
                     }
                     ).OrderByDescending(r => r.TotalPoints).ToList();
