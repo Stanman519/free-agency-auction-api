@@ -115,7 +115,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups)
             {
-                if (matchups.Any(_ => !_.Pickable)) return BadRequest(new ErrorResponse("You have submitted picks for matchups that are locked."));
+                
                 var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
                 dbMatchups.ForEach(matchup => matchup.Pickable = true);
                 try
@@ -171,13 +171,17 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] List<NflPicksDTO> picks)
             {
+                
                 // need to know who sent it - part of the body
                 // get picks that match user, week, year
                 // if there's none, save these new ones
 
                 // or does it not matter if there are extra in the db? (could just get latest picks because you ahve to submit all at the same timee)
                 if (!picks.Any() || picks[0] == null || picks[0]?.OwnerId == null || picks[0]?.MatchupId == null) return BadRequest("invalid matchup or profile.");
-                var existingPicks = _db.NflPicks.Where(p => picks.Select(_ => _.MatchupId).Contains(p.MatchupId) && picks.First().OwnerId == p.OwnerId).ToList();
+                var dbPicks = _db.NflPicks.Where(p => picks.Select(_ => _.MatchupId).Contains(p.MatchupId));
+               
+                if (dbPicks.Any(_ => !_.NflTeamMatchup.Pickable)) return BadRequest(new ErrorResponse("You have submitted picks for matchups that are locked."));
+                var existingPicks = dbPicks.Where(p => picks.First().OwnerId == p.OwnerId).ToList();
                 if (existingPicks.Any())
                 {
                     //overwrite
