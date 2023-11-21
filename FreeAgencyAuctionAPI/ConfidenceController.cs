@@ -2,6 +2,7 @@
 {
     using AutoMapper;
     using Bogus;
+    using global::FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
@@ -246,7 +247,7 @@
 
             }
 
-            /*[HttpGet("demo/generate")]
+            [HttpGet("demo/generate")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -335,7 +336,7 @@
 
 
 
-            }*/
+            }
 
 
 
