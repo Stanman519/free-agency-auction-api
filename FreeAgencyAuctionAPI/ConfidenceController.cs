@@ -1,6 +1,7 @@
 ﻿namespace FreeAgencyAuctionAPI
 {
     using AutoMapper;
+    using Bogus;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
@@ -8,9 +9,11 @@
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
     using RestEase;
+    using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
+    using Utils = Services.Utils;
 
     namespace FreeAgencyAuctionAPI
     {
@@ -222,21 +225,125 @@
                                 })
                             })
                     }
-                    )
-                    .ToList(); //rawPoolMatchups.Select(m => m.Id).Contains(_.MatchupId)).ToList();
+                    ).OrderByDescending(r => r.TotalPoints).ToList();
+                    
                 var scores = results.Select(r => r.TotalPoints).ToList();
                 results.ForEach(res =>
                 {
                     res.Rank = (from s in scores where s > res.TotalPoints select s).Count() + 1;
                 });
-                var ret = new ConfidencePoolResultsResponse
-                {
-                    PoolResults = results.OrderByDescending(r => r.TotalPoints)
-                };
+
                 return Ok(results);
 
             }
+
+            /*[HttpGet("demo/generate")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> CreateDemoData([Query] int year = -1)
+            {
+                // if there's less than 50 owners create 50 fake owners
+                if (_db.Owners.Where(o => o.istest).ToList().Count > 50) return BadRequest();
+                var users = new Faker<OwnerEntity>()
+                    .RuleFor(o => o.Ownername, f => f.Internet.UserName())
+                    .RuleFor(o => o.PasswordHash, f => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(f.Internet.Password())))
+                    .RuleFor(o => o.Displayname, f => f.Name.FullName())
+                    .RuleFor(o => o.Avatar, f => f.Internet.Avatar())
+                    .RuleFor(o => o.istest, f => true)
+                    .RuleFor(o => o.authid, f => f.Internet.Password())
+                    .Generate(20);
+
+                // create 4 matchups for week 1 of this year, 4 matchups for week 2, USE ANY TEAM EXCEPT tricode == FA
+                var leftTms = _db.NflTeams.Where(t => t.Tricode != "FA").OrderBy(t => t.Secondary).ToList();
+                var rightTms = leftTms.TakeLast(15).ToList();
+                leftTms.RemoveRange(15, 15);
+
+                var week1 = leftTms.Take(6).Select((lt, index) => new NflTeamMatchup
+                {
+                    Left = lt.Tricode,
+                    Right = rightTms[index].Tricode,
+                    Week = 1,
+                    Year = year,
+                    Winner = new Random().Next(2) > 0 ? lt.Tricode : rightTms[index].Tricode,
+                    Pickable = false
+                }).ToList();
+
+
+                var week2 = week1.Take(4).Select((w, index) => new NflTeamMatchup
+                {
+                    Week = 2,
+                    Year = year,
+                    Winner = null,
+                    Pickable = true,
+                    Left = index < 2 ? leftTms[8 + index].Tricode : w.Winner,
+                    Right = index < 2 ? w.Winner : week1[2 + index].Winner
+                }).ToList();
+
+                _db.Owners.AddRange(users);
+                _db.SaveChanges();
+
+                _db.NflTeamMatchups.AddRange(week1);
+                _db.NflTeamMatchups.AddRange(week2);
+
+                _db.SaveChanges();
+
+                var allThePicks = new List<Pick>();
+                var points1 = new int[] { 1, 2, 3, 4, 5, 6 };
+                var points2 = new int[] { 2, 3, 4, 5, 6, 7 };
+                var rng = new Random();
+                users.ForEach(u =>
+                {
+
+                    rng.Shuffle(points1);
+                    var picks1 = week1.Select((m, i) => new Pick
+                    {
+                        Choice = new Random().Next(2) == 0 ? m.Left : m.Right,
+                        MatchupId = m.Id,
+                        OwnerId = u.Ownerid,
+                        Points = points1[i]
+                    }).ToList();
+                    allThePicks.AddRange(picks1);
+                    if (new Random().Next(2) == 0)
+                    {
+                        rng.Shuffle(points2);
+                        var picks2 = week2.Select((m, i) => new Pick
+                        { 
+                            Choice = new Random().Next(2) == 0 ? m.Left : m.Right,
+                            MatchupId = m.Id,
+                            OwnerId = u.Ownerid,
+                            Points = points2[i]
+                        }).ToList();
+                        allThePicks.AddRange(picks2);
+                    }
+                });
+
+                _db.NflPicks.AddRange(allThePicks);
+                _db.SaveChanges();
+
+
+                return Ok();
+
+
+
+            }*/
+
+
+
         }
     }
-
+    static class RandomExtensions
+    {
+        public static void Shuffle<T>(this Random rng, T[] array)
+        {
+            int n = array.Length;
+            while (n > 1)
+            {
+                int k = rng.Next(n--);
+                T temp = array[n];
+                array[n] = array[k];
+                array[k] = temp;
+            }
+        }
+    }
 }
