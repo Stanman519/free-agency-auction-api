@@ -53,6 +53,21 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
+    public class NflPropProfile : Profile
+    {
+        public NflPropProfile()
+        {
+            CreateMap<PropPickDTO, ExtraPick>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.PropId, opt => opt.MapFrom(src => src.PropId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId));
+            CreateMap<ExtraPick, PropPickDTO>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.PropId, opt => opt.MapFrom(src => src.PropId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
+        }
+    }
     public class NflTeamProfile : Profile
     {
         public NflTeamProfile()

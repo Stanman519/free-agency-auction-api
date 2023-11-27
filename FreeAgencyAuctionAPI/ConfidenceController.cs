@@ -169,38 +169,43 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] List<NflPicksDTO> picks)
+            public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] NflPickSubmission pickSubmission)
             {
-                
+
                 // need to know who sent it - part of the body
                 // get picks that match user, week, year
                 // if there's none, save these new ones
-
+                var picks = pickSubmission.Picks;
+                var props = pickSubmission.Props;
                 // or does it not matter if there are extra in the db? (could just get latest picks because you ahve to submit all at the same timee)
                 if (!picks.Any() || picks[0] == null || picks[0]?.OwnerId == null || picks[0]?.MatchupId == null) return BadRequest("invalid matchup or profile.");
-                var dbPicks = _db.NflPicks.Where(p => picks.Select(_ => _.MatchupId).Contains(p.MatchupId));
+                var dbPicks = _db.NflPicks.Where(p => picks.Select(_ => _.MatchupId).Contains(p.MatchupId) && p.OwnerId == picks[0].OwnerId);
                
                 if (dbPicks.Any(_ => !_.NflTeamMatchup.Pickable)) return BadRequest(new ErrorResponse("You have submitted picks for matchups that are locked."));
                 var existingPicks = dbPicks.Where(p => picks.First().OwnerId == p.OwnerId).ToList();
                 if (existingPicks.Any())
                 {
                     //overwrite
-                    if (existingPicks.Count != picks.Count) { }// i dont know but should do something like add the ones that dont match. but why would that happen
-                    else
+                    var existingProps = _db.ExtraPicks.Where(p => props.Select(_ => _.PropId).Contains(p.PropId) && p.OwnerId == props[0].OwnerId).ToList();
+                    existingPicks.ForEach(p =>
                     {
-                        existingPicks.ForEach(p =>
-                        {
-                            p.Choice = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId).Choice;
-                        });
-                        _db.SaveChanges();
-                    }
+                        p.Choice = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId).Choice;
+                    });
+                    existingProps.ForEach(p =>
+                    {
+                        p.Choice = props.FirstOrDefault(prop => prop.PropId == p.PropId).Choice;
+                    });
+
+                    _db.SaveChanges();
 
                 }
                 else
                 {
                     //insert
                     var entities = _mapper.Map<List<Pick>>(picks);
+                    var extraEntities = _mapper.Map<List<ExtraPick>>(props);
                     _db.NflPicks.AddRange(entities);
+                    _db.ExtraPicks.AddRange(extraEntities);
                     _db.SaveChanges();
                 }
                 return Ok();
@@ -212,7 +217,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCurrentPoolResults([Query] int year = 2023)
             {
-                //var rawPoolMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
+                var extraPts = _db.ExtraPicks.Where(_ => _.Prop.Year == year).GroupBy(_ => _.OwnerId).ToList();
                 var results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
                     .GroupBy(_ => _.OwnerId)
                     .Select(_ =>  new ConfidencePlayerResult
@@ -224,6 +229,7 @@
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                             OwnerId = _.Key,
                             TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
+                            ExtraPoints = extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop.Winner ? 1 : 0),
                             WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
                             {
                                 Week = wk.Key,

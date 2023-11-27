@@ -25,6 +25,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<NflTeam> NflTeams { get; set; }
         public DbSet<NflTeamMatchup> NflTeamMatchups { get; set; }
         public DbSet<Pick> NflPicks { get; set; }
+        public DbSet<ExtraPick> ExtraPicks { get; set; }
+        public DbSet<Prop> Props { get; set; } 
 
         /*
                 public DbSet<NflTeamEntity> NflTeams { get; set; }
@@ -72,6 +74,21 @@ namespace FreeAgencyAuctionAPI
                     .HasConstraintName("FK_pick_matchup");
 
             });
+            modelBuilder.Entity<ExtraPick>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK_extrapick");
+                entity.ToTable("extrapick");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.OwnerId).HasColumnName("ownerid");
+                entity.Property(e => e.Choice).HasColumnName("choice");
+                entity.Property(e => e.PropId).HasColumnName("propid");
+                entity.HasOne(d => d.Owner).WithMany(p => p.ExtraPicks)
+                    .HasForeignKey(d => d.OwnerId)
+                    .HasConstraintName("FK_extrapick_owner");
+                entity.HasOne(d => d.Prop).WithMany(p => p.ChosenProps)
+                    .HasForeignKey(d => d.Choice)
+                    .HasConstraintName("FK_extrapick_prop");
+            });
             modelBuilder.Entity<NflTeamMatchup>(entity =>
             {
                 entity.HasKey(e => e.Id).HasName("PK_matchup");
@@ -87,14 +104,19 @@ namespace FreeAgencyAuctionAPI
                 entity.HasOne(e => e.RightTeam).WithMany(e => e.RightMatchups).HasForeignKey(d => d.Right).HasConstraintName("FK_matchup_nflteam_right");
                 entity.HasOne(e => e.WinningTeam).WithMany(e => e.WinMatchups).HasForeignKey(d => d.Winner).HasConstraintName("FK_matchup_nflteam_winner");
             });
-            /*            modelBuilder.Entity<NflOverPickEntity>(entity =>
-                        {
-                            entity.Property(e => e.PlayerId).HasColumnName("playerid");
-                            entity.Property(e => e.Pick).HasColumnName("pick");
-                            entity.Property(e => e.PickId).HasColumnName("pickid");
-                            entity.Property(e => e.Tricode).HasColumnName("tricode");
-
-                        });*/
+            modelBuilder.Entity<Prop>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK_prop");
+                entity.ToTable("matchup");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.OptionA).HasColumnName("optionA");
+                entity.Property(e => e.OptionB).HasColumnName("optionB");
+                entity.Property(e => e.Year).HasColumnName("year");
+                entity.Property(e => e.Week).HasColumnName("week");
+                entity.Property(e => e.Pickable).HasColumnName("pickable");
+                entity.Property(e => e.Winner).HasColumnName("winner");
+               
+            });
             modelBuilder.Entity<Transaction>(entity =>
             {
                 entity.HasKey(e => e.Globalid).HasName("PK_transaction");
@@ -575,6 +597,7 @@ namespace FreeAgencyAuctionAPI
         public string StreamToken { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
+        public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
     }
 
     public partial class LeagueEntity
@@ -718,5 +741,30 @@ namespace FreeAgencyAuctionAPI
         public virtual OwnerEntity Owner { get; set; }
         public virtual NflTeamMatchup NflTeamMatchup { get; set; }
 
+    }
+
+    public partial class ExtraPick
+    {
+        [Key]
+        public int Id { get; set; }
+        public int OwnerId { get; set; }
+        public int PropId { get; set; }
+        public string Choice { get; set; }
+        public virtual OwnerEntity Owner { get; set; }
+        public virtual Prop Prop { get; set; }
+    }
+
+    public partial class Prop
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Prompt { get; set; }
+        public string OptionA { get; set; }
+        public string OptionB { get; set; }
+        public int Year { get; set; }
+        public int Week { get; set; }
+        public string Winner { get; set; }
+        public bool Pickable { get; set; }
+        public virtual ICollection<ExtraPick> ChosenProps { get; } = new List<ExtraPick>();
     }
 }
