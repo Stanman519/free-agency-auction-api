@@ -66,6 +66,21 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.PropId, opt => opt.MapFrom(src => src.PropId))
                 .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
+            CreateMap<PropDTO, Prop>()
+                .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
+                .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
+                .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
+                .ForMember(dest => dest.OptionB, opt => opt.MapFrom(src => src.OptionB))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner))
+                .ForMember(dest => dest.OptionA, opt => opt.MapFrom(src => src.OptionA));
+            CreateMap<Prop, PropDTO>()
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
+                .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
+                .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
+                .ForMember(dest => dest.OptionB, opt => opt.MapFrom(src => src.OptionB))
+                .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner))
+                .ForMember(dest => dest.OptionA, opt => opt.MapFrom(src => src.OptionA));
         }
     }
     public class NflTeamProfile : Profile

@@ -97,16 +97,27 @@
 
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
+                var props = _db.Props.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList();
                 if (!string.IsNullOrEmpty(user))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
+                    var userProps = _db.ExtraPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.PropId)).ToList();
                     thisWeek.ForEach(mat =>
                     {
                         var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
                         if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
                     });
-                }
-                return Ok(thisWeek);
+                    props.ForEach(p =>
+                    {
+                        var dbProp = userProps.FirstOrDefault(db => db.PropId == p.Id);
+                        if (dbProp != null) p.Pick = _mapper.Map<PropPickDTO>(dbProp);
+                    });
+                    }
+                return Ok(new MatchupForm
+                {
+                    Matchups = thisWeek,
+                    Props = props,
+                });
 
             }
             [HttpPost("admin/new-matchups")]

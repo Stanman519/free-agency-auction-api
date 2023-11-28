@@ -23,6 +23,11 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
     }
+    public class MatchupForm
+    {
+        public List<NflMatchupDTO> Matchups { get; set; }
+        public List<PropDTO> Props { get; set; }
+    }
     public class NflPickSubmission
     {
         public List<NflPicksDTO> Picks { get; set; }
@@ -45,7 +50,18 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public int OwnerId { get; set; }
 
     }
-
+    public class PropDTO
+    {
+        public int Id { get; set; }
+        public string Prompt { get; set; }
+        public string OptionA { get; set; }
+        public string OptionB { get; set; }
+        public int Year { get; set; }
+        public int Week { get; set; }
+        public string? Winner { get; set; }
+        public bool Pickable { get; set; }
+        public PropPickDTO Pick { get; set; }
+    }
     public class ConfidencePoolResultsResponse
     {
         public IEnumerable<ConfidencePlayerResult> PoolResults { get; set; }
