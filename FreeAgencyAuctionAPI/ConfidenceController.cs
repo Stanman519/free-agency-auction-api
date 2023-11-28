@@ -233,32 +233,31 @@
                 var results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
                     .GroupBy(_ => _.OwnerId)
                     .ToList()
-                    .Select(_ =>  
-                    
-                    new ConfidencePlayerResult
+                    .Select(_ => new ConfidencePlayerResult
                         {
-                            PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true : 
+                            PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true :
                                 (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week)
                                 .FirstOrDefault().Choice)))),
                             Avatar = _.FirstOrDefault().Owner.Avatar,
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                             OwnerId = _.Key,
                             TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
-                            ExtraPoints = extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop.Winner ? 1 : 0),
+                            ExtraPoints = (extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null || extraPts.Count == 0) ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop?.Winner ? 1 : 0),
                             WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
-                            {
-                                Week = wk.Key,
-                                TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
-                                Results = wk.Select(wRes => new PickResult
                                 {
-                                    Id = wRes.Id,
-                                    OwnerId = wRes.OwnerId,
-                                    MatchupId = wRes.MatchupId,
-                                    Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
-                                    Points = wRes.Points,
-                                    Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                    PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
-                                }).OrderByDescending(r => r.Points)
+                                    Week = wk.Key,
+                                    TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
+                                    Results = wk.Select(wRes => new PickResult
+                                    {
+                                        Id = wRes.Id,
+                                        OwnerId = wRes.OwnerId,
+                                        MatchupId = wRes.MatchupId,
+                                        Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
+                                        Points = wRes.Points,
+                                        Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                        PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                    }).OrderByDescending(r => r.Points)
+                                
                             })
                     }
 
