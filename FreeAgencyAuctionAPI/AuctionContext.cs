@@ -86,7 +86,7 @@ namespace FreeAgencyAuctionAPI
                     .HasForeignKey(d => d.OwnerId)
                     .HasConstraintName("FK_extrapick_owner");
                 entity.HasOne(d => d.Prop).WithMany(p => p.ChosenProps)
-                    .HasForeignKey(d => d.Choice)
+                    .HasForeignKey(d => d.PropId)
                     .HasConstraintName("FK_extrapick_prop");
             });
             modelBuilder.Entity<NflTeamMatchup>(entity =>
@@ -107,7 +107,7 @@ namespace FreeAgencyAuctionAPI
             modelBuilder.Entity<Prop>(entity =>
             {
                 entity.HasKey(e => e.Id).HasName("PK_prop");
-                entity.ToTable("matchup");
+                entity.ToTable("prop");
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.OptionA).HasColumnName("optionA");
                 entity.Property(e => e.OptionB).HasColumnName("optionB");
