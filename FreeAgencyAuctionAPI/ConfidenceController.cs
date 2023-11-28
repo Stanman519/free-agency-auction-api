@@ -58,8 +58,9 @@
                 // if the matchups are ready for picking, send them back.  If they're live, send them back and let the client handle non form mode
 
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
+                var dbProps = _db.Props.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
-                var props = _db.Props.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList();
+                var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList();
                 if (!string.IsNullOrEmpty(user))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
@@ -236,7 +237,10 @@
                 var extraPts = _db.ExtraPicks.Where(_ => _.Prop.Year == year).GroupBy(_ => _.OwnerId).ToList();
                 var results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
                     .GroupBy(_ => _.OwnerId)
-                    .Select(_ =>  new ConfidencePlayerResult
+                    .ToList()
+                    .Select(_ =>  
+                    
+                    new ConfidencePlayerResult
                         {
                             PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true : 
                                 (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week)
@@ -245,7 +249,7 @@
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                             OwnerId = _.Key,
                             TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
-                            ExtraPoints = extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop.Winner ? 1 : 0),
+                            ExtraPoints = extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop.Winner ? 1 : 0),
                             WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
                             {
                                 Week = wk.Key,
@@ -262,16 +266,15 @@
                                 }).OrderByDescending(r => r.Points)
                             })
                     }
+
                     ).OrderByDescending(r => r.TotalPoints).ToList();
                     
-                var scores = results.Select(r => r.TotalPoints).ToList();
+                var scores = results.Select(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
                 results.ForEach(res =>
                 {
                     res.Rank = (from s in scores where s > res.TotalPoints select s).Count() + 1;
                 });
-
                 return Ok(results);
-
             }
 
             [HttpGet("demo/generate")]
