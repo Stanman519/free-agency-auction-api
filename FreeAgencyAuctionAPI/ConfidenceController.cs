@@ -98,7 +98,7 @@
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 var dbProps = _db.Props.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
-                var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList();
+                var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList() ?? new List<PropDTO>();
                 if (!string.IsNullOrEmpty(user))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
