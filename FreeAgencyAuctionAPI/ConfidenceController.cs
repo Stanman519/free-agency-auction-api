@@ -45,44 +45,6 @@
                 return Ok(teams);
             }
 
-            [HttpGet("home")]
-            [Produces("application/json")]
-            [ProducesResponseType(StatusCodes.Status200OK)]
-            [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> GetPageLoadResponse([Query] int year = Utils.ThisYear)
-            {
-                //switch for demo to take negative pool?
-                var resp = new ConfidenceHomeResponse();
-                // look for matchups in db with the latest week but not decided  (need some sort of LOCKED) mechanism
-                // if the matchups are ready for picking, send them back.  If they're live, send them back and let the client handle non form mode
-
-                var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
-                resp.Matchups = dbMatchups.Where(m => m.Pickable).Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList();
-                resp.Results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
-                    .GroupBy(_ => _.OwnerId)
-                    .Select(_ => new ConfidencePlayerResult
-                    {
-                        DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
-                        OwnerId = _.Key,
-                        TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
-                        WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
-                        {
-                            Week = wk.Key,
-                            TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
-                            Results = wk.Select(wRes => new PickResult
-                            {
-                                Id = wRes.Id,
-                                OwnerId = wRes.OwnerId,
-                                MatchupId = wRes.MatchupId,
-                                Choice = wRes.Choice,
-                                Points = wRes.Points,
-                                Correct = wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                PickTeam = _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
-                            })
-                        })
-                    }).ToList();
-                return Ok(resp);
-            }
 
             [HttpGet("matchups")]
             [Produces("application/json")]
@@ -135,13 +97,56 @@
                     _db.NflTeamMatchups.AddRange(dbMatchups);
                     _db.SaveChanges();
                 }
-                catch (System.Exception e)
+                catch (Exception e)
                 {
                     return BadRequest(new ErrorResponse(e.Message));
                 }
 
                 return Ok(dbMatchups);
             }
+            [HttpPost("admin/new-props")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> PostPickableProps([Body] List<PropDTO> props)
+            {
+
+                var dbProps = _mapper.Map<List<Prop>>(props);
+                dbProps.ForEach(matchup => matchup.Pickable = true);
+                try
+                {
+                    _db.Props.AddRange(dbProps);
+                    _db.SaveChanges();
+                }
+                catch (Exception e)
+                {
+                    return BadRequest(new ErrorResponse(e.Message));
+                }
+
+                return Ok(dbProps);
+            }
+            [HttpPost("admin/props/{propId}/results/{winningOption}")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> PostPropAnswer([Path] int propId, [Path] string winningOption)
+            {
+                var dbMatchupToUpdate = _db.Props.FirstOrDefault(m => m.Id == propId);
+                if (dbMatchupToUpdate == null) return BadRequest(new ErrorResponse("Wrong id"));
+                if (winningOption != "A" && winningOption != "B") return BadRequest(new ErrorResponse("wrong winning option input method"));
+                try
+                {
+                    dbMatchupToUpdate.Winner = winningOption;
+                    _db.SaveChanges();
+                }
+                catch (Exception e)
+                {
+                    return BadRequest(e.Message);
+                }
+              
+                return Ok();
+            }
+
             [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
@@ -156,7 +161,7 @@
                         dbMatchupToUpdate.Winner = winningTricode;
                         _db.SaveChanges();
                     }
-                    catch (System.Exception e)
+                    catch (Exception e)
                     {
                         return BadRequest(e.Message);
                     }    
