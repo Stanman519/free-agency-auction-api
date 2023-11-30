@@ -258,7 +258,7 @@
                                         PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                     }).OrderByDescending(r => r.Points)
                                 
-                            })
+                            }).OrderBy(wr => wr.Week)
                     }
 
                     ).OrderByDescending(r => r.TotalPoints).ToList();
