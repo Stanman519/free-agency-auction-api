@@ -65,11 +65,14 @@
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
                     var userProps = _db.ExtraPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.PropId)).ToList();
+
                     thisWeek.ForEach(mat =>
                     {
                         var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
                         if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
                     });
+                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick.Points).ToList();
+
                     props.ForEach(p =>
                     {
                         var dbProp = userProps.FirstOrDefault(db => db.PropId == p.Id);
