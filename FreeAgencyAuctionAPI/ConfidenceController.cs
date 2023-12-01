@@ -211,13 +211,25 @@
                     {
                         p.Choice = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId).Choice;
                     });
+                    if (picks.Count > existingPicks.Count)
+                    {
+                        var dtosToAdd = picks.Where(p => !existingPicks.Select(ep => ep.Id).Contains(p.Id)).ToList();
+                        var picksToAdd = _mapper.Map<List<Pick>>(dtosToAdd);
+                        _db.NflPicks.AddRange(picksToAdd);
+                    }
+                    if (picks.Count > existingPicks.Count)
+                    {
+                        var dtosToAdd = props.Where(p => !existingProps.Select(ep => ep.Id).Contains(p.Id)).ToList();
+                        var propsToAdd = _mapper.Map<List<ExtraPick>>(dtosToAdd);
+                        _db.ExtraPicks.AddRange(propsToAdd);
+                    }
+
                     existingProps.ForEach(p =>
                     {
                         p.Choice = props.FirstOrDefault(prop => prop.PropId == p.PropId).Choice;
                     });
 
                     _db.SaveChanges();
-
                 }
                 else
                 {
