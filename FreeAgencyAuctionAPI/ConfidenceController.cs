@@ -217,7 +217,7 @@
                         var picksToAdd = _mapper.Map<List<Pick>>(dtosToAdd);
                         _db.NflPicks.AddRange(picksToAdd);
                     }
-                    if (picks.Count > existingPicks.Count)
+                    if (props.Count > existingProps.Count)
                     {
                         var dtosToAdd = props.Where(p => !existingProps.Select(ep => ep.Id).Contains(p.Id)).ToList();
                         var propsToAdd = _mapper.Map<List<ExtraPick>>(dtosToAdd);
