@@ -181,9 +181,11 @@
             {
                 //Figure out a way to make this only doable by commish
                 var matchups = _db.NflTeamMatchups.Where(m => m.Year == year).ToList();
+                var props = _db.Props.Where(p => p.Year == year).ToList();
+                props.ForEach(p => p.Pickable = false);
                 matchups.ForEach(m => m.Pickable = false);
                 _db.SaveChanges();
-                return Ok(matchups);
+                return Ok();
             }
 
             [HttpPost("picks")]
