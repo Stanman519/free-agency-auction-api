@@ -35,6 +35,15 @@
                 _mapper = mapper;
             }
 
+            [HttpGet("ping")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> KeepTheLightsOn()
+            {
+                return Ok("Hello");
+            }
+
             [HttpGet("nfl-teams")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
