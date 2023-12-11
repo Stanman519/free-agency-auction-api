@@ -69,16 +69,20 @@
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 var dbProps = _db.Props.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
+                var propsThisWeek = dbProps.GroupBy(p => p.Week).OrderByDescending(p => p.Key).FirstOrDefault()?.Select(p => _mapper.Map<PropDTO>(p)).ToList();
                 var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList() ?? new List<PropDTO>();
                 if (!string.IsNullOrEmpty(user))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
-                    var userProps = _db.ExtraPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.PropId)).ToList();
+                    var userProps = _db.ExtraPicks.Where(p => p.Owner.authid == user && propsThisWeek.Select(w => w.Id).Contains(p.PropId)).ToList();
+
                     thisWeek.ForEach(mat =>
                     {
                         var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
                         if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
                     });
+                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick.Points).ToList();
+
                     props.ForEach(p =>
                     {
                         var dbProp = userProps.FirstOrDefault(db => db.PropId == p.Id);
@@ -186,9 +190,11 @@
             {
                 //Figure out a way to make this only doable by commish
                 var matchups = _db.NflTeamMatchups.Where(m => m.Year == year).ToList();
+                var props = _db.Props.Where(p => p.Year == year).ToList();
+                props.ForEach(p => p.Pickable = false);
                 matchups.ForEach(m => m.Pickable = false);
                 _db.SaveChanges();
-                return Ok(matchups);
+                return Ok();
             }
 
             [HttpPost("picks")]
@@ -217,13 +223,26 @@
                     {
                         p.Choice = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId).Choice;
                     });
+                    if (picks.Count > existingPicks.Count)
+                    {
+                        var dtosToAdd = picks.Where(p => !existingPicks.Select(ep => ep.Id).Contains(p.Id)).ToList();
+                        var picksToAdd = _mapper.Map<List<Pick>>(dtosToAdd);
+                        _db.NflPicks.AddRange(picksToAdd);
+                    }
                     existingProps.ForEach(p =>
                     {
                         p.Choice = props.FirstOrDefault(prop => prop.PropId == p.PropId).Choice;
                     });
+                    if (props.Count > existingProps.Count)
+                    {
+                        var dtosToAdd = props.Where(p => !existingProps.Select(ep => ep.Id).Contains(p.Id)).ToList();
+                        var propsToAdd = _mapper.Map<List<ExtraPick>>(dtosToAdd);
+                        _db.ExtraPicks.AddRange(propsToAdd);
+                    }
+
+
 
                     _db.SaveChanges();
-
                 }
                 else
                 {
@@ -272,7 +291,7 @@
                                         PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                     }).OrderByDescending(r => r.Points)
                                 
-                            })
+                            }).OrderBy(wr => wr.Week)
                     }
 
                     ).OrderByDescending(r => r.TotalPoints).ToList();
