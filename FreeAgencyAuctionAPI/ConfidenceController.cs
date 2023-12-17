@@ -27,13 +27,15 @@
             private readonly ILogger<ConfidenceController> _logger;
             private AuctionContext _db;
             private readonly IMapper _mapper;
+            private readonly IGMBot _gm;
 
-            public ConfidenceController(ILogger<ConfidenceController> logger, AuctionContext db, IMapper mapper)
+            public ConfidenceController(ILogger<ConfidenceController> logger, AuctionContext db, IMapper mapper, IGMBot gm)
             {
 
                 _logger = logger;
                 _db = db;
                 _mapper = mapper;
+                _gm = gm;
             }
 
             [HttpGet("ping")]
