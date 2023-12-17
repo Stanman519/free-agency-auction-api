@@ -95,4 +95,14 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public List<NflMatchupDTO> Matchups { get; set; }
         public IEnumerable<ConfidencePlayerResult> Results { get; set; }
     }
+
+    public class MatchupCommunityStats
+    {
+        public int MatchupId { get; set; }
+        public decimal LPct { get; set;}
+        public decimal RPct { get; set; }
+        public decimal LAvg { get; set; }
+        public decimal RAvg { get; set; }
+
+    }
 }

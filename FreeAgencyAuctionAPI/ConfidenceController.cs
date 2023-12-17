@@ -4,6 +4,7 @@
     using Bogus;
     using global::FreeAgencyAuctionAPI.Models;
     using global::FreeAgencyAuctionAPI.Models.Confidence;
+    using global::FreeAgencyAuctionAPI.Repos;
     using global::FreeAgencyAuctionAPI.Services;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
@@ -158,6 +159,57 @@
                 }
               
                 return Ok();
+            }
+
+            [HttpGet("year/{year}/week/{week}/coummunity-stats")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> GetCommunityStats(int year, int week)
+            {
+
+
+                var allPicksThisWeek = _db.NflPicks.Where(p => p.NflTeamMatchup.Week ==  week && p.NflTeamMatchup.Year == year).ToList().GroupBy(p => p.MatchupId);
+                var isStillPickable = false;
+                //var matchupStats = new List<MatchupCommunityStats>();
+                
+                var matchupStats = allPicksThisWeek.Select(mup =>
+                {
+                    var count = 0;
+                    var leftPicks = 0;
+                    var rightPicks = 0;
+                    var leftTotalPts = 0;
+                    var rightTotalPts = 0;
+                    mup.ToList().ForEach(pick =>
+                    {
+                        if (pick.NflTeamMatchup.Pickable) isStillPickable = true;
+                        count++;
+                        if (pick.Choice == pick.NflTeamMatchup.Left)
+                        {
+                            leftPicks++;
+                            leftTotalPts += pick.Points;
+                        }
+                        if (pick.Choice == pick.NflTeamMatchup.Right)
+                        {
+                            rightPicks++;
+                            rightTotalPts += pick.Points;
+                        }
+                    });
+                    return new MatchupCommunityStats
+                    {
+                        MatchupId = mup.Key,
+                        LPct = leftPicks / count,
+                        RPct = rightPicks / count,
+                        LAvg = leftPicks == 0 ? 0 :leftTotalPts / leftPicks,
+                        RAvg = rightPicks == 0 ? 0 : rightTotalPts / rightPicks
+                    };
+                });
+                if (isStillPickable)
+                {
+                    await _gm.NotifyMflError(new ErrorMessage($"Someone is tryna cheat"));
+                    return BadRequest(new ErrorResponse("you are trying to access stats for matchups that are not yet locked."));
+                }
+                return Ok(matchupStats);
             }
 
             [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
