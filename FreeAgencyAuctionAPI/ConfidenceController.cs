@@ -342,7 +342,7 @@
                                         Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
                                         Points = wRes.Points,
                                         Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                        PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                        PickTeam = (wRes.NflTeamMatchup.Pickable && year != -1) ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                     }).OrderByDescending(r => r.Points)
                                 
                             }).OrderBy(wr => wr.Week)
