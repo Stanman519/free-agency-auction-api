@@ -177,11 +177,11 @@
                 
                 var matchupStats = allPicksThisWeek.Select(mup =>
                 {
-                    var count = 0;
-                    var leftPicks = 0;
-                    var rightPicks = 0;
-                    var leftTotalPts = 0;
-                    var rightTotalPts = 0;
+                    decimal count = 0;
+                    decimal leftPicks = 0;
+                    decimal rightPicks = 0;
+                    decimal leftTotalPts = 0;
+                    decimal rightTotalPts = 0;
                     mup.ToList().ForEach(pick =>
                     {
                         if (pick.NflTeamMatchup.Pickable) isStillPickable = true;
@@ -200,10 +200,10 @@
                     return new MatchupCommunityStats
                     {
                         MatchupId = mup.Key,
-                        LPct = leftPicks / count,
-                        RPct = rightPicks / count,
-                        LAvg = leftPicks == 0 ? 0 :leftTotalPts / leftPicks,
-                        RAvg = rightPicks == 0 ? 0 : rightTotalPts / rightPicks
+                        LPct = Math.Round(leftPicks / count,1),
+                        RPct = Math.Round(rightPicks / count,1),
+                        LAvg = Math.Round(leftPicks == 0 ? 0 : leftTotalPts / leftPicks, 1),
+                        RAvg = Math.Round(rightPicks == 0 ? 0 : rightTotalPts / rightPicks, 1)
                     };
                 });
                 if (isStillPickable)
