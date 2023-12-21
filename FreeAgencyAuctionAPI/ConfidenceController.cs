@@ -310,7 +310,16 @@
                 return Ok();
             }
 
-            [HttpGet("results")]
+            [HttpGet("error")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> ErrorTest()
+            {
+                return BadRequest(new ErrorResponse("beep boop test.")); 
+            }
+
+                [HttpGet("results")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
