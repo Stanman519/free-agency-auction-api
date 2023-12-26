@@ -84,7 +84,7 @@
                         var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
                         if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
                     });
-                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick.Points).ToList();
+                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick?.Points).ToList();
 
                     props.ForEach(p =>
                     {
