@@ -10,6 +10,7 @@ namespace FreeAgencyAuctionAPI.Models
         public bool Premium { get; set; }
         public string DisplayName { get; set; }
         public string StreamToken { get; set; }
+        public bool ConfidencePaid { get; set; }
         public IEnumerable<LeagueOwnerDTO> Leagues { get; set; }
 
     }

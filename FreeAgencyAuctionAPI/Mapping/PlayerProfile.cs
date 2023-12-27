@@ -124,6 +124,7 @@ namespace FreeAgencyAuctionAPI.Mapping
         public OwnerProfile()
         {
             CreateMap<OwnerEntity, OwnerDTO>()
+                .ForMember(dest => dest.ConfidencePaid, opt => opt.MapFrom(src => src.ConfidencePaid))
                 .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.PasswordHash)).ReverseMap();
         }
     }

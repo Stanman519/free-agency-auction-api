@@ -20,6 +20,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public string Name { get; set; }
         public string Primary { get; set; }
         public string Secondary { get; set; }
+        public string Tertiary { get; set; }
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
     }

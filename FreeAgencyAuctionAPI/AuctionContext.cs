@@ -51,6 +51,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.SecondaryLogo).HasColumnName("secondaryLogo");
                 entity.Property(e => e.Primary).HasColumnName("primary");
                 entity.Property(e => e.Secondary).HasColumnName("secondary");
+                entity.Property(e => e.Tertiary).HasColumnName("tertiary");
                 entity.Property(e => e.Tricode).HasColumnName("tricode");
 
             });
@@ -287,6 +288,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.PasswordHash)
                     .IsUnicode(false)
                     .HasColumnName("password_hash");
+                entity.Property(e => e.ConfidencePaid).HasColumnName("confidencepaid");
                 entity.Property(e => e.StreamToken)
                     .HasColumnName("streamtoken");
                 entity.Property(e => e.Premium).HasColumnName("premium");
@@ -595,6 +597,7 @@ namespace FreeAgencyAuctionAPI
         public string Avatar { get; set; }
         public string authid { get; set; }
         public string StreamToken { get; set; }
+        public bool ConfidencePaid { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
         public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
@@ -705,6 +708,7 @@ namespace FreeAgencyAuctionAPI
         public string Name { get; set; }
         public string Primary { get; set; }
         public string Secondary { get; set; }
+        public string Tertiary { get; set; }
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
         public virtual ICollection<NflTeamMatchup> LeftMatchups { get; } = new List<NflTeamMatchup>();

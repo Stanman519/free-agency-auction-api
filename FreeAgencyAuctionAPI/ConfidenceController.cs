@@ -10,6 +10,7 @@
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Identity.Client;
     using RestEase;
     using System;
     using System.Collections.Generic;
@@ -138,9 +139,44 @@
                 {
                     return BadRequest(new ErrorResponse(e.Message));
                 }
-
                 return Ok(dbProps);
             }
+
+            [HttpGet("admin/unpaid")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> GetUnpaidOwners()
+            {
+
+                var owners = _db.Owners.Where(o => !o.istest && !o.ConfidencePaid).ToList();
+                var ret = _mapper.Map<List<OwnerDTO>>(owners);
+                return Ok(ret);
+            }
+
+            [HttpPost("admin/mark-paid")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> MarkOwnerAsPaid([Body] List<int> ownerIds)
+            {
+                var editOwners = _db.Owners.Where(o => ownerIds.Contains(o.Ownerid)).ToList();
+                editOwners.ForEach(o =>
+                {
+                    o.ConfidencePaid = true;
+                });
+
+                try
+                {
+                    _db.SaveChanges();
+                }
+                catch (Exception e)
+                {
+                    return BadRequest(new ErrorResponse(e.Message));
+                }
+                return Ok();
+            }
+
             [HttpPost("admin/props/{propId}/results/{winningOption}")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
