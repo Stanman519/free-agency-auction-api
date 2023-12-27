@@ -85,7 +85,7 @@
                         var dbPick = userPicks.FirstOrDefault(p => p.MatchupId == mat.Id);
                         if (dbPick != null) mat.Pick = _mapper.Map<NflPicksDTO>(dbPick);
                     });
-                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick.Points).ToList();
+                    thisWeek = thisWeek.OrderByDescending(mat => mat.Pick?.Points).ToList();
 
                     props.ForEach(p =>
                     {
@@ -346,7 +346,16 @@
                 return Ok();
             }
 
-            [HttpGet("results")]
+            [HttpGet("error")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            public async Task<IActionResult> ErrorTest()
+            {
+                return BadRequest(new ErrorResponse("beep boop test.")); 
+            }
+
+                [HttpGet("results")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -378,7 +387,7 @@
                                         Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
                                         Points = wRes.Points,
                                         Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                        PickTeam = wRes.NflTeamMatchup.Pickable ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
+                                        PickTeam = (wRes.NflTeamMatchup.Pickable && year != -1) ? null : _mapper.Map<NflTeamDTO>(wRes.ChosenTeam)
                                     }).OrderByDescending(r => r.Points)
                                 
                             }).OrderBy(wr => wr.Week)
