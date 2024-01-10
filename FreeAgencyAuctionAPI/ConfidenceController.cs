@@ -357,7 +357,7 @@
                 return BadRequest(new ErrorResponse("beep boop test.")); 
             }
 
-                [HttpGet("results")]
+            [HttpGet("results")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -374,6 +374,7 @@
                                 .FirstOrDefault().Choice)))),
                             Avatar = _.FirstOrDefault().Owner.Avatar,
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
+                            IsPaid = _.FirstOrDefault().Owner.ConfidencePaid,
                             OwnerId = _.Key,
                             TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
                             ExtraPoints = (extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null || extraPts.Count == 0) ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop?.Winner ? 1 : 0),
