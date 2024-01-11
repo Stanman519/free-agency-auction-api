@@ -236,8 +236,8 @@
                     return new MatchupCommunityStats
                     {
                         MatchupId = mup.Key,
-                        LPct = Math.Round(leftPicks / count,1),
-                        RPct = Math.Round(rightPicks / count,1),
+                        LPct = Math.Round(leftPicks / count, 2),
+                        RPct = Math.Round(rightPicks / count, 2),
                         LAvg = Math.Round(leftPicks == 0 ? 0 : leftTotalPts / leftPicks, 1),
                         RAvg = Math.Round(rightPicks == 0 ? 0 : rightTotalPts / rightPicks, 1)
                     };
