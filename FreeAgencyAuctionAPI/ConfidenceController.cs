@@ -399,7 +399,8 @@
                 var scores = results.Select(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
                 results.ForEach(res =>
                 {
-                    res.Rank = (from s in scores where s > res.TotalPoints select s).Count() + 1;
+                    var x = from s in scores where s > (res.TotalPoints + (res.ExtraPoints * 0.1)) select s;
+                    res.Rank = x.Count() + 1;
                 });
                 return Ok(results);
             }
