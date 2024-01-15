@@ -236,8 +236,8 @@
                     return new MatchupCommunityStats
                     {
                         MatchupId = mup.Key,
-                        LPct = Math.Round(leftPicks / count,1),
-                        RPct = Math.Round(rightPicks / count,1),
+                        LPct = Math.Round(leftPicks / count, 2),
+                        RPct = Math.Round(rightPicks / count, 2),
                         LAvg = Math.Round(leftPicks == 0 ? 0 : leftTotalPts / leftPicks, 1),
                         RAvg = Math.Round(rightPicks == 0 ? 0 : rightTotalPts / rightPicks, 1)
                     };
@@ -311,7 +311,9 @@
                     var existingProps = _db.ExtraPicks.Where(p => props.Select(_ => _.PropId).Contains(p.PropId) && p.OwnerId == props[0].OwnerId).ToList();
                     existingPicks.ForEach(p =>
                     {
-                        p.Choice = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId).Choice;
+                        var thisPick = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId);
+                        p.Choice = thisPick.Choice;
+                        p.Points = thisPick.Points;
                     });
                     if (picks.Count > existingPicks.Count)
                     {

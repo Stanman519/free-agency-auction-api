@@ -112,6 +112,7 @@ namespace FreeAgencyAuctionAPI.Repos
                     user.Email,
                 istest = false,
                 Premium = false,
+                ConfidencePaid = false,
                 PasswordHash = string.Empty,
                 Ownername = !string.IsNullOrEmpty(user.Name) ? user.Name :
                     !string.IsNullOrEmpty(user.Nickname) ? user.Nickname :
