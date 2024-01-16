@@ -13,11 +13,8 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public bool Pickable { get; set; }
         public NflPicksDTO Pick { get; set; }
     }
-    public class NflTeamDTO
+    public class NflTeamDTO : NflTeamBaseDTO
     {
-        public string Tricode { get; set; }
-        public string City { get; set; }
-        public string Name { get; set; }
         public string Primary { get; set; }
         public string Secondary { get; set; }
         public string Tertiary { get; set; }
@@ -89,7 +86,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
     public class PickResult : NflPicksDTO
     {
         public bool? Correct { get; set; }
-        public NflTeamDTO PickTeam { get; set; }
+        public NflTeamBaseDTO PickTeam { get; set; }
 
     }
     public class ConfidenceHomeResponse
@@ -106,5 +103,12 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public decimal LAvg { get; set; }
         public decimal RAvg { get; set; }
 
+    }
+
+    public class NflTeamBaseDTO
+    {
+        public string Tricode { get; set; }
+        public string City { get; set; }
+        public string Name { get; set; }
     }
 }

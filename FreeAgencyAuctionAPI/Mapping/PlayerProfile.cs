@@ -53,6 +53,7 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
+
     public class NflPropProfile : Profile
     {
         public NflPropProfile()
@@ -88,6 +89,15 @@ namespace FreeAgencyAuctionAPI.Mapping
         public NflTeamProfile()
         {
             CreateMap<NflTeam, NflTeamDTO>()
+                .ReverseMap();
+        }
+    }
+
+    public class NflTeamBaseProfile : Profile
+    {
+        public NflTeamBaseProfile()
+        {
+            CreateMap<NflTeam, NflTeamBaseDTO>()
                 .ReverseMap();
         }
     }
