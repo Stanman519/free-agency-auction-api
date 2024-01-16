@@ -396,7 +396,7 @@
                             }).OrderBy(wr => wr.Week)
                     }
 
-                    ).OrderByDescending(r => r.TotalPoints).ToList();
+                    ).OrderByDescending(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
                     
                 var scores = results.Select(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
                 results.ForEach(res =>
