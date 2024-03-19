@@ -28,7 +28,6 @@ namespace FreeAgencyAuctionAPI.Repos
         [Get("{year}/export?TYPE=salaryAdjustments&L={leagueId}&APIKEY=&JSON=1")]
         Task<SalaryAdjustmentsRoot> GetMflSalaryAdjustments([Path] int leagueId, [Path] int year = Utils.ThisYear);
 
-
         [Get("{year}/export?TYPE=freeAgents&L={leagueId}&APIKEY=&POSITION=&JSON=1")]
         Task<FreeAgentsRoot> GetMflFreeAgents([Path] int leagueId, [Path] int year = Utils.ThisYear);
 
@@ -43,5 +42,7 @@ namespace FreeAgencyAuctionAPI.Repos
         [Get("{year}/import?TYPE=taxi_squad&L={leagueId}&PROMOTE=&DEMOTE=&DROP={playerId}&FRANCHISE_ID={franchiseId}")]
         Task<HttpResponseMessage> DropPlayerFromTaxi([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year = Utils.ThisYear);
 
+        [Get("{year}/export?TYPE=transactions&L={leagueId}&APIKEY={apiKey}&W=&TRANS_TYPE=&FRANCHISE=&DAYS=&COUNT=&JSON=1")]
+        Task<TransactionsRoot> GetLastYearWaiverTransactions([Path] int leagueId, [Path] string apiKey, [Path] int year = Utils.ThisYear - 1);
     }
 }

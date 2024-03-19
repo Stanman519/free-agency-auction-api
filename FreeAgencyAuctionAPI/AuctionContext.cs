@@ -27,7 +27,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<Pick> NflPicks { get; set; }
         public DbSet<ExtraPick> ExtraPicks { get; set; }
         public DbSet<Prop> Props { get; set; } 
-
+        public DbSet<WaiverExtension> WaiverExtensions { get; set; }
         /*
                 public DbSet<NflTeamEntity> NflTeams { get; set; }
                 public DbSet<NflOverPickEntity> NflPicks { get; set; }
@@ -429,6 +429,36 @@ namespace FreeAgencyAuctionAPI
 
                 entity.HasKey(e => e.BuyoutId);
             });
+            modelBuilder.Entity<WaiverExtension>(entity =>
+            {
+                entity.ToTable("waiverextension");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.LeagueId)
+                    .HasColumnName("leagueid");
+                entity.Property(e => e.PlayerId)
+                    .HasColumnName("playerid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.LeagueOwnerId)
+                    .HasColumnName("leagueownerid");
+                entity.HasOne(e => e.League)
+                .WithMany(l => l.WaiverExtensions)
+                .HasForeignKey(d => d.LeagueId)
+                .HasConstraintName("FK_waiverextension_League");
+                entity.HasOne(e => e.Player)
+                .WithMany(l => l.WaiverExtensions)
+                .HasForeignKey(d => d.PlayerId)
+                .HasConstraintName("FK_waiverextension_player");
+                entity.HasOne(e => e.LeagueOwner)
+                .WithMany(l => l.WaiverExtensions)
+                .HasForeignKey(d => d.LeagueOwnerId)
+                .HasConstraintName("FK_waiverextension_leagueowner");
+
+                entity.HasKey(e => e.Id);
+            });
 
             modelBuilder.Entity<FranchiseTagPlayer>(entity =>
             {
@@ -514,7 +544,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<FranchiseTagPlayer> FranchiseTags { get; } = new List<FranchiseTagPlayer>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
-
+        public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
     }
     public partial class BidEntity
     {
@@ -549,6 +579,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual LeagueEntity League { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
+        public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
     }
 
     public partial class SuggestionEntity
@@ -614,6 +645,7 @@ namespace FreeAgencyAuctionAPI
         public bool Istest { get; set; }
         public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
+        public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
         public virtual ICollection<FranchiseTagLeague> FranchiseTagLeagues { get; } = new List<FranchiseTagLeague>();
         public virtual ICollection<Transaction> Transactions { get; } = new List<Transaction>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
@@ -695,6 +727,18 @@ namespace FreeAgencyAuctionAPI
         public int LeagueOwnerId { get; set; }
         public int OriginalSalary { get; set; }
         public decimal BuyoutPenalty { get; set; }
+        public virtual LeagueEntity League { get; set; }
+        public virtual LeagueOwnerEntity LeagueOwner { get; set; }
+        public virtual PlayerEntity Player { get; set; }
+    }
+    public partial class WaiverExtension
+    {
+        [Key]
+        public int Id { get; set; }
+        public int LeagueId { get; set; }
+        public int LeagueOwnerId { get; set; }
+        public int Year { get; set; }
+        public int PlayerId { get; set; }
         public virtual LeagueEntity League { get; set; }
         public virtual LeagueOwnerEntity LeagueOwner { get; set; }
         public virtual PlayerEntity Player { get; set; }

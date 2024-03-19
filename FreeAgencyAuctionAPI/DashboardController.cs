@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Bogus.DataSets;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RestEase;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -113,6 +115,20 @@ namespace FreeAgencyAuctionAPI
             var candidates = await _mfl.GetBuyoutCandidates(leagueId, leagueOwnerId, mflFranchiseId);
             return Ok(candidates);
         }
+        // get waiver extension candidates
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/waiver-extensions")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetWaiverExtensionCandidates([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var alreadyUsedExtension = await _db.WaiverExtensions.FirstOrDefaultAsync(w => w.Year == DateTime.Now.Year && leagueId == w.LeagueId && leagueOwnerId == w.LeagueOwnerId);
+            if (alreadyUsedExtension != null) return Ok(new List<PlayerDTO>());
+            var candidates = await _mfl.GetWaiverExtensionCandidates(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(candidates);
+        }
+
+
         // get league transactions and team dead caps
         [HttpGet("leagues/{leagueId}/league-caps")]
         [Produces("application/json")]
@@ -175,11 +191,18 @@ namespace FreeAgencyAuctionAPI
                 }
                 return Ok(dashboard); 
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 return BadRequest();
             }
 
+        }
+        [HttpPost("waiver-extension")]
+        public async Task<IActionResult> SubmitWaiverExtension([FromBody] FranchiseTagRequestBody body)
+        {
+            await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary);
+            return NoContent();
         }
 
         [HttpPost("tag-player")]

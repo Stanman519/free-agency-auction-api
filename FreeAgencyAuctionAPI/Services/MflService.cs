@@ -24,6 +24,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
         Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
+        Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction);
 
@@ -148,11 +149,71 @@ namespace FreeAgencyAuctionAPI.Services
             }
             return playerBio;
         }
+        public async Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
+        {
+            var apiKey = _options.Value.Mfl.MflApiKey;
+            // get all waivered guys
+            var transactionResp = await _leagueApi.GetLastYearWaiverTransactions(leagueId, apiKey);
+            var thisTeamTransactions = transactionResp.transactions.transaction.Where(trans => int.Parse(trans.franchise) == mflFranchiseId).ToList();
+            var trades = thisTeamTransactions.Where(_ => _.type == "TRADE").ToList();
+            var drops = thisTeamTransactions.Where(_ => _.type == "BBID_WAIVER" || _.type == "FREE_AGENT");
+            // get list of picked up guys, loop through and check if they were traded or dropped after.
+            var pickups = thisTeamTransactions.Where(_ => _.type == "BBID_WAIVER").ToList();
+            var extensionCandidates = new List<int>();
+            foreach (var pu in pickups)
+            {
+                var success = int.TryParse(pu.transaction.Split(",")[0], out var addedPlayerId);
+
+                if (!success) continue;
+                var remove = false;
+                var cuts = drops.Where(_ => _.transaction.Contains(addedPlayerId.ToString()) && long.Parse(_.timestamp) > long.Parse(pu.timestamp)).ToList();
+                cuts.ForEach(cut =>
+                {
+                    if (cut.type == "BBID_WAIVER")
+                    {
+                        var transactionArr = cut.transaction.Split(",");
+                        if (transactionArr.Length > 1)
+                        {
+                            var bidPlusDroppedPlayer = transactionArr[1];
+                            var droppedPlayerArr = bidPlusDroppedPlayer.Split("|");
+                            var droppedPlayerId = droppedPlayerArr[2].Replace(",", "");
+                            if (!string.IsNullOrEmpty(droppedPlayerId) && droppedPlayerId == addedPlayerId.ToString())
+                            {
+                                remove = true;
+                            }
+                        }
+                    } else if (cut.type == "FREE_AGENT") // I believe these are just drops for our leagues purposes
+                    {
+                        var drops = cut.transaction.Split("|")[1].Split(",").ToList();
+                        drops.ForEach(drop =>
+                        {
+                            if (drop == addedPlayerId.ToString()) remove = true;
+                        });
+                    } 
+                });
+                trades.ForEach(t =>
+                {
+                    var assetsMoved = t.franchise2_gave_up.Split(",").ToList();
+                    assetsMoved.AddRange(t.franchise1_gave_up.Split(",").ToList());
+                    assetsMoved.ForEach(a =>
+                    {
+                        if (a == addedPlayerId.ToString() && long.Parse(t.timestamp) > long.Parse(pu.timestamp)) remove = true;
+                    });
+                });
+                if (!remove) extensionCandidates.Add(addedPlayerId);
+            }
+            var dbPlayers = await _pRepo.GetPlayersByListOfIds(extensionCandidates) ?? new List<PlayerEntity>();
+
+            return _mapper.Map<List<PlayerDTO>>(dbPlayers.Where(p => p.Position != "QB").ToList());
+            // do another call with all the player ids. then remove all the guys that are QBs
 
 
-        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary)
+        }
+
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag)
         {
             var data = CreateBodyDataForNewContract(mflPlayerId, salary);
+            var botMsg = isFranchiseTag ? $"Someone got franchise tagged but Ryan forgot to add player name here. Any way it was player {mflPlayerId} for ${salary}." : $"{mflPlayerId} was given a waiver extension of 1 year, $25";
             try
             {
                 var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
@@ -162,9 +223,12 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
-                    await _gm.NotifyMflError(new ErrorMessage( $"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
+                    await _gm.NotifyMflError(new ErrorMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
-                else await _gm.SendBotNotification(message: new ErrorMessage($"Someone got franchise tagged but Ryan forgot to add player name here. Any way it was player {mflPlayerId} for ${salary}."));
+                else
+                {
+                    await _gm.SendBotNotification(message: new ErrorMessage(botMsg));
+                }
             }
             catch (Exception e)
             {
