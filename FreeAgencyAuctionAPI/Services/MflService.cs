@@ -16,7 +16,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
 
-        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
         Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);

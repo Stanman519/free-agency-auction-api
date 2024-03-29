@@ -201,7 +201,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> SubmitWaiverExtension([FromBody] FranchiseTagRequestBody body)
         {
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false);
             return NoContent();
         }
 
@@ -209,7 +209,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> FranchiseTagPlayer([FromBody] FranchiseTagRequestBody body)
         {
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, true);
             return NoContent();
         }
         [HttpPost("taxi-cut")]
