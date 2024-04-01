@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Bogus.DataSets;
 using FreeAgencyAuctionAPI.Models;
+using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,11 +24,13 @@ namespace FreeAgencyAuctionAPI
         private AuctionContext _db;
         private ILeagueService _leagueService;
         private readonly IMflService _mfl;
+        private readonly IPlayerRepo _pRepo;
 
-        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, ILogger<DashboardController> logger, AuctionContext db)
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, IPlayerRepo prepo, ILogger<DashboardController> logger, AuctionContext db)
         {
             _leagueService = leagueService;
             _mfl = mfl;
+            _pRepo = prepo;
             _oService = ownerServiceLayer;
             _logger = logger;
             _db = db;
@@ -200,16 +203,38 @@ namespace FreeAgencyAuctionAPI
         [HttpPost("waiver-extension")]
         public async Task<IActionResult> SubmitWaiverExtension([FromBody] FranchiseTagRequestBody body)
         {
+            var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
+            var waiver = new WaiverExtension
+            {
+                LeagueId = body.leagueId,
+                LeagueOwnerId = body.leagueOwnerId,
+                Year = Utils.ThisYear,
+                PlayerId = body.mflPlayerId
+            };
+            await _pRepo.AddWaiverExtensionForTeam(waiver);
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, $"{player.first_name} {player.last_name}");
             return NoContent();
         }
 
         [HttpPost("tag-player")]
         public async Task<IActionResult> FranchiseTagPlayer([FromBody] FranchiseTagRequestBody body)
         {
+            var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
+            var tag = new FranchiseTagPlayer
+            {
+                Mflleagueid = body.leagueId,
+                Leagueownerid = body.leagueOwnerId,
+                Year = Utils.ThisYear,
+                Tagprice = body.tagSalary,
+                Position = player.position,
+                Originalsalary = 0,
+                Fullname = $"{player.first_name} {player.last_name}",
+                Mflplayerid = body.mflPlayerId
+            };
+            await _pRepo.AddFranchiseTagForTeam(tag);
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, true);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, true, $"{player.first_name} {player.last_name}");
             return NoContent();
         }
         [HttpPost("taxi-cut")]

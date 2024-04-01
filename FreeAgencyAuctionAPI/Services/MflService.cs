@@ -16,7 +16,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
 
-        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
         Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
@@ -27,7 +27,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction);
-
+        Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
     }
@@ -53,6 +53,13 @@ namespace FreeAgencyAuctionAPI.Services
             _pRepo = pRepo;
             _mapper = mapper;
             _options = options;
+        }
+
+        public async Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId)
+        {
+            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflId.ToString());
+            return playerRes.players.player.FirstOrDefault();
+
         }
 
         public async Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId)
@@ -210,10 +217,10 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag)
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName)
         {
             var data = CreateBodyDataForNewContract(mflPlayerId, salary);
-            var botMsg = isFranchiseTag ? $"Someone got franchise tagged but Ryan forgot to add player name here. Any way it was player {mflPlayerId} for ${salary}." : $"{mflPlayerId} was given a waiver extension of 1 year, $25";
+            var botMsg = isFranchiseTag ? $"{playerName} got franchise tagged for ${salary}." : $"{playerName} was given a waiver extension of 1 year, $25";
             try
             {
                 var resp = await _leagueApi.EditPlayerSalary(leagueId, data);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Services;
@@ -13,9 +14,11 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         public Task<PlayerEntity> GetPlayerById(int playerId);
         public Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId);
+        Task AddFranchiseTagForTeam(FranchiseTagPlayer player);
         //public Task<PlayerEntity> SetPlayerOwner(PlayerEntity player);
         //public Task<PlayerEntity> WinPlayer(BidEntity bid);
         public Task<IEnumerable<PlayerEntity>> GetAllFreeAgents(int leagueId);
+        Task AddWaiverExtensionForTeam(WaiverExtension player);
         // Task AddFreshPlayerInventory(List<PlayerEntity> players);
         Task<IEnumerable<PlayerEntity>> GetAllPlayers();
         Task<IEnumerable<PlayerEntity>> GetPlayersByListOfIds(IEnumerable<int> mflIds);
@@ -31,11 +34,13 @@ namespace FreeAgencyAuctionAPI.Repos
 
     public class PlayerRepo : IPlayerRepo
     {
+        private readonly IGMBot _gm;
         private readonly AuctionContext _db;
         private readonly ILogger<PlayerRepo> _logger;
 
-        public PlayerRepo(AuctionContext db, ILogger<PlayerRepo> logger)
+        public PlayerRepo(AuctionContext db, IGMBot gm, ILogger<PlayerRepo> logger)
         {
+            _gm = gm;
             _db = db;
             _logger = logger;
         }
@@ -79,7 +84,32 @@ namespace FreeAgencyAuctionAPI.Repos
             return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == Utils.ThisYear).ToList();
         }
 
-public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
+        public async Task AddFranchiseTagForTeam(FranchiseTagPlayer player)
+        {
+            try
+            {
+                await _db.FranchiseTagPlayers.AddRangeAsync(player);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                await _gm.NotifyMflError(new ErrorMessage($"franchise tag db error {player.Fullname}: {e.Message}"));
+            }
+        }
+        public async Task AddWaiverExtensionForTeam(WaiverExtension player)
+        {
+            try
+            {
+                await _db.WaiverExtensions.AddRangeAsync(player);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                await _gm.NotifyMflError(new ErrorMessage($"waiver extension db error {player.Player.Fullname}: {e.Message}"));
+            }
+        }
+
+        public async Task<IEnumerable<PlayerEntity>> GetRosteredPlayers(int leagueId)
         {
             try
             {
