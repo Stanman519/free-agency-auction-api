@@ -250,18 +250,18 @@
                 return Ok(matchupStats);
             }
 
-            [HttpPost("admin/matchups/{matchupId}/results/{winningTricode}")]
+            [HttpPost("admin/matchups/{matchupId}/results/{winningTeamId}")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] string winningTricode)
+            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] int winningTeamId) //THIS 2nd PARAM TO BE UPDATED ON THE CLIENT FOR 2025 it used to be tricode
             {
                 var dbMatchupToUpdate = _db.NflTeamMatchups.FirstOrDefault(m => m.Id == matchupId);
                 if (dbMatchupToUpdate != null) 
                 {
                     try
                     {
-                        dbMatchupToUpdate.Winner = winningTricode;
+                        dbMatchupToUpdate.Winner = winningTeamId;
                         _db.SaveChanges();
                     }
                     catch (Exception e)
@@ -368,9 +368,7 @@
                     .ToList()
                     .Select(_ => new ConfidencePlayerResult
                         {
-                            PickSubmitted = _.Any(p => (p.NflTeamMatchup.Pickable && !string.IsNullOrEmpty(p.Choice)) ? true :
-                                (_.All(p => !p.NflTeamMatchup.Pickable) && _.Any(p => string.IsNullOrEmpty(_.OrderByDescending(p => p.NflTeamMatchup.Week)
-                                .FirstOrDefault().Choice)))),
+                            PickSubmitted = _.Any(p => p.NflTeamMatchup.Pickable),
                             Avatar = _.FirstOrDefault().Owner.Avatar,
                             DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                             IsPaid = _.FirstOrDefault().Owner.ConfidencePaid,
@@ -386,9 +384,9 @@
                                         Id = wRes.Id,
                                         OwnerId = wRes.OwnerId,
                                         MatchupId = wRes.MatchupId,
-                                        Choice = wRes.NflTeamMatchup.Pickable ? string.Empty : wRes.Choice,
+                                        Choice = wRes.NflTeamMatchup.Pickable ? null : wRes.Choice,
                                         Points = wRes.Points,
-                                        Correct = string.IsNullOrEmpty(wRes.NflTeamMatchup.Winner) ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                        Correct = wRes.NflTeamMatchup.Winner == null ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
                                         PickTeam = (wRes.NflTeamMatchup.Pickable && year != -1) ? null : _mapper.Map<NflTeamBaseDTO>(wRes.ChosenTeam)
                                     }).OrderByDescending(r => r.Points)
                                 
@@ -430,11 +428,11 @@
 
                 var week1 = leftTms.Take(6).Select((lt, index) => new NflTeamMatchup
                 {
-                    Left = lt.Tricode,
-                    Right = rightTms[index].Tricode,
+                    Left = lt.Id,
+                    Right = rightTms[index].Id,
                     Week = 1,
                     Year = year,
-                    Winner = new Random().Next(2) > 0 ? lt.Tricode : rightTms[index].Tricode,
+                    Winner = new Random().Next(2) > 0 ? lt.Id : rightTms[index].Id,
                     Pickable = false
                 }).ToList();
 
@@ -445,8 +443,8 @@
                     Year = year,
                     Winner = null,
                     Pickable = true,
-                    Left = index < 2 ? leftTms[8 + index].Tricode : w.Winner,
-                    Right = index < 2 ? w.Winner : week1[2 + index].Winner
+                    Left = index < 2 ? leftTms[8 + index].Id : w.Id,
+                    Right = index < 2 ? w.Id : week1[2 + index].Id
                 }).ToList();
 
                 _db.Owners.AddRange(users);

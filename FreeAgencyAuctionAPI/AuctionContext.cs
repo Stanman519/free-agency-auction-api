@@ -27,6 +27,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<Pick> NflPicks { get; set; }
         public DbSet<ExtraPick> ExtraPicks { get; set; }
         public DbSet<Prop> Props { get; set; } 
+        public DbSet<SeasonWins> SeasonWins { get;set; }
+        public DbSet<OverUnderPick> OverUnderPicks { get; set; }
         public DbSet<WaiverExtension> WaiverExtensions { get; set; }
         /*
                 public DbSet<NflTeamEntity> NflTeams { get; set; }
@@ -42,8 +44,9 @@ namespace FreeAgencyAuctionAPI
 
             modelBuilder.Entity<NflTeam>(entity =>
             {
-                entity.HasKey(e => e.Tricode).HasName("PK_nflteam");
+                entity.HasKey(e => e.Id).HasName("PK_nflteam");
                 entity.ToTable("nflteam");
+                entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.Name).HasColumnName("name");
                 entity.Property(e => e.Tricode).HasColumnName("tricode");
                 entity.Property(e => e.City).HasColumnName("city");
@@ -53,6 +56,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Secondary).HasColumnName("secondary");
                 entity.Property(e => e.Tertiary).HasColumnName("tertiary");
                 entity.Property(e => e.Tricode).HasColumnName("tricode");
+                entity.Property(e => e.League).HasColumnName("league");
 
             });
 
@@ -460,6 +464,50 @@ namespace FreeAgencyAuctionAPI
                 entity.HasKey(e => e.Id);
             });
 
+            modelBuilder.Entity<SeasonWins>(entity =>
+            {
+                entity.ToTable("seasonwins");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.FranchiseId)
+                    .HasColumnName("franchiseid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.BaseOverUnder)
+                    .HasColumnName("baseoverunder");
+                entity.Property(e => e.RealWins)
+                    .HasColumnName("realwins");
+                entity.Property(e => e.GamesRemaining)
+                    .HasColumnName("gamesremaining");
+                entity.HasOne(e => e.Franchise)
+                    .WithMany(l => l.SeasonWins)
+                    .HasForeignKey(d => d.FranchiseId)
+                    .HasConstraintName("FK_seasonwins_nflteam");
+                entity.HasKey(e => e.Id);
+            });
+            modelBuilder.Entity<OverUnderPick>(entity =>
+            {
+                entity.ToTable("overunderpick");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.LineId)
+                    .HasColumnName("lineid");
+                entity.Property(e => e.OwnerId)
+                    .HasColumnName("ownerid");
+                entity.Property(e => e.IsOver)
+                    .HasColumnName("isover");
+                entity.Property(e => e.LineAdjustment)
+                    .HasColumnName("lineadjustment");
+                entity.HasOne(e => e.WinLine)
+                    .WithMany(l => l.OverUnderPicks)
+                    .HasForeignKey(d => d.LineId)
+                    .HasConstraintName("FK_seasonwins_nflteam");
+                entity.HasKey(e => e.Id);
+            });
             modelBuilder.Entity<FranchiseTagPlayer>(entity =>
             {
                 entity.ToTable("franchisetagplayer");
@@ -747,6 +795,7 @@ namespace FreeAgencyAuctionAPI
     public partial class NflTeam
     {
         [Key]
+        public int Id { get; set; }
         public string Tricode { get; set; }
         public string City { get; set; }
         public string Name { get; set; }
@@ -755,9 +804,11 @@ namespace FreeAgencyAuctionAPI
         public string Tertiary { get; set; }
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
+        public string League { get; set; }
         public virtual ICollection<NflTeamMatchup> LeftMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> RightMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> WinMatchups { get; } = new List<NflTeamMatchup>();
+        public virtual ICollection<SeasonWins> SeasonWins { get; } = new List<SeasonWins>();
         public virtual ICollection<Pick> ChosenPicks { get; } = new List<Pick>();
     }
 
@@ -765,11 +816,11 @@ namespace FreeAgencyAuctionAPI
     {
         [Key]
         public int Id { get; set; }
-        public string Left { get; set; }
-        public string Right { get; set; }
+        public int Left { get; set; }
+        public int Right { get; set; }
         public int Year { get; set; }
         public int Week { get; set; }
-        public string Winner { get; set; }
+        public int? Winner { get; set; }
         public bool Pickable { get; set; }
         public virtual NflTeam LeftTeam { get; set; }
         public virtual NflTeam RightTeam { get; set; }
@@ -783,7 +834,7 @@ namespace FreeAgencyAuctionAPI
         public int Id { get; set; }
         public int OwnerId { get; set; }
         public int MatchupId { get; set; }
-        public string Choice { get; set; }
+        public int? Choice { get; set; }
         public int Points { get; set; }
         public virtual NflTeam ChosenTeam { get; set; }
         public virtual OwnerEntity Owner { get; set; }
@@ -814,5 +865,29 @@ namespace FreeAgencyAuctionAPI
         public string Winner { get; set; }
         public bool Pickable { get; set; }
         public virtual ICollection<ExtraPick> ChosenProps { get; } = new List<ExtraPick>();
+    }
+
+    public partial class SeasonWins
+    {
+        [Key]
+        public int Id { get; set; }
+        public int FranchiseId { get; set; }
+        public int Year { get; set; }
+        public decimal BaseOverUnder { get; set; }
+        public int RealWins { get; set; }
+        public int? GamesRemaining { get; set; }
+        public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
+        public virtual NflTeam Franchise { get; set; } = null!;
+    }
+    public partial class OverUnderPick
+    {
+        [Key]
+        public int Id { get; set; }
+        public int LineId { get; set; }
+        public int OwnerId { get; set; }
+        public bool? IsOver { get; set; }
+        public int LineAdjustment { get; set; }
+        public virtual SeasonWins WinLine { get; set; } = null!;
+        public virtual OwnerEntity Owner { get; set; } = null!;
     }
 }

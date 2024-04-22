@@ -15,6 +15,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
     }
     public class NflTeamDTO : NflTeamBaseDTO
     {
+        public int Id { get; set; }
         public string Primary { get; set; }
         public string Secondary { get; set; }
         public string Tertiary { get; set; }
@@ -36,7 +37,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
         public int Id { get; set; }
         public int OwnerId { get; set; }
         public int MatchupId { get; set; }
-        public string Choice { get; set; }
+        public int? Choice { get; set; }
         public int Points { get; set; }
     }
 
