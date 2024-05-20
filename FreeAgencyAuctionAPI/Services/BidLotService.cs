@@ -118,7 +118,7 @@ namespace FreeAgencyAuctionAPI.Services
                 {
                     _logger.LogError("there was an error syncing player {bid.Player.MflId} to mfl.", e);
                     await _bot.NotifyMflError(
-                        new ErrorMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
+                        new BotMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
                 }
                 catch (Exception exception)
                 {
@@ -177,7 +177,7 @@ namespace FreeAgencyAuctionAPI.Services
                 }
             }
 
-            await _bot.SendBotNotification(new ErrorMessage(strForBot));
+            await _bot.SendBotNotification(new BotMessage(strForBot));
         }
         public async Task<bool> ValidateBidForDbEntry(BidDTO bid)
         {

@@ -75,7 +75,7 @@ namespace FreeAgencyAuctionAPI.Services
                         var error = respString.XmlDeserializeFromString<MflXmlError>();
                         _logger.LogInformation(error.ErrorMsg);
                         _logger.LogError("${playerId} was not added to a team in mfl.", playerId);
-                        await _gm.NotifyMflError(new ErrorMessage( $"{playerId} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
+                        await _gm.NotifyMflError(new BotMessage( $"{playerId} was not added to a team in mfl! \n\n{error.ErrorMsg}"));
                     }
                 }
                 catch (Exception e)
@@ -230,11 +230,11 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
+                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}"));
                 }
                 else
                 {
-                    await _gm.SendBotNotification(message: new ErrorMessage(botMsg));
+                    await _gm.SendBotNotification(message: new BotMessage(botMsg));
                 }
             }
             catch (Exception e)
@@ -529,7 +529,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{mflPlayerId}'s contract was not updated in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not be taxi cut."));
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not be taxi cut."));
                 }
             }
             catch (Exception e)
@@ -547,9 +547,9 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{mflPlayerId}'s taxi rebate salary adjustment was not added in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly be taxi cut."));
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly be taxi cut."));
                 }
-                else await _gm.SendBotNotification(message: new ErrorMessage($"New taxi cut submitted on stanfan.net\n{req.player.FullName} was cut."));
+                else await _gm.SendBotNotification(message: new BotMessage($"New taxi cut submitted on stanfan.net\n{req.player.FullName} was cut."));
             }
             catch (Exception e)
             {
@@ -571,7 +571,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = respString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(respString);
                     _logger.LogError("{mflPlayerId}'s contract was not updated in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not be bought out."));
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not be bought out."));
                 }
             }
             catch (Exception e)
@@ -589,7 +589,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = rebRespString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(rebRespString);
                     _logger.LogError("{mflPlayerId}'s buyout rebate salary adjustment was not added in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout rebate salary adjustment."));
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout rebate salary adjustment."));
                 }
                 var penaltyData = CreateBodyDataForNewSalaryAdj(franchiseStr, (req.rebate * 0.5), "BUYOUT_PENALTY", req.player, 1); //half penalty for first year only
                 var penaltyRequest = await _leagueApi.AddSalaryAdjustment(req.leagueId, penaltyData);
@@ -599,10 +599,10 @@ namespace FreeAgencyAuctionAPI.Services
                     var error = penRespString.XmlDeserializeFromString<MflXmlError>();
                     _logger.LogInformation(penRespString);
                     _logger.LogError("{mflPlayerId}'s buyout penalty salary adjustment was not added in mfl.", req.player.FullName);
-                    await _gm.NotifyMflError(new ErrorMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout penalty salary adjustment."));
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout penalty salary adjustment."));
                 }
                 await _pRepo.AddBuyoutPlayer(req);
-                await _gm.SendBotNotification(message: new ErrorMessage($"New buyout submitted on stanfan.net\n{req.player.FullName} was cut."));
+                await _gm.SendBotNotification(message: new BotMessage($"New buyout submitted on stanfan.net\n{req.player.FullName} was cut."));
             }
             catch (Exception e)
             {

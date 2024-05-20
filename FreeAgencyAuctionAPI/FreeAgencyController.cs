@@ -148,8 +148,10 @@ namespace FreeAgencyAuctionAPI
             if (updatedLot != null)
             {
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
+                await _bot.SendBotNotification(message: new BotMessage($"New Bid (lot {newBid.LotId}):\n{newBid.Ownername}\n{newBid.Player.Position} {newBid.Player.LastName}\n{newBid.BidLength} yr/${newBid.BidSalary}"));
                 return Ok(ret);
             }
+
             return BadRequest();
         }
 
@@ -185,12 +187,14 @@ namespace FreeAgencyAuctionAPI
 
             try
             {
-                await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
+                await _auctionHub.Clients.All.SendAsync("FreshBid", ret); 
+                
             }
             catch (Exception e)
             {
                 _logger.LogError("nomination signalR message failed. bid: {bid}", ret.BidId);
             }
+            await _bot.SendBotNotification(message: new BotMessage($"New Nomination (lot {nomination.LotId}):\n{nomination.Ownername}\n{nomination.Player.Position} {nomination.Player.LastName}\n{nomination.BidLength} yr/${nomination.BidSalary}"));
             return Ok(ret);
 
 

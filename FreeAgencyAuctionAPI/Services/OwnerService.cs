@@ -135,7 +135,7 @@ namespace FreeAgencyAuctionAPI.Services
             }
             catch (Exception e)
             {
-                await _gm.NotifyMflError(new ErrorMessage($"stream error: {e.Message}"));
+                await _gm.NotifyMflError(new BotMessage($"stream error: {e.Message}"));
             }
             return "";
             //await _repo.UpdateOwnerStreamToken(owner, token);

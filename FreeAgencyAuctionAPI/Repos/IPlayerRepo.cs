@@ -93,7 +93,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                await _gm.NotifyMflError(new ErrorMessage($"franchise tag db error {player.Fullname}: {e.Message}"));
+                await _gm.NotifyMflError(new BotMessage($"franchise tag db error {player.Fullname}: {e.Message}"));
             }
         }
         public async Task AddWaiverExtensionForTeam(WaiverExtension player)
@@ -105,7 +105,7 @@ namespace FreeAgencyAuctionAPI.Repos
             }
             catch (Exception e)
             {
-                await _gm.NotifyMflError(new ErrorMessage($"waiver extension db error {player.Player.Fullname}: {e.Message}"));
+                await _gm.NotifyMflError(new BotMessage($"waiver extension db error {player.Player.Fullname}: {e.Message}"));
             }
         }
 
