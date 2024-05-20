@@ -23,13 +23,15 @@ namespace FreeAgencyAuctionAPI.Services
     }
     public class PlayerService : IPlayerService
     {
+        private readonly IGlobalMflApi _global;
         private readonly IPlayerRepo _repo;
         private readonly IMapper _mapper;
         private readonly ISharkApi _sharkApi;
         private readonly IMflApi _mflApi;
 
-        public PlayerService(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi, IMflApi mflApi)
+        public PlayerService(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi, IMflApi mflApi, IGlobalMflApi global)
         {
+            _global = global;
             _repo = playerRepo;
             _mapper = mapper;
             _sharkApi = sharkApi;
@@ -64,12 +66,22 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
         {
-            var freeAgentMflIdsRoot = (await _mflApi.GetMflFreeAgents(leagueId));
-            if (freeAgentMflIdsRoot.error != null) return new List<PlayerDTO>();
-            var freeAgentMflIds = freeAgentMflIdsRoot.freeAgents.leagueUnit.player.Select(p => int.Parse(p.id));
+            var freeAgentMflIdsRootTask =  _mflApi.GetMflFreeAgents(leagueId);
+            var adpPlayerRootTask =  _global.GetMflAdp();
+            await Task.WhenAll(freeAgentMflIdsRootTask, adpPlayerRootTask);
+            if (freeAgentMflIdsRootTask.Result.error != null) return new List<PlayerDTO>();
+            var adpPlayers = adpPlayerRootTask.Result.adp.player;
+            var freeAgentMflIds = freeAgentMflIdsRootTask.Result.freeAgents.leagueUnit.player.Select(p => int.Parse(p.id));
             var freeAgents = await _repo.GetPlayersByMflIds(freeAgentMflIds);
+
             //var freeAgents = await _repo.GetAllFreeAgents(leagueId);
-            return _mapper.Map<List<PlayerDTO>>(freeAgents);
+            var unsorted = _mapper.Map<List<PlayerDTO>>(freeAgents);
+            var addedADP = unsorted.GroupJoin(adpPlayers, dto => dto.MflId, adp => int.TryParse(adp.id, out var p) ? p : -1, (dto, adp) => {
+                var tempAdp = adp.SingleOrDefault()?.rank;
+                dto.Adp = decimal.TryParse(tempAdp, out var y) ? y : null;
+                return dto;
+                }).ToList();
+            return addedADP;
         }
 
         public async Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip)

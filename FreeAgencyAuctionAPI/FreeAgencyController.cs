@@ -65,7 +65,7 @@ namespace FreeAgencyAuctionAPI
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
 
             var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
-            var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId));
+            var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId)).OrderBy(item => item.Adp.HasValue ? 0 : 1).ThenBy(p => p.Adp);
 
 
 

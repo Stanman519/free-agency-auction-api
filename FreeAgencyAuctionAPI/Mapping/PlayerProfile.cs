@@ -1,6 +1,7 @@
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Models.Confidence;
+using FreeAgencyAuctionAPI.OverUnders;
 using System.Linq;
 
 namespace FreeAgencyAuctionAPI.Mapping
@@ -92,7 +93,13 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ReverseMap();
         }
     }
-
+    public class OverUnderPickProfile : Profile
+    {
+        public OverUnderPickProfile()
+        {
+            CreateMap<OverUnderPickDTO, OverUnderPick>();
+        }
+    }
     public class NflTeamBaseProfile : Profile
     {
         public NflTeamBaseProfile()
