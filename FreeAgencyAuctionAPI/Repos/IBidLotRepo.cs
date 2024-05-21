@@ -63,6 +63,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 if (refreshLot != null)
                 {
                     refreshLot.Bidid = null;
+                    refreshLot.Nominatedby = null;
                     await _db.SaveChangesAsync();
                 }
 
