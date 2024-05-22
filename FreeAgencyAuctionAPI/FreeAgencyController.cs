@@ -109,7 +109,7 @@ namespace FreeAgencyAuctionAPI
             if (!await _bService.IsLatestBid(bid))
                 return BadRequest(new ErrorResponse("There has been a more recent bid for this player. Try reloading the page."));
             try
-            {
+            { 
                 await _bService.HandleWinningTasks(bid);
             }
             catch (Exception e)
@@ -136,7 +136,7 @@ namespace FreeAgencyAuctionAPI
             newBid.Expires = DateTime.UtcNow.AddHours(24);
             var ret = await _bService.PostNewBid(newBid);
             ret.Expires = newBid.Expires;
-            ret.Expires.ToUniversalTime();
+            ret.Expires = ret.Expires.ToUniversalTime();
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)newBid.LotId,
@@ -172,10 +172,11 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
             nomination.Expires = DateTime.UtcNow.AddHours(24);
+            
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
-            ret.Expires = nomination.Expires;
-            ret.Expires.ToUniversalTime();
+            ret.Expires = nomination.Expires.ToUniversalTime();
+            
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)nomination.LotId,
