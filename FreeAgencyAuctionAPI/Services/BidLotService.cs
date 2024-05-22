@@ -20,9 +20,10 @@ namespace FreeAgencyAuctionAPI.Services
         Task<bool> IsLatestBid(BidDTO winningBid);
         Task<List<BidDTO>> GetBidHistory(int leagueId, string playerId);
         Task HandleWinningTasks(BidDTO bid);
-        Task<bool> ValidateBidForDbEntry(BidDTO bid);
+        Task<bool> ValidateBidForDbEntry(BidDTO bid, BidDTO latestBid);
         public Task PostNewBidChangesToGroup(int leagueId);
         // Task SendWinningMessage(BidDTO bid);
+        Task<BidDTO> GetCurrentBidInLotId(int leagueId);
     }
 
     public class BidLotService : IBidLotService
@@ -43,6 +44,10 @@ namespace FreeAgencyAuctionAPI.Services
             _logger = logger;
         }
 
+        public async Task<BidDTO> GetCurrentBidInLotId(int lotId)
+        {
+            return await _repo.GetCurrentBidForLotId(lotId);
+        }
         public async Task<List<LotDTO>> GetAllLots(int leagueId)
         {
             var rightNowUTC = DateTime.UtcNow;  // NEED TO CHECK IF any times expired 
@@ -179,10 +184,9 @@ namespace FreeAgencyAuctionAPI.Services
 
             await _bot.SendBotNotification(new BotMessage(strForBot));
         }
-        public async Task<bool> ValidateBidForDbEntry(BidDTO bid)
+        public async Task<bool> ValidateBidForDbEntry(BidDTO bid, BidDTO latestBid)
         {
-            var latestBid = await _repo.GetLatestBidForPlayerId(bid.Player.MflId, bid.LeagueId);
-            return (latestBid.Bidlength * 5) + latestBid.Bidsalary < (bid.BidLength * 5) + bid.BidSalary;
+            return (latestBid.BidLength * 5) + latestBid.BidSalary < (bid.BidLength * 5) + bid.BidSalary;
         }
     }
 }

@@ -131,9 +131,14 @@ namespace FreeAgencyAuctionAPI
 
         {
             if (newBid.LotId == null || newBid.LeagueId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
-            if (!await _bService.ValidateBidForDbEntry(newBid))
+            var latestDbBid = await _bService.GetCurrentBidInLotId((int)newBid.LotId);
+            if (latestDbBid == null) return BadRequest(new ErrorResponse("The lot in the db is empty on this attempted bid. Did the auction for this player end?"));
+            if (latestDbBid.Player.MflId != newBid.Player.MflId) return BadRequest(new ErrorResponse("The player you are bidding on is no the current player in this lot."));
+            if (!await _bService.ValidateBidForDbEntry(newBid, latestDbBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
-            newBid.Expires = DateTime.UtcNow.AddHours(24);
+            //is (expiration - now) less than 12 hours? make expiration 12 hours else 24 hours
+            var passedCheckpoint = (latestDbBid.Expires - DateTime.UtcNow).TotalHours < 12;
+            newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(12) : DateTime.UtcNow.AddHours(24);
             var ret = await _bService.PostNewBid(newBid);
             ret.Expires = newBid.Expires;
             ret.Expires.ToUniversalTime();
