@@ -90,7 +90,11 @@ namespace FreeAgencyAuctionAPI.Repos
                     return null;
                     // remove bad bid and return bad request??
                 }
-                lotToUpdate.Nominatedby = lot.NominatedBy;
+                if (isNomination)
+                {
+                    lotToUpdate.Nominatedby = lot.NominatedBy;
+                }
+                
                 lotToUpdate.Bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;
