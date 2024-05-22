@@ -95,7 +95,7 @@ namespace FreeAgencyAuctionAPI.Repos
 
         public async Task<LotEntity> UpdateLotWithBid(LotDTO lot, bool isNomination = false)
         {
-            // if nom and lottoupdate has bid, return
+            // if nom and lottoupdate has bid, check for another lotreturn
 
 
             try
@@ -103,8 +103,10 @@ namespace FreeAgencyAuctionAPI.Repos
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.Lotid == lot.LotId && l.Leagueid == lot.LeagueId);
                 if (isNomination && lotToUpdate.Bidid != null)
                 {
+                    // in this situation there was another user nomming at the same time on the first available open lot, so try to find another lot
+                    lotToUpdate = await _db.Lots.FirstAsync(l => l.Bidid == null && l.Leagueid == lot.LeagueId);
                     //TODO: should i delete the db bidthat was created here?
-                    return null;
+                    if (lotToUpdate == null) return null;
                     // remove bad bid and return bad request??
                 }
                 if (isNomination)
