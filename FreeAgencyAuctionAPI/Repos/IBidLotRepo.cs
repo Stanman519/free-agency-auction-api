@@ -14,7 +14,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<LotDTO>> GetAllLots(int leagueId);
         Task<List<LotEntity>> GetAllLotEntities(int leagueId);
         Task<LotEntity> ClearThisLot(int lotId, int leagueId, int bidId);
-        Task<LotEntity> UpdateLotWithBid(LotDTO lot);
+        Task<LotEntity> UpdateLotWithBid(LotDTO lot, bool isNomination = false);
         Task<BidEntity> AddBid(BidDTO newBid);
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
         Task<List<BidDTO>> GetBidHistoryByPlayerId(int leagueId, string playerId);
@@ -93,12 +93,25 @@ namespace FreeAgencyAuctionAPI.Repos
             }
         }
 
-        public async Task<LotEntity> UpdateLotWithBid(LotDTO lot)
+        public async Task<LotEntity> UpdateLotWithBid(LotDTO lot, bool isNomination = false)
         {
+            // if nom and lottoupdate has bid, return
+
+
             try
             {
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.Lotid == lot.LotId && l.Leagueid == lot.LeagueId);
-
+                if (isNomination && lotToUpdate.Bidid != null)
+                {
+                    //TODO: should i delete the db bidthat was created here?
+                    return null;
+                    // remove bad bid and return bad request??
+                }
+                if (isNomination)
+                {
+                    lotToUpdate.Nominatedby = lot.NominatedBy;
+                }
+                
                 lotToUpdate.Bidid = lot.Bid.BidId;
                 await _db.SaveChangesAsync();
                 return lotToUpdate;

@@ -14,7 +14,7 @@ namespace FreeAgencyAuctionAPI.Services
     {
         public Task<List<LotDTO>> GetAllLots(int leagueId);
         public Task<LotDTO> ClearThisLot(int lotId, int leagueId, int bidId);
-        public Task<LotDTO> UpdateLotWithBid(LotDTO lot);
+        public Task<LotDTO> UpdateLotWithBid(LotDTO lot, bool isNom = false);
         public Task<BidDTO> PostNewBid(BidDTO newBid);
         Task<BidDTO> Nominate(BidDTO nomination);
         Task<bool> IsLatestBid(BidDTO winningBid);
@@ -79,9 +79,9 @@ namespace FreeAgencyAuctionAPI.Services
             return _mapper.Map<LotEntity, LotDTO>(ret);
         }
 
-        public async Task<LotDTO> UpdateLotWithBid(LotDTO lot)
+        public async Task<LotDTO> UpdateLotWithBid(LotDTO lot, bool isNom = false)
         {
-            var ret = await _repo.UpdateLotWithBid(lot);
+            var ret = await _repo.UpdateLotWithBid(lot, isNom);
             return _mapper.Map<LotEntity, LotDTO>(ret);
         }
 
