@@ -19,6 +19,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<bool> CheckLatestBidId(BidEntity winningBidEntity);
         Task<List<BidDTO>> GetBidHistoryByPlayerId(int leagueId, string playerId);
         Task<BidEntity> GetLatestBidForPlayerId(int mflId, int leagueId);
+        Task<BidDTO> GetCurrentBidForLotId(int lotId);
         Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId);
     }
 
@@ -34,7 +35,23 @@ namespace FreeAgencyAuctionAPI.Repos
             _logger = logger;
             _mapper = mapper;
         }
-
+        public async Task<BidDTO> GetCurrentBidForLotId(int lotId)
+        {
+            try
+            {
+                var currentDbLot = await _db.Lots.FindAsync(lotId);
+                if (currentDbLot == null || currentDbLot.Bid == null)
+                {
+                    throw new Exception();
+                }
+                return _mapper.Map<BidDTO>(currentDbLot.Bid);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("the lot in the db is empty on an attempted bid.");
+                return null;
+            }
+        }
         public async Task<List<LotDTO>> GetAllLots(int leagueId)
         {
             try
@@ -78,7 +95,7 @@ namespace FreeAgencyAuctionAPI.Repos
 
         public async Task<LotEntity> UpdateLotWithBid(LotDTO lot, bool isNomination = false)
         {
-            // if nom and lottoupdate has bid, return
+            // if nom and lottoupdate has bid, check for another lotreturn
 
 
             try
@@ -86,8 +103,10 @@ namespace FreeAgencyAuctionAPI.Repos
                 var lotToUpdate = await _db.Lots.FirstAsync(l => l.Lotid == lot.LotId && l.Leagueid == lot.LeagueId);
                 if (isNomination && lotToUpdate.Bidid != null)
                 {
+                    // in this situation there was another user nomming at the same time on the first available open lot, so try to find another lot
+                    lotToUpdate = await _db.Lots.FirstAsync(l => l.Bidid == null && l.Leagueid == lot.LeagueId);
                     //TODO: should i delete the db bidthat was created here?
-                    return null;
+                    if (lotToUpdate == null) return null;
                     // remove bad bid and return bad request??
                 }
                 if (isNomination)
