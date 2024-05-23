@@ -184,6 +184,7 @@ namespace FreeAgencyAuctionAPI
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)nomination.LotId,
+                NominatedBy = nomination.OwnerId,
                 Bid = ret,
                 LeagueId = nomination.LeagueId
             };
