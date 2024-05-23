@@ -182,7 +182,7 @@ namespace FreeAgencyAuctionAPI
                 Bid = ret,
                 LeagueId = nomination.LeagueId
             };
-            var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate);
+            var updatedLot = await _bService.UpdateLotWithBid(lotToUpdate, true);
             if (updatedLot == null) return BadRequest();
 
             try
