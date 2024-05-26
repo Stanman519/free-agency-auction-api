@@ -76,14 +76,14 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var refreshLot = await _db.Lots.FirstAsync(l => l.Lotid == lotId && l.Leagueid == leagueId && l.Bidid == bidId);
+                var refreshLot = await _db.Lots
+                    .FirstOrDefaultAsync(l => l.Lotid == lotId && l.Leagueid == leagueId && l.Bidid == bidId);
                 if (refreshLot != null)
                 {
                     refreshLot.Bidid = null;
                     refreshLot.Nominatedby = null;
                     await _db.SaveChangesAsync();
                 }
-
                 return refreshLot;
             }
             catch (Exception e)

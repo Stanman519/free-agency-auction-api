@@ -108,9 +108,9 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task HandleWinningTasks(BidDTO bid)
         {
             var safeLotId = bid.LotId ?? 0;
-
-            await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
-
+            if (safeLotId == 0) return;
+            var retLot = await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
+            if (retLot == null) return;
             try
             {
                 var msg = JsonConvert.SerializeObject(bid);
