@@ -79,6 +79,30 @@ namespace FreeAgencyAuctionAPI
         }
 
         /// <summary>
+        /// get all lots for league
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("leagues/{leagueId}/lots")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetLots([Path] int leagueId )
+        {
+
+
+            var lotsQuery = await _bService.GetAllLots(leagueId);
+
+
+            var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
+
+
+
+            return Ok(
+                lots
+            );
+        }
+
+        /// <summary>
         /// get all mfl bio info for player bio
         /// </summary>
         /// <returns></returns>
