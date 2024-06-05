@@ -75,8 +75,18 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<LotDTO> ClearThisLot(int lotId, int leagueId, int bidId)
         {
-            var ret = await _repo.ClearThisLot(lotId, leagueId, bidId);
-            return _mapper.Map<LotEntity, LotDTO>(ret);
+            try
+            {
+                var ret = await _repo.ClearThisLot(lotId, leagueId, bidId);
+                return ret == null ? null : _mapper.Map<LotEntity, LotDTO>(ret);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            
+
         }
 
         public async Task<LotDTO> UpdateLotWithBid(LotDTO lot, bool isNom = false)

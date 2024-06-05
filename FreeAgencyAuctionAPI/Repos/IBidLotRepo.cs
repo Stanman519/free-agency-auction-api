@@ -89,7 +89,7 @@ namespace FreeAgencyAuctionAPI.Repos
             catch (Exception e)
             {
                 _logger.LogError(e, "error clearing lot");
-                return null;
+                throw;
             }
         }
 
