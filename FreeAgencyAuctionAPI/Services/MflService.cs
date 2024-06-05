@@ -263,8 +263,8 @@ namespace FreeAgencyAuctionAPI.Services
                     rosterSalarySum = f.player.Sum(p =>
                     {
                         if (p.status == "ROSTER")
-                            return double.Parse(p.salary);
-                        return double.Parse(p.salary) * 0.2;
+                            return double.TryParse(p.salary, out var x) ? x : 0 ;
+                        return (double.TryParse(p.salary, out var y) ? y : 0) * 0.2;
                     })
                 }
             ).ToList();
