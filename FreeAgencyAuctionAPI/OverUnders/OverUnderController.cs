@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RestEase;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -77,11 +78,11 @@ namespace FreeAgencyAuctionAPI.OverUnders
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpsertTeamWinTotals([Path] int year, [Path] string league, [FromBody] IEnumerable<OverUnderPickDTO> picks)
         {
-
-            if (picks.Any(p => p.Id != null))
+            List<OverUnderPick> dbPicks;
+            if (picks.Any(p => p.Id != null && p.Id != 0))
             {
                 //update
-                var dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
+                dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 var strayPicks = new List<OverUnderPick>();
                 dbPicks.ForEach(async p =>
                 {
@@ -98,12 +99,12 @@ namespace FreeAgencyAuctionAPI.OverUnders
                 _db.OverUnderPicks.AddRange(strayPicks);
             } else
             {
-                var dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
+                dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 _db.OverUnderPicks.AddRange(dbPicks);
                 //insert
             }
             _db.SaveChanges();
-            return Ok(picks);
+            return Ok(_mapper.Map<List<OverUnderPickDTO>>(dbPicks));
         }
         [HttpGet("year/{year}/leagues/{league}/league-picks")]
         [Produces("application/json")]
@@ -114,6 +115,48 @@ namespace FreeAgencyAuctionAPI.OverUnders
             var franchiseOvers = await _db.OverUnderPicks.Where(s => s.WinLine.Year == year && s.WinLine.Franchise.League == league).ToListAsync();
             var retOvers = _mapper.Map<List<OverUnderPickDTO>>(franchiseOvers);
             return Ok(retOvers);
+        }
+
+        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
+        {
+            var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
+            var existingPicks = await _db.OverUnderPicks.Where(p => p.Owner.istest).ToListAsync();
+            var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
+            var rnd = new Random();
+
+            var newPicksToPush = new List<OverUnderPick>();
+
+            demoUsers.ForEach(u =>
+            {
+                if (!existingPicks.Select(ep => ep.OwnerId).Contains(u))
+                {
+
+                    var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
+                    for (int i = 0; i < randomSortLines.Count; i++)
+                    {
+                        var temp = rnd.Next(1, 3);
+                        var isOver = temp == 1;
+                        var newPick = new OverUnderPick
+                        {
+                            IsOver = i < 24 ? isOver : null,
+                            LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
+                            LineId = randomSortLines[i].Id,
+                            OwnerId = u
+
+                        };
+                        newPicksToPush.Add(newPick);
+                    }
+
+                }
+
+            });
+            await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
+            await _db.SaveChangesAsync();
+            return Ok();
         }
     }
 
@@ -132,7 +175,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
 
     public class OverUnderPickDTO
     {
-            public int? Id { get; set; }
+            public int? Id { get; set; } = 0;
             public int? LineId { get; set; }
             public int OwnerId { get; set; }
             public bool? IsOver { get; set; }

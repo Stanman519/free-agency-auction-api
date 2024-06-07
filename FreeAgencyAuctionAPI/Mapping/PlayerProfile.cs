@@ -97,7 +97,8 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public OverUnderPickProfile()
         {
-            CreateMap<OverUnderPickDTO, OverUnderPick>();
+            CreateMap<OverUnderPickDTO, OverUnderPick>().ForMember(dest => dest.Id, opt => opt.Condition(src => src.Id != 0));
+            CreateMap<OverUnderPick, OverUnderPickDTO>();
         }
     }
     public class NflTeamBaseProfile : Profile

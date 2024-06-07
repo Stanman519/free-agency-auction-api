@@ -882,7 +882,7 @@ namespace FreeAgencyAuctionAPI
     public partial class OverUnderPick
     {
         [Key]
-        public int Id { get; set; }
+        public int? Id { get; set; }
         public int LineId { get; set; }
         public int OwnerId { get; set; }
         public bool? IsOver { get; set; }
