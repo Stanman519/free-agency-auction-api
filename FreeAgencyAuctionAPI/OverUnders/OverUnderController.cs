@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Models.Confidence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -112,9 +113,31 @@ namespace FreeAgencyAuctionAPI.OverUnders
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetAllLeaguePicks([Path] int year, [Path] string league)
         {
-            var franchiseOvers = await _db.OverUnderPicks.Where(s => s.WinLine.Year == year && s.WinLine.Franchise.League == league).ToListAsync();
+            var franchiseOvers = await _db.OverUnderPicks
+                .Where(s => s.WinLine.Year == year && s.WinLine.Franchise.League == league)
+                .ToListAsync();
             var retOvers = _mapper.Map<List<OverUnderPickDTO>>(franchiseOvers);
             return Ok(retOvers);
+        }
+
+        [HttpGet("year/{year}/leagues/{league}/ou-users")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetAllParticipatingUsers([Path] int year, [Path] string league)
+        {
+            var owners = await _db.Owners
+                .Where(o => o.OverUnderPicks
+                        .Any(p => p.WinLine.Year == year && p.WinLine.Franchise.League == league))
+                .ToListAsync();
+            var ownerDTOs = owners.Select(o => new OwnerDTO
+            {
+                DisplayName = o.Displayname,
+                OwnerId = o.Ownerid,
+                Avatar = o.Avatar
+            });
+
+            return Ok(ownerDTOs);
         }
 
         [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]

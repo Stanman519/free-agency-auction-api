@@ -680,6 +680,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
         public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
+        public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
     }
 
     public partial class LeagueEntity
