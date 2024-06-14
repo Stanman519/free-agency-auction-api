@@ -30,6 +30,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<SeasonWins> SeasonWins { get;set; }
         public DbSet<OverUnderPick> OverUnderPicks { get; set; }
         public DbSet<WaiverExtension> WaiverExtensions { get; set; }
+        public DbSet<Pool> Pools { get; set; }
+        public DbSet<PoolUser> PoolUsers { get; set; }
         /*
                 public DbSet<NflTeamEntity> NflTeams { get; set; }
                 public DbSet<NflOverPickEntity> NflPicks { get; set; }
@@ -249,6 +251,24 @@ namespace FreeAgencyAuctionAPI
                     .HasForeignKey(d => d.Ownerid)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_leagueowner_owner");
+            });
+
+            modelBuilder.Entity<PoolUser>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK_pooluser");
+                entity.ToTable("pooluser");
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.PoolId).HasColumnName("poolid");
+                entity.Property(e => e.OwnerId).HasColumnName("ownerid");
+
+
+                entity.HasOne(d => d.Pool).WithMany(p => p.PoolUsers)
+                    .HasForeignKey(d => d.PoolId)
+                    .HasConstraintName("FK_pooluser_owner");
+
+                entity.HasOne(d => d.Owner).WithMany(p => p.PoolUsers)
+                    .HasForeignKey(d => d.OwnerId)
+                    .HasConstraintName("FK_pooluser_pool");
             });
 
             modelBuilder.Entity<LotEntity>(entity =>
@@ -500,12 +520,43 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("ownerid");
                 entity.Property(e => e.IsOver)
                     .HasColumnName("isover");
+                entity.Property(e => e.PoolId)
+                    .HasColumnName("poolid");
                 entity.Property(e => e.LineAdjustment)
                     .HasColumnName("lineadjustment");
+                entity.HasOne(e => e.Pool)
+                    .WithMany(l => l.OUPicks)
+                    .HasForeignKey(d => d.PoolId)
+                    .HasConstraintName("FK_overunderpick_pool");
+                entity.HasOne(e => e.Owner)
+                    .WithMany(l => l.OverUnderPicks)
+                    .HasForeignKey(d => d.OwnerId)
+                    .HasConstraintName("FK_overunderpick_owner");
                 entity.HasOne(e => e.WinLine)
                     .WithMany(l => l.OverUnderPicks)
                     .HasForeignKey(d => d.LineId)
-                    .HasConstraintName("FK_seasonwins_nflteam");
+                    .HasConstraintName("FK_overunderpick_seasonwins");
+                entity.HasKey(e => e.Id);
+            });
+            modelBuilder.Entity<Pool>(entity =>
+            {
+                entity.ToTable("pool");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.Type)
+                    .HasColumnName("type");
+                entity.Property(e => e.League)
+                    .HasColumnName("league");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.OpenDate)
+                    .HasColumnName("opendate");
+                entity.Property(e => e.StartDate)
+                    .HasColumnName("startdate");
+                entity.Property(e => e.Name)
+                    .HasColumnName("name");
                 entity.HasKey(e => e.Id);
             });
             modelBuilder.Entity<FranchiseTagPlayer>(entity =>
@@ -678,8 +729,10 @@ namespace FreeAgencyAuctionAPI
         public string StreamToken { get; set; }
         public bool ConfidencePaid { get; set; }
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
+        public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
         public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
+        public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
     }
 
     public partial class LeagueEntity
@@ -887,7 +940,32 @@ namespace FreeAgencyAuctionAPI
         public int OwnerId { get; set; }
         public bool? IsOver { get; set; }
         public int LineAdjustment { get; set; }
+        public int PoolId { get; set; }
         public virtual SeasonWins WinLine { get; set; } = null!;
+        public virtual Pool Pool { get; set; } = null!;
+        public virtual OwnerEntity Owner { get; set; } = null!;
+    }
+
+    public partial class Pool
+    {
+        [Key]
+        public int Id { get; set; }
+        public int Year { get; set; }
+        public string Type { get; set; }
+        public string League { get; set; }
+        public string Name { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime OpenDate { get; set; }
+        public virtual ICollection<OverUnderPick> OUPicks { get; } = new List<OverUnderPick>();
+        public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
+    }
+    public partial class PoolUser
+    {
+        [Key]
+        public int Id { get; set; }
+        public int PoolId { get; set; }
+        public int OwnerId { get; set; }
+        public virtual Pool Pool { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
     }
 }

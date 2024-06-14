@@ -19,6 +19,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
         private readonly IMapper _mapper;
         private readonly AuctionContext _db;
         private readonly ILogger<OverUnderController> _logger;
+        private readonly int DEFAULT_POOL_ID_TEMP = 1;
 
         public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger)
         {
@@ -27,13 +28,13 @@ namespace FreeAgencyAuctionAPI.OverUnders
             _logger = logger;
         }
 
-        [HttpGet("year/{year}/leagues/{league}/owners/{ownerId}/team-win-totals")]
+        [HttpGet("pools/{poolId}/year/{year}/leagues/{league}/owners/{ownerId}/team-win-totals")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetAllNflTeams([Path] int year, [Path] string league, [Path] int ownerId)
+        public async Task<IActionResult> GetAllNflTeams([Path] int poolId, [Path] int year, [Path] string league, [Path] int ownerId)
         {
-            var franchiseOvers = await _db.SeasonWins.Where(s => s.Year == year && s.Franchise.League == league).GroupJoin(_db.OverUnderPicks.Where(p => p.OwnerId == ownerId), (ln) => ln.Id, pk => pk.LineId,
+            var franchiseOvers = await _db.SeasonWins.Where(s => s.Year == year && s.Franchise.League == league).GroupJoin(_db.OverUnderPicks.Where(p => p.OwnerId == ownerId && p.PoolId == poolId), (ln) => ln.Id, pk => pk.LineId,
                 (ln, pk) => new { ln = ln, pk = pk })
                 .Select(g => new TeamWinTotalsDTO
                 {
@@ -60,23 +61,31 @@ namespace FreeAgencyAuctionAPI.OverUnders
                         IsOver = pk.IsOver,
                         LineAdjustment = pk.LineAdjustment,
                         LineId = pk.LineId,
+                        PoolId = pk.PoolId,
                         OwnerId = pk.OwnerId
                     }).FirstOrDefault() ?? new OverUnderPickDTO
                     {
                         LineAdjustment = 0,
                         LineId = g.ln.Id,
-                        OwnerId = ownerId
+                        OwnerId = ownerId,
+                        PoolId = DEFAULT_POOL_ID_TEMP
                     }
                 }).ToListAsync();
             var retOvers = franchiseOvers.OrderByDescending(_ => _.OverUnder).ToList();
-            return Ok(retOvers);
+            var otherUsers = await _db.PoolUsers.Where(u => u.PoolId == poolId).Select(u => u.Owner.Displayname).ToListAsync();
+            var ret = new OverUnderLoadBody
+            {
+                OtherUsers = otherUsers,
+                WinLines = retOvers
+            };
+            return Ok(ret);
         }
 
-        [HttpPost("year/{year}/leagues/{league}/team-win-totals")]
+        [HttpPost("pools/{poolId}/ou-save-picks")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> UpsertTeamWinTotals([Path] int year, [Path] string league, [FromBody] IEnumerable<OverUnderPickDTO> picks)
+        public async Task<IActionResult> UpsertTeamWinTotals([Path] int poolId, [FromBody] IEnumerable<OverUnderPickDTO> picks)
         {
             List<OverUnderPick> dbPicks;
             if (picks.Any(p => p.Id != null && p.Id != 0))
@@ -106,18 +115,18 @@ namespace FreeAgencyAuctionAPI.OverUnders
             _db.SaveChanges();
             return Ok(_mapper.Map<List<OverUnderPickDTO>>(dbPicks));
         }
-        [HttpGet("year/{year}/leagues/{league}/league-picks")]
+        [HttpGet("pools/{poolId}/ou-league-picks")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetAllLeaguePicks([Path] int year, [Path] string league)
+        public async Task<IActionResult> GetAllLeaguePicks([Path] int poolId)
         {
-            var franchiseOvers = await _db.OverUnderPicks.Where(s => s.WinLine.Year == year && s.WinLine.Franchise.League == league).ToListAsync();
+            var franchiseOvers = await _db.OverUnderPicks.Where(s => s.PoolId == poolId).ToListAsync();
             var retOvers = _mapper.Map<List<OverUnderPickDTO>>(franchiseOvers);
             return Ok(retOvers);
         }
 
-        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+/*        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -157,9 +166,14 @@ namespace FreeAgencyAuctionAPI.OverUnders
             await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
             await _db.SaveChangesAsync();
             return Ok();
-        }
+        }*/
     }
 
+    public class OverUnderLoadBody
+    {
+        public IEnumerable<TeamWinTotalsDTO> WinLines { get; set; }
+        public IEnumerable<string> OtherUsers { get; set; }
+    }
     
 
     public class TeamWinTotalsDTO
@@ -180,6 +194,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
             public int OwnerId { get; set; }
             public bool? IsOver { get; set; }
             public int LineAdjustment { get; set; }
+            public int PoolId { get; set; }
         
     }
 }
