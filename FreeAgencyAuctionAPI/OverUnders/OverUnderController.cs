@@ -101,13 +101,15 @@ namespace FreeAgencyAuctionAPI.OverUnders
                     {
                         entityToUpdate.LineAdjustment = p.LineAdjustment;
                         entityToUpdate.IsOver = p.IsOver;
-                    } else
+                    }
+                    else
                     {
                         strayPicks.Add(p);
                     }
                 });
                 _db.OverUnderPicks.AddRange(strayPicks);
-            } else
+            }
+            else
             {
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 _db.OverUnderPicks.AddRange(dbPicks);
@@ -127,15 +129,15 @@ namespace FreeAgencyAuctionAPI.OverUnders
             return Ok(retOvers);
         }
 
-        [HttpGet("year/{year}/leagues/{league}/ou-users")]
+        [HttpGet("pools/{poolId}/ou-users")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetAllParticipatingUsers([Path] int year, [Path] string league)
+        public async Task<IActionResult> GetAllParticipatingUsers([Path] int poolId)
         {
-            var owners = await _db.Owners
-                .Where(o => o.OverUnderPicks
-                        .Any(p => p.WinLine.Year == year && p.WinLine.Franchise.League == league))
+            var owners = await _db.PoolUsers
+                .Where(p => p.PoolId == poolId)
+                .Select(u => u.Owner)
                 .ToListAsync();
             var ownerDTOs = owners.Select(o => new OwnerDTO
             {
@@ -147,76 +149,77 @@ namespace FreeAgencyAuctionAPI.OverUnders
             return Ok(ownerDTOs);
         }
 
-        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
-/*        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
-        [Produces("application/json")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
-        {
-            var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
-            var existingPicks = await _db.OverUnderPicks.Where(p => p.Owner.istest).ToListAsync();
-            var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
-            var rnd = new Random();
 
-            var newPicksToPush = new List<OverUnderPick>();
-
-            demoUsers.ForEach(u =>
-            {
-                if (!existingPicks.Select(ep => ep.OwnerId).Contains(u))
+        /*        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+                [Produces("application/json")]
+                [ProducesResponseType(StatusCodes.Status200OK)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
                 {
+                    var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
+                    var existingPicks = await _db.OverUnderPicks.Where(p => p.Owner.istest).ToListAsync();
+                    var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
+                    var rnd = new Random();
 
-                    var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
-                    for (int i = 0; i < randomSortLines.Count; i++)
+                    var newPicksToPush = new List<OverUnderPick>();
+
+                    demoUsers.ForEach(u =>
                     {
-                        var temp = rnd.Next(1, 3);
-                        var isOver = temp == 1;
-                        var newPick = new OverUnderPick
+                        if (!existingPicks.Select(ep => ep.OwnerId).Contains(u))
                         {
-                            IsOver = i < 24 ? isOver : null,
-                            LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
-                            LineId = randomSortLines[i].Id,
-                            OwnerId = u
 
-                        };
-                        newPicksToPush.Add(newPick);
-                    }
+                            var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
+                            for (int i = 0; i < randomSortLines.Count; i++)
+                            {
+                                var temp = rnd.Next(1, 3);
+                                var isOver = temp == 1;
+                                var newPick = new OverUnderPick
+                                {
+                                    IsOver = i < 24 ? isOver : null,
+                                    LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
+                                    LineId = randomSortLines[i].Id,
+                                    OwnerId = u
 
-                }
+                                };
+                                newPicksToPush.Add(newPick);
+                            }
 
-            });
-            await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
-            await _db.SaveChangesAsync();
-            return Ok();
-        }*/
-    }
+                        }
 
-    public class OverUnderLoadBody
-    {
-        public IEnumerable<TeamWinTotalsDTO> WinLines { get; set; }
-        public IEnumerable<string> OtherUsers { get; set; }
-    }
-    
+                    });
+                    await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
+                    await _db.SaveChangesAsync();
+                    return Ok();
+                }*/
 
-    public class TeamWinTotalsDTO
-    {
-        public int Id { get; set; }
-        public int Year { get; set; }
-        public decimal OverUnder { get; set; }
-        public int RealWins { get; set; }
-        public int? GamesRemaining { get; set; }
-        public NflTeamDTO Franchise { get; set; }
-        public OverUnderPickDTO UserPick { get; set; }
-    }
 
-    public class OverUnderPickDTO
-    {
+        public class OverUnderLoadBody
+        {
+            public IEnumerable<TeamWinTotalsDTO> WinLines { get; set; }
+            public IEnumerable<string> OtherUsers { get; set; }
+        }
+
+
+        public class TeamWinTotalsDTO
+        {
+            public int Id { get; set; }
+            public int Year { get; set; }
+            public decimal OverUnder { get; set; }
+            public int RealWins { get; set; }
+            public int? GamesRemaining { get; set; }
+            public NflTeamDTO Franchise { get; set; }
+            public OverUnderPickDTO UserPick { get; set; }
+        }
+
+        public class OverUnderPickDTO
+        {
             public int? Id { get; set; } = 0;
             public int? LineId { get; set; }
             public int OwnerId { get; set; }
             public bool? IsOver { get; set; }
             public int LineAdjustment { get; set; }
             public int PoolId { get; set; }
-        
+
+        }
     }
 }
