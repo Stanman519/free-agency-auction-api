@@ -223,6 +223,10 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("mflid");
                 entity.Property(e => e.Commishcookie).HasColumnName("commishcookie");
                 entity.Property(e => e.Isauctioning).HasColumnName("isauctioning");
+                entity.Property(e => e.IsBuyoutSzn).HasColumnName("isbuyoutszn");
+                entity.Property(e => e.IsTaxiSzn).HasColumnName("istaxicutszn");
+                entity.Property(e => e.IsFranchiseTagSzn).HasColumnName("isfranchisetagszn");
+                entity.Property(e => e.FirstYear).HasColumnName("firstyear");
                 entity.Property(e => e.Mflhash).HasColumnName("mflhash");
                 entity.Property(e => e.Name)
                     .HasMaxLength(80)
@@ -743,7 +747,11 @@ namespace FreeAgencyAuctionAPI
         public string? Mflhash { get; set; }
         public string? Commishcookie { get; set; }
         public bool Isauctioning { get; set; }
+        public bool IsTaxiSzn { get; set; }
+        public bool IsFranchiseTagSzn { get; set; } 
+        public bool IsBuyoutSzn { get; set; }
         public bool Istest { get; set; }
+        public int FirstYear { get; set; }
         public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();

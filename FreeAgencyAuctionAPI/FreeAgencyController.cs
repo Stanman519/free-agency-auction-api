@@ -93,7 +93,7 @@ namespace FreeAgencyAuctionAPI
             var lotsQuery = await _bService.GetAllLots(leagueId);
 
 
-            var lots = lotsQuery.OrderBy(_ => _.LotId).Take(12).ToList();
+            var lots = lotsQuery.OrderBy(_ => _.LotId).ToList();
 
 
 
@@ -162,7 +162,7 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
             //is (expiration - now) less than 12 hours? make expiration 12 hours else 24 hours
             var passedCheckpoint = (latestDbBid.Expires - DateTime.UtcNow).TotalHours < 12;
-            newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(12) : DateTime.UtcNow.AddHours(24);
+            newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(12) : latestDbBid.Expires;
             var ret = await _bService.PostNewBid(newBid);
             ret.Expires = newBid.Expires;
             var lotToUpdate = new LotDTO

@@ -61,7 +61,7 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<List<PlayerDTO>> GetAllPlayers()
         {
-            var freeAgents = await _repo.GetAllPlayers();
+            var freeAgents = await _repo.GetAllPlayers(); 
             return _mapper.Map<List<PlayerDTO>>(freeAgents);
         }
         public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
@@ -75,7 +75,15 @@ namespace FreeAgencyAuctionAPI.Services
             var freeAgents = await _repo.GetPlayersByMflIds(freeAgentMflIds);
 
             //var freeAgents = await _repo.GetAllFreeAgents(leagueId);
-            var unsorted = _mapper.Map<List<PlayerDTO>>(freeAgents);
+            var unsorted = freeAgents.Select(f => new PlayerDTO
+            {
+                FullName = f.Fullname,
+                Team = f.Team,
+                Position = f.Position,
+                MflId = f.Mflid,
+                Headshot = f.Headshot,
+                Age = f.Age
+            });
             var addedADP = unsorted.GroupJoin(adpPlayers, dto => dto.MflId, adp => int.TryParse(adp.id, out var p) ? p : -1, (dto, adp) => {
                 var tempAdp = adp.SingleOrDefault()?.rank;
                 dto.Adp = decimal.TryParse(tempAdp, out var y) ? y : null;

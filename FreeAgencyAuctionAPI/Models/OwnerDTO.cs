@@ -12,6 +12,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string StreamToken { get; set; }
         public string Avatar { get; set; }
         public bool ConfidencePaid { get; set; }
+
         public IEnumerable<LeagueOwnerDTO> Leagues { get; set; }
 
     }

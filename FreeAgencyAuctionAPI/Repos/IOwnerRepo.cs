@@ -80,9 +80,15 @@ namespace FreeAgencyAuctionAPI.Repos
                             Name = _.League.Name,
                             MflHash = _.League.Mflhash,
                             CommishCookie = _.League.Commishcookie,
+                            FirstYear = _.League.FirstYear,
+                            IsFranchiseTagSzn = _.League.IsFranchiseTagSzn,
+                            IsBuyoutSzn = _.League.IsBuyoutSzn,
+                            IsAuctioning = _.League.Isauctioning,
+                            IsTaxiCutSzn = _.League.IsTaxiSzn
+                            
 
                         }
-                    }).ToList()
+                    }).OrderBy(_ => _.League.IsAuctioning ? 0 : 1).ToList()
                 };
 
             }

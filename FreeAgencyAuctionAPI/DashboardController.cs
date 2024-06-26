@@ -76,15 +76,13 @@ namespace FreeAgencyAuctionAPI
 
 
         // THESE ARE THE NEW CALLS TO SPLIT INTO
-        [HttpPost("auth")] //NEED TO CHANGE NAME ON CLIENT
+        [HttpPost("auth")] 
         public async Task<IActionResult> SynchronizeAuth0ToDbOwner([Body] AuthUser user, [Query] string leagueId)
         {
             var hasLogin = !string.IsNullOrEmpty(user.Sub);
             if (!hasLogin) return new BadRequestResult();
             return Ok(await _oService.SynchronizeAuthorizedUser(user));
         }
-
-
 
         //get tag candidates
         [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/tag-candidates")]
