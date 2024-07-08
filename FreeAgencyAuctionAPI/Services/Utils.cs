@@ -20,7 +20,10 @@ namespace FreeAgencyAuctionAPI.Services
             {11,"Juanard"},
             {12,"dkirsch16"}
         };
-
+        public static Dictionary<int, string> leagueBotDict = new Dictionary<int, string>{
+            { 13894, "REDACTED_GROUPME_BOT" },
+            { 26548, "REDACTED_GROUPME_BOT"}
+        };
 
         public static Dictionary<string, PositionAgeCliff> AgeCliffs = new()
         {

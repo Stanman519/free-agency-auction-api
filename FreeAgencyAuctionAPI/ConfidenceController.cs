@@ -244,7 +244,7 @@
                 });
                 if (isStillPickable)
                 {
-                    await _gm.NotifyMflError(new BotMessage($"Someone is tryna cheat"));
+                    await _gm.NotifyMflError(new BotMessage($"Someone is tryna cheat", string.Empty));
                     return BadRequest(new ErrorResponse("you are trying to access stats for matchups that are not yet locked."));
                 }
                 return Ok(matchupStats);

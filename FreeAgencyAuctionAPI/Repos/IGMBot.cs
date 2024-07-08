@@ -14,10 +14,12 @@ namespace FreeAgencyAuctionAPI.Repos
     public class BotMessage
     {
         public string Message { get; set; }
+        public string BotId { get; set; }
 
-        public BotMessage(string msg)
+        public BotMessage(string msg, string botId)
         {
             Message = msg;
+            BotId = botId;
         }
     }
 }

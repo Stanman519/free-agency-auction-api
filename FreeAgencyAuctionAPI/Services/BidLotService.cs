@@ -117,10 +117,12 @@ namespace FreeAgencyAuctionAPI.Services
         
         public async Task HandleWinningTasks(BidDTO bid)
         {
+
             var safeLotId = bid.LotId ?? 0;
             if (safeLotId == 0) return;
             var retLot = await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
             if (retLot == null) return;
+            var botId = Utils.leagueBotDict.TryGetValue(bid.LeagueId, out var x) ? x : string.Empty;
             try
             {
                 var msg = JsonConvert.SerializeObject(bid);
@@ -133,7 +135,7 @@ namespace FreeAgencyAuctionAPI.Services
                 {
                     _logger.LogError("there was an error syncing player {bid.Player.MflId} to mfl.", e);
                     await _bot.NotifyMflError(
-                        new BotMessage($"there was an error syncing player {bid.Player.MflId} to mfl."));
+                        new BotMessage($"there was an error syncing player {bid.Player.MflId} to mfl.", botId));
                 }
                 catch (Exception exception)
                 {
@@ -170,6 +172,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task PostNewBidChangesToGroup(int leagueId)
         {
+            var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
             var strForBot = "Players with new bids in the last hour:\n";
             var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour(leagueId);
             var emptyLots = (await _repo.GetAllLotEntities(leagueId)).Where(l => l.Bid == null).ToList();
@@ -192,7 +195,7 @@ namespace FreeAgencyAuctionAPI.Services
                 }
             }
 
-            await _bot.SendBotNotification(new BotMessage(strForBot));
+            await _bot.SendBotNotification(new BotMessage(strForBot, botId));
         }
         public async Task<bool> ValidateBidForDbEntry(BidDTO bid, BidDTO latestBid)
         {

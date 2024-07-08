@@ -129,13 +129,14 @@ namespace FreeAgencyAuctionAPI.Services
         //saving to db doesn't work?
         public async Task<string> GetStreamToken(OwnerDTO owner)
         {
+
             try
             {
                 return _userClient.CreateToken($"{owner.OwnerId}");
             }
             catch (Exception e)
             {
-                await _gm.NotifyMflError(new BotMessage($"stream error: {e.Message}"));
+                await _gm.NotifyMflError(new BotMessage($"stream error: {e.Message}", string.Empty));
             }
             return "";
             //await _repo.UpdateOwnerStreamToken(owner, token);

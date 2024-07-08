@@ -154,7 +154,9 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNewBid([FromBody] BidDTO newBid)
 
         {
+
             if (newBid.LotId == null || newBid.LeagueId == null) return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
+            var botId = Utils.leagueBotDict.TryGetValue(newBid.LeagueId, out var x) ? x : string.Empty;
             var latestDbBid = await _bService.GetCurrentBidInLotId((int)newBid.LotId);
             if (latestDbBid == null) return BadRequest(new ErrorResponse("The lot in the db is empty on this attempted bid. Did the auction for this player end?"));
             if (latestDbBid.Player.MflId != newBid.Player.MflId) return BadRequest(new ErrorResponse("The player you are bidding on is no the current player in this lot."));
@@ -176,7 +178,7 @@ namespace FreeAgencyAuctionAPI
             if (updatedLot != null)
             {
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
-                await _bot.SendBotNotification(message: new BotMessage($"New Bid (lot {newBid.LotId}):\n{newBid.Ownername}\n{newBid.Player.Position} {newBid.Player.LastName}\n{newBid.BidLength} yr/${newBid.BidSalary}"));
+                await _bot.SendBotNotification(message: new BotMessage($"New Bid (lot {newBid.LotId}):\n{newBid.Ownername}\n{newBid.Player.Position} {newBid.Player.LastName}\n{newBid.BidLength} yr/${newBid.BidSalary}", botId));
                 return Ok(ret);
             }
 
@@ -194,13 +196,14 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> PostNomination([FromBody] BidDTO nomination)
 
         {
+
             if (nomination.LotId == null || nomination.LeagueId == null)
             {
                 _logger.LogCritical("Somehow a null lotId or leagueId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
             nomination.Expires = DateTime.UtcNow.AddHours(24);
-            
+            var botId = Utils.leagueBotDict.TryGetValue(nomination.LeagueId, out var x) ? x : string.Empty;
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
             ret.Expires = nomination.Expires;
@@ -224,7 +227,7 @@ namespace FreeAgencyAuctionAPI
             {
                 _logger.LogError("nomination signalR message failed. bid: {bid}", ret.BidId);
             }
-            await _bot.SendBotNotification(message: new BotMessage($"New Nomination (lot {nomination.LotId}):\n{nomination.Ownername}\n{nomination.Player.Position} {nomination.Player.LastName}\n{nomination.BidLength} yr/${nomination.BidSalary}"));
+            await _bot.SendBotNotification(message: new BotMessage($"New Nomination (lot {nomination.LotId}):\n{nomination.Ownername}\n{nomination.Player.Position} {nomination.Player.LastName}\n{nomination.BidLength} yr/${nomination.BidSalary}", botId));
             return Ok(ret);
 
 
