@@ -162,6 +162,7 @@ namespace FreeAgencyAuctionAPI.Services
             var apiKey = _options.Value.Mfl.MflApiKey;
             // get all waivered guys
             var transactionResp = await _leagueApi.GetLastYearWaiverTransactions(leagueId, apiKey);
+            if (transactionResp.transactions.transaction == null) return new List<PlayerDTO>();
             var thisTeamTransactions = transactionResp.transactions.transaction.Where(trans => int.Parse(trans.franchise) == mflFranchiseId).ToList();
             var trades = thisTeamTransactions.Where(_ => _.type == "TRADE").ToList();
             var drops = thisTeamTransactions.Where(_ => _.type == "BBID_WAIVER" || _.type == "FREE_AGENT");
@@ -347,6 +348,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
             var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
+            if (myCurrentRoster == null) return new List<PlayerDTO>();
             var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
             var queryIds = myTaxiPlayersNow.Select(p => int.Parse(p.id));
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
@@ -381,11 +383,12 @@ namespace FreeAgencyAuctionAPI.Services
             var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
 
             IEnumerable<Player> myExpiringPlayersLastYear = new List<Player>();
-
+            var tagCandidates = new List<TagCandidate>();
+            if (myCurrentRoster == null) return tagCandidates;
             var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
             var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD");
             IEnumerable<int> queryIds = new List<int>();
-            var tagCandidates = new List<TagCandidate>();
+
 
             if (previousTags.Count == 0)
             {
@@ -409,7 +412,7 @@ namespace FreeAgencyAuctionAPI.Services
             var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwnerId);
             var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
             var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
-
+            if (myCurrentRoster == null) return new List<PlayerDTO>();
             var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD").ToList();
             var queryIds = cutCandidates.Select(p => int.Parse(p.id));
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
