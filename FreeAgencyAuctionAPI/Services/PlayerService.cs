@@ -82,7 +82,10 @@ namespace FreeAgencyAuctionAPI.Services
                 Position = f.Position,
                 MflId = f.Mflid,
                 Headshot = f.Headshot,
-                Age = f.Age
+                Age = f.Age,
+                FirstName = f.Firstname, 
+                LastName = f.Lastname
+                
             });
             var addedADP = unsorted.GroupJoin(adpPlayers, dto => dto.MflId, adp => int.TryParse(adp.id, out var p) ? p : -1, (dto, adp) => {
                 var tempAdp = adp.SingleOrDefault()?.rank;
