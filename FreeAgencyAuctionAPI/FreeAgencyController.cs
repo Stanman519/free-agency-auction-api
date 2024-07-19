@@ -202,7 +202,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogCritical("Somehow a null lotId or leagueId was entered with bid {bid}", nomination.BidId);
                 return BadRequest(new ErrorResponse("Cannot complete bid. The entered lot ID or league ID is null."));
             }
-            nomination.Expires = DateTime.UtcNow.AddHours(24);
+            nomination.Expires = DateTime.UtcNow.AddHours(18);
             var botId = Utils.leagueBotDict.TryGetValue(nomination.LeagueId, out var x) ? x : string.Empty;
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
