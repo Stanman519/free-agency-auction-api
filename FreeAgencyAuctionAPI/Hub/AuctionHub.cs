@@ -18,8 +18,6 @@ namespace FreeAgencyAuctionAPI.Hub
         // update bid for client
         public async Task SendFreshBid(BidDTO freshBid)
         {
-            Console.WriteLine(freshBid.Ownername);
-            Console.WriteLine(freshBid.Player.FirstName);
             await Clients.All.SendAsync("FreshBid", freshBid);
         }
         

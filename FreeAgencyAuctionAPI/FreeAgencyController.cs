@@ -166,6 +166,7 @@ namespace FreeAgencyAuctionAPI
             var passedCheckpoint = (latestDbBid.Expires - DateTime.UtcNow).TotalHours < 12;
             newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(12) : latestDbBid.Expires;
             var ret = await _bService.PostNewBid(newBid);
+            ret.LeagueId = newBid.LeagueId;
             ret.Expires = newBid.Expires;
             var lotToUpdate = new LotDTO
             {
@@ -207,7 +208,7 @@ namespace FreeAgencyAuctionAPI
             var ret = await _bService.Nominate(nomination);
             ret.LotId = nomination.LotId;
             ret.Expires = nomination.Expires;
-            
+            ret.LeagueId = nomination.LeagueId;
             var lotToUpdate = new LotDTO
             {
                 LotId = (int)nomination.LotId,
