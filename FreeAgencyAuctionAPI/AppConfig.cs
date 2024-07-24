@@ -7,6 +7,12 @@
         public BingImageApi BingImageApi { get; set; }
         public MflKeys Mfl { get; set; }
         public StreamClient StreamClient { get; set; }
+        public ApplicationInsights ApplicationInsights { get; set; }
+    }
+    public class ApplicationInsights
+    {
+        public string InstrumentationKey { get; set; }
+        public string ConnectionString { get; set; }
     }
     public class AzureMessageQueue
     {

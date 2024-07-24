@@ -11,7 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RestEase;
 using StreamChat.Clients;
-using System;
 
 namespace FreeAgencyAuctionAPI
 {
@@ -31,7 +30,11 @@ namespace FreeAgencyAuctionAPI
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
             services.Configure<AppConfig>(Configuration);
-
+            // Add Application Insights services
+            services.AddApplicationInsightsTelemetry(options =>
+            {
+                options.ConnectionString = appConfig.ApplicationInsights.ConnectionString;
+            });
             var streamFactory = new StreamClientFactory(appConfig.StreamClient.StreamKey, appConfig.StreamClient.StreamPassword);
             services.AddCors(c =>
             {

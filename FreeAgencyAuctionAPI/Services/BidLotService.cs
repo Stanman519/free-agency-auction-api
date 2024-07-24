@@ -120,14 +120,14 @@ namespace FreeAgencyAuctionAPI.Services
 
             var safeLotId = bid.LotId ?? 0;
             if (safeLotId == 0) return;
-            var retLot = await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
-            if (retLot == null) return;
             var botId = Utils.leagueBotDict.TryGetValue(bid.LeagueId, out var x) ? x : string.Empty;
             try
             {
                 var msg = JsonConvert.SerializeObject(bid);
                 _queue.SendMessageToQueue(bid);
                 //if (string.IsNullOrEmpty(res.Value.MessageId)) _logger.LogError("win message error", bid.BidId);
+                var retLot = await ClearThisLot(safeLotId, bid.LeagueId, bid.BidId);
+                if (retLot == null) return;
             }
             catch (Exception e)
             {

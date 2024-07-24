@@ -256,7 +256,7 @@ namespace FreeAgencyAuctionAPI.Services
 
             var bigLeagueObject = bigLeagueTask.Result.league.franchises.franchise;
 
-            var salaryAdjustments = salaryTask.Result.salaryAdjustments.salaryAdjustment;
+            var salaryAdjustments = salaryTask.Result.salaryAdjustments.salaryAdjustment ?? new List<SalaryAdjustment>();
 
             var rosters = rostersTask.Result.rosters.franchise;
             var rosteredSalaryTotals = rosters.Select(f =>
@@ -266,8 +266,8 @@ namespace FreeAgencyAuctionAPI.Services
                     rosterSalarySum = f.player.Sum(p =>
                     {
                         if (p.status == "ROSTER")
-                            return double.TryParse(p.salary, out var x) ? x : 0 ;
-                        return (double.TryParse(p.salary, out var y) ? y : 0) * 0.2;
+                            return double.Parse(string.IsNullOrEmpty(p.salary) ? "0" : p.salary);
+                        return double.Parse(string.IsNullOrEmpty(p.salary) ? "0" : p.salary) * 0.2;
                     })
                 }
             ).ToList();
@@ -289,19 +289,19 @@ namespace FreeAgencyAuctionAPI.Services
                         SalaryAdjustments = adjustments.Sum()
                     }).ToList();
 
-            var preAdjustmentsCapSpace = eachTeamCapTotal.Join(rosteredSalaryTotals, tmCap => tmCap.Id,
+            var preAdjustmentsCapSpace = eachTeamCapTotal.GroupJoin(rosteredSalaryTotals, tmCap => tmCap.Id,
                 salaryTot => salaryTot.Id,
                 (tm, sal) => new
                 {
                     tm.Id,
-                    CapSpace = tm.SalaryCapAmount - sal.rosterSalarySum
+                    CapSpace = tm.SalaryCapAmount - (sal.FirstOrDefault()?.rosterSalarySum ?? 0)
                 });
-            
-            var finalCapSpace = preAdjustmentsCapSpace.Join(reducedSalaryAdjustments, cap => cap.Id, adj => adj.Id,
+
+            var finalCapSpace = preAdjustmentsCapSpace.GroupJoin(reducedSalaryAdjustments, cap => cap.Id, adj => adj.Id,
                 (cap, adj) => new LeagueOwnerEntity()
                 {
                     Mflfranchiseid = int.Parse(cap.Id),
-                    Caproom = (int) Math.Floor(cap.CapSpace - adj.SalaryAdjustments)
+                    Caproom = (int)Math.Floor(cap.CapSpace - (adj.FirstOrDefault()?.SalaryAdjustments ?? 0))
                 }).ToList();
             return finalCapSpace;
         }
