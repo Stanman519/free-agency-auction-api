@@ -222,8 +222,8 @@ namespace FreeAgencyAuctionAPI
             if (!await _bService.ValidateBidForDbEntry(newBid, latestDbBid))
                 return BadRequest(new ErrorResponse("This entry does not actually beat the latest bid for this player. Try reloading your page."));
             //is (expiration - now) less than 12 hours? make expiration 12 hours else 24 hours
-            var passedCheckpoint = (latestDbBid.Expires - DateTime.UtcNow).TotalHours < 12;
-            newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(12) : latestDbBid.Expires;
+            var passedCheckpoint = (latestDbBid.Expires - DateTime.UtcNow).TotalHours < 10;
+            newBid.Expires = passedCheckpoint ? DateTime.UtcNow.AddHours(10) : latestDbBid.Expires;
             var ret = await _bService.PostNewBid(newBid);
             ret.LeagueId = newBid.LeagueId;
             ret.Expires = newBid.Expires;
