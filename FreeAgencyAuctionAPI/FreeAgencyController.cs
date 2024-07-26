@@ -124,6 +124,8 @@ namespace FreeAgencyAuctionAPI
                         {
                             if (dbPlayerDict.TryGetValue(p.Player.id, out var dbPlayer))
                             {
+                                dbPlayer.Salary = int.TryParse(p.Player.salary, out var x) ? x : 0;
+                                dbPlayer.Length = int.TryParse(p.Player.contractYear, out var y) ? y : 0;
                                 dbPlayer.MflFranchiseId = franchiseId; // Update FranchiseId
                                 return dbPlayer;
                             }
