@@ -130,7 +130,7 @@ namespace FreeAgencyAuctionAPI
                                 return dbPlayer;
                             }
                             return null;
-                        }).Where(dp => dp != null).ToList()
+                        }).Where(dp => dp != null).OrderBy(p => p.Position).ThenByDescending(p => p.Salary).ToList()
                     };
                 })
                 .ToList();
