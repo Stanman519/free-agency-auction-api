@@ -16,6 +16,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string? Position { set; get; }
         public int MflId { set; get; }
         public int? ContractValue { set; get; }
+        public int? MflFranchiseId { set; get; }
         public decimal? Adp { get; set; }
     }
     

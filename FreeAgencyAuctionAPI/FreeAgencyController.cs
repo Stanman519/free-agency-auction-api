@@ -79,6 +79,65 @@ namespace FreeAgencyAuctionAPI
         }
 
         /// <summary>
+        /// get data for page load
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("leagues/{leagueId}/rosters")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetRosters([Path] int leagueId)
+        {
+            //TODO: THIS NEEDS BETTER ERROR HANDLING AND WIN MESSAGES
+            OwnerDTO profile = null;
+
+            var mflRosters = await _mfl.GetMflRosters(leagueId);
+            var dbPlayers = await _pService.GetAllPlayers();
+
+            var dbOwners = await _oService.GetAllOwners(leagueId);
+            // Flatten the mflRosters to get all players with their parent FranchiseRoster ID
+            var allPlayersWithFranchise = mflRosters
+                .SelectMany(franchise => franchise.player, (franchise, player) => new { Player = player, FranchiseId = franchise.id })
+                .ToList();
+
+            // Create a dictionary for faster lookup of dbPlayers by MflId
+            var dbPlayerDict = dbPlayers.ToDictionary(dp => dp.MflId.ToString(), dp => dp);
+
+            // Group players by FranchiseId and create OpposingFranchiseWithRoster objects
+            var franchisesWithRoster = allPlayersWithFranchise
+                .GroupBy(p => p.FranchiseId)
+                .Select(g =>
+                {
+                    var franchiseId = int.Parse(g.Key);
+                    var owner = dbOwners.FirstOrDefault(o => o.Mflfranchiseid == franchiseId);
+
+                    return new OpposingFranchiseWithRoster
+                    {
+                        Mflfranchiseid = franchiseId,
+                        CapRoom = owner?.CapRoom ?? 0,
+                        YearsLeft = owner?.YearsLeft ?? 0,
+                        Leagueownerid = owner?.Leagueownerid ?? 0,
+                        TeamName = owner?.TeamName ?? string.Empty,
+                        OwnerName = owner?.OwnerName ?? string.Empty,
+                        Avatar = owner?.Avatar ?? string.Empty,
+                        Players = g.Select(p =>
+                        {
+                            if (dbPlayerDict.TryGetValue(p.Player.id, out var dbPlayer))
+                            {
+                                dbPlayer.MflFranchiseId = franchiseId; // Update FranchiseId
+                                return dbPlayer;
+                            }
+                            return null;
+                        }).Where(dp => dp != null).ToList()
+                    };
+                })
+                .ToList();
+
+            return Ok(franchisesWithRoster);
+        }
+
+
+        /// <summary>
         /// get all lots for league
         /// </summary>
         /// <returns></returns>
@@ -374,4 +433,6 @@ namespace FreeAgencyAuctionAPI
             return Ok();
         }*/
     }
+
+
 }

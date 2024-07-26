@@ -41,6 +41,10 @@ namespace FreeAgencyAuctionAPI.Models
         public string OwnerName { get; set; }
         public string Avatar { get; set; }
     }
+    public class OpposingFranchiseWithRoster : OpposingFranchiseDTO
+    {
+        public List<PlayerDTO> Players { get; set; }
+    }
 
     public class TagCandidate
     {

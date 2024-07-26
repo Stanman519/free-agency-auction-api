@@ -19,6 +19,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
+        Task<List<FranchiseRoster>> GetMflRosters(int leagueId);
         Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<PlayerDTO>> GetTaxiSquadPlayers(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
@@ -86,6 +87,8 @@ namespace FreeAgencyAuctionAPI.Services
                 }
             
         }
+
+
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction)
@@ -246,7 +249,11 @@ namespace FreeAgencyAuctionAPI.Services
                 return;
             }
         }
-
+        public async Task<List<FranchiseRoster>> GetMflRosters(int leagueId)
+        {
+            var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
+            return rosterRoot.rosters.franchise;    
+        }
         public async Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId)
         {
             var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId);
