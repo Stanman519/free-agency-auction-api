@@ -40,7 +40,7 @@ namespace FreeAgencyAuctionAPI.Models
         public DateTime OpenDate { get; set; }
         public DateTime StartDate { get; set; }
         public string Name { get; set; }
-        public int PoolOwnerId { get; set; }
+        public int? PoolOwnerId { get; set; }
     }
     public class OpposingFranchiseDTO
     {

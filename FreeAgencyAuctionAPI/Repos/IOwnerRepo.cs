@@ -58,6 +58,7 @@ namespace FreeAgencyAuctionAPI.Repos
             try
             {
                 var ret = await _db.Owners.FirstOrDefaultAsync(o => o.authid == sub);
+                var pools = await _db.Pools.Where(p => p.OpenDate <= DateTime.Now && p.StartDate >= DateTime.Now).ToListAsync();
                 if (ret == null) return null;
                 
                 return new OwnerDTO
@@ -67,18 +68,16 @@ namespace FreeAgencyAuctionAPI.Repos
                     Password = ret.PasswordHash,
                     Premium = ret.Premium ?? false,
                     DisplayName = ret.Displayname,
-                    Pools = ret.PoolUsers.Where(p => 
-                        (p.Pool.OpenDate <= DateTime.Now && p.Pool.StartDate >= DateTime.Now) 
-                        || p.Pool.OUPicks.Any(p => p.OwnerId == ret.Ownerid)).Select(_ => new PoolDTO
+                    Pools = pools.Select(_ => new PoolDTO
                     {
-                        Id = _.Pool.Id,
-                        Name = _.Pool.Name,
-                        League = _.Pool.League,
-                        OpenDate = _.Pool.OpenDate,
-                        PoolOwnerId = _.Id,
-                        StartDate = _.Pool.StartDate,
-                        Type = _.Pool.Type,
-                        Year = _.Pool.Year
+                        Id = _.Id,
+                        Name = _.Name,
+                        League = _.League,
+                        OpenDate = _.OpenDate,
+                        PoolOwnerId = _.PoolUsers.FirstOrDefault(p => p.OwnerId == ret.Ownerid)?.Id,
+                        StartDate = _.StartDate,
+                        Type = _.Type,
+                        Year = _.Year
                     } ),
                     Leagues = ret.Leagueowners.Select(_ => new LeagueOwnerDTO
                     {
