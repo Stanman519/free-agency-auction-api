@@ -67,7 +67,9 @@ namespace FreeAgencyAuctionAPI.Repos
                     Password = ret.PasswordHash,
                     Premium = ret.Premium ?? false,
                     DisplayName = ret.Displayname,
-                    Pools = ret.PoolUsers.Select(_ => new PoolDTO
+                    Pools = ret.PoolUsers.Where(p => 
+                        (p.Pool.OpenDate <= DateTime.Now && p.Pool.StartDate >= DateTime.Now) 
+                        || p.Pool.OUPicks.Any(p => p.OwnerId == ret.Ownerid)).Select(_ => new PoolDTO
                     {
                         Id = _.Pool.Id,
                         Name = _.Pool.Name,
