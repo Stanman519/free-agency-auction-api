@@ -91,7 +91,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
             List<OverUnderPick> dbPicks;
             if (picks.Any(p => p.Id != null && p.Id != 0))
             {
-                //update
+                //updateg
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 var strayPicks = new List<OverUnderPick>();
                 dbPicks.ForEach(async p =>

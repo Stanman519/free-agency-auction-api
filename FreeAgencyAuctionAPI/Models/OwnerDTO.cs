@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace FreeAgencyAuctionAPI.Models
@@ -12,7 +13,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string StreamToken { get; set; }
         public string Avatar { get; set; }
         public bool ConfidencePaid { get; set; }
-
+        public IEnumerable<PoolDTO> Pools {  get; set; }
         public IEnumerable<LeagueOwnerDTO> Leagues { get; set; }
 
     }
@@ -30,7 +31,17 @@ namespace FreeAgencyAuctionAPI.Models
         public string Ownername { get; set; }
         public LeagueDTO League { get; set; }
     }
-
+    public class PoolDTO
+    {
+        public int Id { get; set; }
+        public string Type { get; set; }
+        public string League { get; set; }
+        public int Year { get; set; }
+        public DateTime OpenDate { get; set; }
+        public DateTime StartDate { get; set; }
+        public string Name { get; set; }
+        public int PoolOwnerId { get; set; }
+    }
     public class OpposingFranchiseDTO
     {
         public int CapRoom { get; set; }

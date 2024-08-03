@@ -67,6 +67,17 @@ namespace FreeAgencyAuctionAPI.Repos
                     Password = ret.PasswordHash,
                     Premium = ret.Premium ?? false,
                     DisplayName = ret.Displayname,
+                    Pools = ret.PoolUsers.Select(_ => new PoolDTO
+                    {
+                        Id = _.Pool.Id,
+                        Name = _.Pool.Name,
+                        League = _.Pool.League,
+                        OpenDate = _.Pool.OpenDate,
+                        PoolOwnerId = _.Id,
+                        StartDate = _.Pool.StartDate,
+                        Type = _.Pool.Type,
+                        Year = _.Pool.Year
+                    } ),
                     Leagues = ret.Leagueowners.Select(_ => new LeagueOwnerDTO
                     {
                         CapRoom = _.Caproom ?? 0,
