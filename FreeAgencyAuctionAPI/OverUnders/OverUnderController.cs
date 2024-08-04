@@ -92,7 +92,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
             picks.ToList().ForEach(p => p.PoolId = poolId);
             if (picks.Any(p => p.Id != null && p.Id != 0))
             {
-                //updateg
+                //update
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 var strayPicks = new List<OverUnderPick>();
                 dbPicks.ForEach(async p =>
@@ -115,6 +115,18 @@ namespace FreeAgencyAuctionAPI.OverUnders
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 _db.OverUnderPicks.AddRange(dbPicks);
                 //insert
+                var ownerId = dbPicks.FirstOrDefault()?.OwnerId ?? -1;
+                if (ownerId != -1)
+                {
+                    var newPoolUser = new PoolUser
+                    {
+                        OwnerId = ownerId,
+                        PoolId = poolId
+                    };
+                    _db.PoolUsers.Add(newPoolUser);
+                }
+
+
             }
             _db.SaveChanges();
             return Ok(_mapper.Map<List<OverUnderPickDTO>>(dbPicks));
