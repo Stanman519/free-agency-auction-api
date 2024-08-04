@@ -89,6 +89,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
         public async Task<IActionResult> UpsertTeamWinTotals([Path] int poolId, [FromBody] IEnumerable<OverUnderPickDTO> picks)
         {
             List<OverUnderPick> dbPicks;
+            picks.ToList().ForEach(p => p.PoolId = poolId);
             if (picks.Any(p => p.Id != null && p.Id != 0))
             {
                 //updateg
