@@ -57,58 +57,128 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var ret = await _db.Owners.FirstOrDefaultAsync(o => o.authid == sub);
-                var pools = await _db.Pools.Where(p => p.OpenDate <= DateTime.Now && p.StartDate >= DateTime.Now).ToListAsync();
-                if (ret == null) return null;
-                
-                return new OwnerDTO
-                {
-                    OwnerId = ret.Ownerid,
-                    Ownername = ret.Ownername,
-                    Password = ret.PasswordHash,
-                    Premium = ret.Premium ?? false,
-                    DisplayName = ret.Displayname,
-                    Pools = pools.Select(_ => new PoolDTO
+                var currentDate = DateTime.Now;
+
+                var ownerDto = await _db.Owners.AsNoTracking()
+                    .Where(o => o.authid == sub)
+                    .Select(o => new OwnerDTO
                     {
-                        Id = _.Id,
-                        Name = _.Name,
-                        League = _.League,
-                        OpenDate = _.OpenDate,
-                        PoolOwnerId = _.PoolUsers.FirstOrDefault(p => p.OwnerId == ret.Ownerid)?.Id,
-                        StartDate = _.StartDate,
-                        Type = _.Type,
-                        Year = _.Year
-                    } ),
-                    Leagues = ret.Leagueowners.Select(_ => new LeagueOwnerDTO
-                    {
-                        CapRoom = _.Caproom ?? 0,
-                        YearsLeft = _.Yearsleft ?? 0,
-                        Mflfranchiseid = _.Mflfranchiseid,
-                        Leagueownerid = _.Leagueownerid,
-                        TeamName = _.Teamname,
-                        League = new LeagueDTO
+                        OwnerId = o.Ownerid,
+                        Ownername = o.Ownername,
+                        Password = o.PasswordHash,
+                        Premium = o.Premium ?? false,
+                        DisplayName = o.Displayname,
+                        Leagues = o.Leagueowners.Select(lo => new LeagueOwnerDTO
                         {
-                            LeagueId = _.Leagueid,
-                            Name = _.League.Name,
-                            MflHash = _.League.Mflhash,
-                            CommishCookie = _.League.Commishcookie,
-                            FirstYear = _.League.FirstYear,
-                            IsFranchiseTagSzn = _.League.IsFranchiseTagSzn,
-                            IsBuyoutSzn = _.League.IsBuyoutSzn,
-                            IsAuctioning = _.League.Isauctioning,
-                            IsTaxiCutSzn = _.League.IsTaxiSzn
-                            
+                            CapRoom = lo.Caproom ?? 0,
+                            YearsLeft = lo.Yearsleft ?? 0,
+                            Mflfranchiseid = lo.Mflfranchiseid,
+                            Leagueownerid = lo.Leagueownerid,
+                            TeamName = lo.Teamname,
+                            League = new LeagueDTO
+                            {
+                                LeagueId = lo.League.Mflid,
+                                Name = lo.League.Name,
+                                MflHash = lo.League.Mflhash,
+                                CommishCookie = lo.League.Commishcookie,
+                                FirstYear = lo.League.FirstYear,
+                                IsFranchiseTagSzn = lo.League.IsFranchiseTagSzn,
+                                IsBuyoutSzn = lo.League.IsBuyoutSzn,
+                                IsAuctioning = lo.League.Isauctioning,
+                                IsTaxiCutSzn = lo.League.IsTaxiSzn
+                            }
+                        }).OrderBy(l => l.League.IsAuctioning ? 0 : 1).ToList(),
+                        Pools = _db.Pools.AsNoTracking()
+                            .Where(p => p.OpenDate <= currentDate && p.StartDate >= currentDate)
+                            .Select(p => new PoolDTO
+                            {
+                                Id = p.Id,
+                                Name = p.Name,
+                                League = p.League,
+                                OpenDate = p.OpenDate,
+                                PoolOwnerId = p.PoolUsers.FirstOrDefault(pu => pu.OwnerId == o.Ownerid).Id,
+                                StartDate = p.StartDate,
+                                Type = p.Type,
+                                Year = p.Year,
+                                MyOverUnderPicks = p.OUPicks
+                                    .Where(pck => pck.UserId == p.PoolUsers.First(u => u.OwnerId == o.Ownerid).Id)
+                                    .Select(pick => new OverUnderPickDTO
+                                    {
+                                        Id = pick.Id,
+                                        LineId = pick.LineId,
+                                        UserId = pick.UserId,
+                                        IsOver = pick.IsOver,
+                                        LineAdjustment = pick.LineAdjustment,
+                                        PoolId = pick.PoolId
+                                    })
+                            }).ToList()
+                    })
+                    .FirstOrDefaultAsync();
 
-                        }
-                    }).OrderBy(_ => _.League.IsAuctioning ? 0 : 1).ToList()
-                };
-
+                return ownerDto;
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "login exception");
                 return null;
             }
+
+            /* try
+             {
+                 var ret = await _db.Owners.FirstOrDefaultAsync(o => o.authid == sub);
+                 var pools = await _db.Pools.Where(p => p.OpenDate <= DateTime.Now && p.StartDate >= DateTime.Now).ToListAsync();
+                 if (ret == null) return null;
+
+                 return new OwnerDTO
+                 {
+                     OwnerId = ret.Ownerid,
+                     Ownername = ret.Ownername,
+                     Password = ret.PasswordHash,
+                     Premium = ret.Premium ?? false,
+                     DisplayName = ret.Displayname,
+                     Pools = pools.Select(_ => new PoolDTO
+                     {
+                         Id = _.Id,
+                         Name = _.Name,
+                         League = _.League,
+                         OpenDate = _.OpenDate,
+                         PoolOwnerId = _.PoolUsers.FirstOrDefault(p => p.OwnerId == ret.Ownerid)?.Id,
+                         StartDate = _.StartDate,
+                         Type = _.Type,
+                         Year = _.Year,
+                         MyOverUnderPicks = _.OUPicks
+                         .Where(pck => pck.UserId == _.PoolUsers.First(u => u.OwnerId == ret.Ownerid)?.Id)
+                     } ),
+                     Leagues = ret.Leagueowners.Select(_ => new LeagueOwnerDTO
+                     {
+                         CapRoom = _.Caproom ?? 0,
+                         YearsLeft = _.Yearsleft ?? 0,
+                         Mflfranchiseid = _.Mflfranchiseid,
+                         Leagueownerid = _.Leagueownerid,
+                         TeamName = _.Teamname,
+                         League = new LeagueDTO
+                         {
+                             LeagueId = _.Leagueid,
+                             Name = _.League.Name,
+                             MflHash = _.League.Mflhash,
+                             CommishCookie = _.League.Commishcookie,
+                             FirstYear = _.League.FirstYear,
+                             IsFranchiseTagSzn = _.League.IsFranchiseTagSzn,
+                             IsBuyoutSzn = _.League.IsBuyoutSzn,
+                             IsAuctioning = _.League.Isauctioning,
+                             IsTaxiCutSzn = _.League.IsTaxiSzn
+
+
+                         }
+                     }).OrderBy(_ => _.League.IsAuctioning ? 0 : 1).ToList()
+                 };
+
+             }
+             catch (Exception e)
+             {
+                 _logger.LogError(e, "login exception");
+                 return null;
+             }*/
         }
 
         public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises)

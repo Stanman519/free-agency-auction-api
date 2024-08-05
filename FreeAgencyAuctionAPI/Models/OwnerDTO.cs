@@ -31,6 +31,16 @@ namespace FreeAgencyAuctionAPI.Models
         public string Ownername { get; set; }
         public LeagueDTO League { get; set; }
     }
+    public class OverUnderPickDTO
+    {
+        public int? Id { get; set; } = 0;
+        public int? LineId { get; set; }
+        public int UserId { get; set; }
+        public bool? IsOver { get; set; }
+        public int LineAdjustment { get; set; }
+        public int PoolId { get; set; }
+
+    }
     public class PoolDTO
     {
         public int Id { get; set; }
@@ -41,6 +51,7 @@ namespace FreeAgencyAuctionAPI.Models
         public DateTime StartDate { get; set; }
         public string Name { get; set; }
         public int? PoolOwnerId { get; set; }
+        public IEnumerable<OverUnderPickDTO> MyOverUnderPicks { get; set; }
     }
     public class OpposingFranchiseDTO
     {

@@ -520,8 +520,8 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("id");
                 entity.Property(e => e.LineId)
                     .HasColumnName("lineid");
-                entity.Property(e => e.OwnerId)
-                    .HasColumnName("ownerid");
+                entity.Property(e => e.UserId)
+                    .HasColumnName("userid");
                 entity.Property(e => e.IsOver)
                     .HasColumnName("isover");
                 entity.Property(e => e.PoolId)
@@ -532,10 +532,10 @@ namespace FreeAgencyAuctionAPI
                     .WithMany(l => l.OUPicks)
                     .HasForeignKey(d => d.PoolId)
                     .HasConstraintName("FK_overunderpick_pool");
-                entity.HasOne(e => e.Owner)
+                entity.HasOne(e => e.PoolUser)
                     .WithMany(l => l.OverUnderPicks)
-                    .HasForeignKey(d => d.OwnerId)
-                    .HasConstraintName("FK_overunderpick_owner");
+                    .HasForeignKey(d => d.UserId)
+                    .HasConstraintName("FK_overunderpick_pooluser");
                 entity.HasOne(e => e.WinLine)
                     .WithMany(l => l.OverUnderPicks)
                     .HasForeignKey(d => d.LineId)
@@ -736,7 +736,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
         public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
-        public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
+        
     }
 
     public partial class LeagueEntity
@@ -945,13 +945,13 @@ namespace FreeAgencyAuctionAPI
         [Key]
         public int? Id { get; set; }
         public int LineId { get; set; }
-        public int OwnerId { get; set; }
+        public int UserId { get; set; }
         public bool? IsOver { get; set; }
         public int LineAdjustment { get; set; }
         public int PoolId { get; set; }
         public virtual SeasonWins WinLine { get; set; } = null!;
         public virtual Pool Pool { get; set; } = null!;
-        public virtual OwnerEntity Owner { get; set; } = null!;
+        public virtual PoolUser PoolUser { get; set; } = null!;
     }
 
     public partial class Pool
@@ -975,5 +975,6 @@ namespace FreeAgencyAuctionAPI
         public int OwnerId { get; set; }
         public virtual Pool Pool { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
+        public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
     }
 }
