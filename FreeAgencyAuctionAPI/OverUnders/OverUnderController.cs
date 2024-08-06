@@ -72,7 +72,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
                         LineAdjustment = 0,
                         LineId = g.ln.Id,
                         UserId = ownerId,
-                        PoolId = DEFAULT_POOL_ID_TEMP
+                        PoolId = poolId
                     }
                 }).ToListAsync();
             var retOvers = franchiseOvers.OrderByDescending(_ => _.OverUnder).ToList();

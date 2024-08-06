@@ -89,7 +89,7 @@ namespace FreeAgencyAuctionAPI.Repos
                             }
                         }).OrderBy(l => l.League.IsAuctioning ? 0 : 1).ToList(),
                         Pools = _db.Pools.AsNoTracking()
-                            .Where(p => p.OpenDate <= currentDate && p.StartDate >= currentDate)
+                            .Where(p => (p.OpenDate <= currentDate && p.StartDate >= currentDate) || p.OUPicks.Any(pk => pk.UserId == p.PoolUsers.First(u => u.OwnerId == o.Ownerid).Id))
                             .Select(p => new PoolDTO
                             {
                                 Id = p.Id,
