@@ -71,6 +71,14 @@
                 // if the matchups are ready for picking, send them back.  If they're live, send them back and let the client handle non form mode
 
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
+                if (!dbMatchups.Any())
+                {
+                    return Ok(new MatchupForm
+                    {
+                        Matchups = new List<NflMatchupDTO>(),
+                        Props = new List<PropDTO>()
+                    });
+                }
                 var dbProps = _db.Props.Where(_ => _.Year == year).ToList();
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
                 var propsThisWeek = dbProps.GroupBy(p => p.Week).OrderByDescending(p => p.Key).FirstOrDefault()?.Select(p => _mapper.Map<PropDTO>(p)).ToList();

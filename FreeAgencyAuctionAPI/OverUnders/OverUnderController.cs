@@ -202,49 +202,57 @@ namespace FreeAgencyAuctionAPI.OverUnders
             return Ok(ownerDTOs);
         }
 
+/*
+        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
+        {
+            var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
+            var poolUsers = await _db.PoolUsers.ToListAsync();
+            var existingPicks = await _db.OverUnderPicks.Where(p => p.PoolUser.Owner.istest).ToListAsync();
+            var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
+            var rnd = new Random();
 
-        /*        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
-                [Produces("application/json")]
-                [ProducesResponseType(StatusCodes.Status200OK)]
-                [ProducesResponseType(StatusCodes.Status400BadRequest)]
-                public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
+            var newPicksToPush = new List<OverUnderPick>();
+
+            demoUsers.ForEach(u =>
+            {
+                var poolUser = poolUsers.FirstOrDefault(pu => pu.OwnerId == u);
+                if (!existingPicks.Select(ep => ep.PoolUser.Owner.Ownerid).Contains(u))
                 {
-                    var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
-                    var existingPicks = await _db.OverUnderPicks.Where(p => p.Owner.istest).ToListAsync();
-                    var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
-                    var rnd = new Random();
 
-                    var newPicksToPush = new List<OverUnderPick>();
-
-                    demoUsers.ForEach(u =>
+                    var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
+                    for (int i = 0; i < randomSortLines.Count; i++)
                     {
-                        if (!existingPicks.Select(ep => ep.OwnerId).Contains(u))
+                        
+
+                        if (poolUser != null)
                         {
-
-                            var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
-                            for (int i = 0; i < randomSortLines.Count; i++)
+                            var temp = rnd.Next(1, 3);
+                            var isOver = temp == 1;
+                            var newPick = new OverUnderPick
                             {
-                                var temp = rnd.Next(1, 3);
-                                var isOver = temp == 1;
-                                var newPick = new OverUnderPick
-                                {
-                                    IsOver = i < 24 ? isOver : null,
-                                    LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
-                                    LineId = randomSortLines[i].Id,
-                                    OwnerId = u
-
-                                };
-                                newPicksToPush.Add(newPick);
-                            }
-
+                                IsOver = i < 24 ? isOver : null,
+                                LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
+                                LineId = randomSortLines[i].Id,
+                                UserId = poolUser.Id,
+                                PoolId = poolUser.PoolId
+                               
+                            };
+                            newPicksToPush.Add(newPick);
                         }
+                    }
 
-                    });
-                    await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
-                    await _db.SaveChangesAsync();
-                    return Ok();
-                }*/
+                }
 
+            });
+            await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+*/
 
         public class OverUnderLoadBody
         {
