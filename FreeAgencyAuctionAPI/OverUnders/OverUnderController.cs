@@ -92,12 +92,14 @@ namespace FreeAgencyAuctionAPI.OverUnders
         {
             List<OverUnderPick> dbPicks;
             picks.ToList().ForEach(p => p.PoolId = poolId);
+
             if (picks.Any(p => p.Id != null && p.Id != 0))
             {
-                //update
+                // Update existing records
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 var strayPicks = new List<OverUnderPick>();
-                dbPicks.ForEach(async p =>
+
+                foreach (var p in dbPicks)
                 {
                     var entityToUpdate = await _db.OverUnderPicks.FirstOrDefaultAsync(e => e.Id == p.Id);
                     if (entityToUpdate != null)
@@ -109,14 +111,14 @@ namespace FreeAgencyAuctionAPI.OverUnders
                     {
                         strayPicks.Add(p);
                     }
-                });
+                }
                 _db.OverUnderPicks.AddRange(strayPicks);
             }
             else
             {
                 dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
-                _db.OverUnderPicks.AddRange(dbPicks);
-                //insert
+
+                // Insert new pool user
                 if (ownerId != -1)
                 {
                     var newPoolUser = new PoolUser
@@ -125,9 +127,18 @@ namespace FreeAgencyAuctionAPI.OverUnders
                         PoolId = poolId
                     };
                     _db.PoolUsers.Add(newPoolUser);
+                    await _db.SaveChangesAsync(); // Save to generate the PoolUser ID
+
+                    // Now set the UserId for OverUnderPick records
+                    dbPicks.ForEach(p =>
+                    {
+                        p.UserId = newPoolUser.Id;
+                    });
+
+                    _db.OverUnderPicks.AddRange(dbPicks);
                 }
             }
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
             return Ok(_mapper.Map<List<OverUnderPickDTO>>(dbPicks));
         }
 
