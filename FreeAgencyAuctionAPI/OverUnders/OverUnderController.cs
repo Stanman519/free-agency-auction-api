@@ -90,33 +90,44 @@ namespace FreeAgencyAuctionAPI.OverUnders
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpsertTeamWinTotals([Path] int poolId, [Path] int ownerId, [FromBody] IEnumerable<OverUnderPickDTO> picks)
         {
-            List<OverUnderPick> dbPicks;
+            List<OverUnderPick> newDbPicks = new List<OverUnderPick>();
             picks.ToList().ForEach(p => p.PoolId = poolId);
 
             if (picks.Any(p => p.Id != null && p.Id != 0))
             {
-                // Update existing records
-                dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
                 var strayPicks = new List<OverUnderPick>();
+                var existingPicks = await _db.OverUnderPicks
+                    .Where(p => picks.Select(x => x.Id).Contains(p.Id))
+                    .ToListAsync();
 
-                foreach (var p in dbPicks)
+                var existingPicksDict = existingPicks.ToDictionary(p => p.Id);
+
+
+                foreach (var p in picks)
                 {
-                    var entityToUpdate = await _db.OverUnderPicks.FirstOrDefaultAsync(e => e.Id == p.Id);
-                    if (entityToUpdate != null)
+                    var pick = _mapper.Map<OverUnderPick>(p);
+                    if (existingPicksDict.TryGetValue(pick.Id, out var existingPick))
                     {
-                        entityToUpdate.LineAdjustment = p.LineAdjustment;
-                        entityToUpdate.IsOver = p.IsOver;
+                        // Update existing pick
+                        existingPick.LineAdjustment = pick.LineAdjustment;
+                        existingPick.IsOver = pick.IsOver;
                     }
                     else
                     {
-                        strayPicks.Add(p);
+                        // New pick
+                        strayPicks.Add(pick);
                     }
                 }
-                _db.OverUnderPicks.AddRange(strayPicks);
+                // Update existing records
+                if (strayPicks.Any())
+                {
+                    _db.OverUnderPicks.AddRange(strayPicks);
+                    newDbPicks.AddRange(strayPicks);
+                }
             }
             else
             {
-                dbPicks = _mapper.Map<List<OverUnderPick>>(picks);
+                newDbPicks = _mapper.Map<List<OverUnderPick>>(picks);
 
                 // Insert new pool user
                 if (ownerId != -1)
@@ -130,16 +141,16 @@ namespace FreeAgencyAuctionAPI.OverUnders
                     await _db.SaveChangesAsync(); // Save to generate the PoolUser ID
 
                     // Now set the UserId for OverUnderPick records
-                    dbPicks.ForEach(p =>
+                    newDbPicks.ForEach(p =>
                     {
                         p.UserId = newPoolUser.Id;
                     });
 
-                    _db.OverUnderPicks.AddRange(dbPicks);
+                    _db.OverUnderPicks.AddRange(newDbPicks);
                 }
             }
             await _db.SaveChangesAsync();
-            return Ok(_mapper.Map<List<OverUnderPickDTO>>(dbPicks));
+            return Ok(_mapper.Map<List<OverUnderPickDTO>>(newDbPicks));
         }
 
         [HttpGet("pools/{poolId}/ou-users-picks")]
