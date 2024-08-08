@@ -71,7 +71,6 @@ namespace FreeAgencyAuctionAPI.OverUnders
                     {
                         LineAdjustment = 0,
                         LineId = g.ln.Id,
-                        UserId = ownerId,
                         PoolId = poolId
                     }
                 }).ToListAsync();
@@ -146,6 +145,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
                 {
                     Id = u.Id,
                     Owner = _mapper.Map<OwnerDTO>(u.Owner),
+                    IsPaid = u.IsPaid,
                     Picks = u.OverUnderPicks.Select(p => new OverUnderPickDTO
                     {
                         Id = p.Id,
@@ -163,6 +163,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
                 var users = await _db.PoolUsers.Where(p => p.PoolId == poolId).Select(u => new PoolUserDTO
                 {
                     Id = u.Id,
+                    IsPaid = u.IsPaid,
                     Owner = _mapper.Map<OwnerDTO>(u.Owner),
                     Picks = new List<OverUnderPickDTO>()
                 }).ToListAsync();
@@ -276,6 +277,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
         public class PoolUserDTO
         {
             public int Id { get; set; }
+            public bool IsPaid { get; set; }
             public OwnerDTO Owner { get; set; }
             public IEnumerable<OverUnderPickDTO> Picks { get; set;}
 

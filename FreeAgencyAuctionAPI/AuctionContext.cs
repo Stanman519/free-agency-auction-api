@@ -264,6 +264,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.PoolId).HasColumnName("poolid");
                 entity.Property(e => e.OwnerId).HasColumnName("ownerid");
+                entity.Property(e => e.IsPaid).HasColumnName("ispaid");
 
 
                 entity.HasOne(d => d.Pool).WithMany(p => p.PoolUsers)
@@ -936,7 +937,7 @@ namespace FreeAgencyAuctionAPI
         public int Year { get; set; }
         public decimal BaseOverUnder { get; set; }
         public int RealWins { get; set; }
-        public int? GamesRemaining { get; set; }
+        public int GamesRemaining { get; set; }
         public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
         public virtual NflTeam Franchise { get; set; } = null!;
     }
@@ -973,6 +974,7 @@ namespace FreeAgencyAuctionAPI
         public int Id { get; set; }
         public int PoolId { get; set; }
         public int OwnerId { get; set; }
+        public bool IsPaid { get; set; }
         public virtual Pool Pool { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
         public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
