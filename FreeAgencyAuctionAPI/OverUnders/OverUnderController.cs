@@ -224,58 +224,98 @@ namespace FreeAgencyAuctionAPI.OverUnders
 
             return Ok(ownerDTOs);
         }
-
-/*
-        [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+        [HttpGet("pools/{poolId}/ou-users-picks-testing")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
+        public async Task<IActionResult> GetAllUsersAndPicksForPoolTest([Path] int poolId)
         {
-            var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
-            var poolUsers = await _db.PoolUsers.ToListAsync();
-            var existingPicks = await _db.OverUnderPicks.Where(p => p.PoolUser.Owner.istest).ToListAsync();
-            var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
-            var rnd = new Random();
-
-            var newPicksToPush = new List<OverUnderPick>();
-
-            demoUsers.ForEach(u =>
+            var pool = await _db.Pools.FirstOrDefaultAsync(p => p.Id == poolId);
+            if (true)
             {
-                var poolUser = poolUsers.FirstOrDefault(pu => pu.OwnerId == u);
-                if (!existingPicks.Select(ep => ep.PoolUser.Owner.Ownerid).Contains(u))
+                // give all the picks of all the owners
+                var usersAndPicks = await _db.PoolUsers.Where(p => p.PoolId == poolId).Select(u => new PoolUserDTO
                 {
-
-                    var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
-                    for (int i = 0; i < randomSortLines.Count; i++)
+                    Id = u.Id,
+                    Owner = _mapper.Map<OwnerDTO>(u.Owner),
+                    IsPaid = u.IsPaid,
+                    Picks = u.OverUnderPicks.Select(p => new OverUnderPickDTO
                     {
-                        
+                        Id = p.Id,
+                        IsOver = p.IsOver,
+                        LineAdjustment = p.LineAdjustment,
+                        LineId = p.LineId,
+                        UserId = p.UserId,
+                        PoolId = p.PoolId
+                    })
+                }).ToListAsync();
+                return Ok(usersAndPicks);
+            }
+            else
+            {
+                // give all the owners with empty pick arrays
+                var users = await _db.PoolUsers.Where(p => p.PoolId == poolId).Select(u => new PoolUserDTO
+                {
+                    Id = u.Id,
+                    IsPaid = u.IsPaid,
+                    Owner = _mapper.Map<OwnerDTO>(u.Owner),
+                    Picks = new List<OverUnderPickDTO>()
+                }).ToListAsync();
+                return Ok(users);
+            }
 
-                        if (poolUser != null)
-                        {
-                            var temp = rnd.Next(1, 3);
-                            var isOver = temp == 1;
-                            var newPick = new OverUnderPick
-                            {
-                                IsOver = i < 24 ? isOver : null,
-                                LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
-                                LineId = randomSortLines[i].Id,
-                                UserId = poolUser.Id,
-                                PoolId = poolUser.PoolId
-                               
-                            };
-                            newPicksToPush.Add(newPick);
-                        }
-                    }
-
-                }
-
-            });
-            await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
-            await _db.SaveChangesAsync();
-            return Ok();
         }
-*/
+        /*
+                [HttpGet("year/{year}/leagues/{league}/make-demo-picks")]
+                [Produces("application/json")]
+                [ProducesResponseType(StatusCodes.Status200OK)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                public async Task<IActionResult> MakeDemoPicks([Path] int year, [Path] string league)
+                {
+                    var demoUsers = await _db.Owners.Where(o => o.istest).Select(o => o.Ownerid).ToListAsync();
+                    var poolUsers = await _db.PoolUsers.ToListAsync();
+                    var existingPicks = await _db.OverUnderPicks.Where(p => p.PoolUser.Owner.istest).ToListAsync();
+                    var relevantLines = await _db.SeasonWins.Where(w => w.Year == year && w.Franchise.League == league).ToListAsync();
+                    var rnd = new Random();
+
+                    var newPicksToPush = new List<OverUnderPick>();
+
+                    demoUsers.ForEach(u =>
+                    {
+                        var poolUser = poolUsers.FirstOrDefault(pu => pu.OwnerId == u);
+                        if (!existingPicks.Select(ep => ep.PoolUser.Owner.Ownerid).Contains(u))
+                        {
+
+                            var randomSortLines = relevantLines.OrderBy(_ => rnd.Next()).ToList();
+                            for (int i = 0; i < randomSortLines.Count; i++)
+                            {
+
+
+                                if (poolUser != null)
+                                {
+                                    var temp = rnd.Next(1, 3);
+                                    var isOver = temp == 1;
+                                    var newPick = new OverUnderPick
+                                    {
+                                        IsOver = i < 24 ? isOver : null,
+                                        LineAdjustment = i < 3 ? (isOver ? 1 : -1) : 0,
+                                        LineId = randomSortLines[i].Id,
+                                        UserId = poolUser.Id,
+                                        PoolId = poolUser.PoolId
+
+                                    };
+                                    newPicksToPush.Add(newPick);
+                                }
+                            }
+
+                        }
+
+                    });
+                    await _db.OverUnderPicks.AddRangeAsync(newPicksToPush);
+                    await _db.SaveChangesAsync();
+                    return Ok();
+                }
+        */
 
         public class OverUnderLoadBody
         {
