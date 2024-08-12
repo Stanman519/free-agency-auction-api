@@ -733,7 +733,7 @@ namespace FreeAgencyAuctionAPI
         public string authid { get; set; }
         public string StreamToken { get; set; }
         public bool ConfidencePaid { get; set; }
-        public virtual ICollection<Pool> Pools { get; } = new List<Pool>();
+/*        public virtual ICollection<Pool> Pools { get; } = new List<Pool>();*/
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
