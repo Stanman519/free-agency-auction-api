@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Models.Confidence;
+using FreeAgencyAuctionAPI.Repos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RestEase;
 using System;
 using System.Collections.Generic;
@@ -20,13 +22,17 @@ namespace FreeAgencyAuctionAPI.OverUnders
         private readonly IMapper _mapper;
         private readonly AuctionContext _db;
         private readonly ILogger<OverUnderController> _logger;
+        private readonly ISportsDataApi _sportsDataApi;
+        private readonly IOptionsSnapshot<AppConfig> _options;
         private readonly int DEFAULT_POOL_ID_TEMP = 1;
 
-        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger)
+        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger, ISportsDataApi sportsDateApi, IOptionsSnapshot<AppConfig> options)
         {
             _mapper = mapper;
             _db = db;
             _logger = logger;
+            _sportsDataApi = sportsDateApi;
+            _options = options;
         }
 
         [HttpGet("pools/{poolId}/year/{year}/leagues/{league}/owners/{ownerId}/team-win-totals")]
@@ -230,6 +236,44 @@ namespace FreeAgencyAuctionAPI.OverUnders
 
             return Ok(ownerDTOs);
         }
+
+        [HttpPost("update-wins")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateNFLTeamWins()
+        {
+            var thisYear = DateTime.UtcNow.Year;
+            var key = _options.Value.SportsDataConfig.SportsDataApiKey;
+
+
+            try
+            {
+                var teams = await _sportsDataApi.GetNflStandingsByYear(thisYear, key);
+                var dbTeams = _db.SeasonWins.Where(_ => _.Year == thisYear).ToList();
+                teams.ToList().ForEach(t =>
+                {
+                    var foundDbTeam = dbTeams.Find(db => db.Franchise.SportsDataId == t.TeamID);
+                    if (foundDbTeam != null)
+                    {
+                        foundDbTeam.RealWins = t.Wins;
+                        foundDbTeam.GamesRemaining = 17 - (t.Wins + t.Losses + t.Ties);
+                    }
+                });
+                await _db.SaveChangesAsync();
+                return Ok();
+            } 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest(ex.Message);
+            }
+
+
+
+
+        }
+
         [HttpGet("pools/{poolId}/ou-users-picks-testing")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]

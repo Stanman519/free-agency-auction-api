@@ -64,6 +64,7 @@ namespace FreeAgencyAuctionAPI
             services.AddSingleton(leagueMfl);
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
             var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
+            services.AddSingleton(RestClient.For<ISportsDataApi>("https://api.sportsdata.io/v3"));
             bing.BingKey = appConfig.BingImageApi.BingSubscriptionKey;
             services.AddSingleton(bing);
             services.AddSingleton(_ => streamFactory.GetMessageClient());
@@ -78,7 +79,7 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
             services.AddAutoMapper(typeof(Startup));
-
+           
             services.AddAzureClients(builder =>
             {
                 // Use the environment credential by default

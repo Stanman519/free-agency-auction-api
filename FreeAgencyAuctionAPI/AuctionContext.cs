@@ -59,6 +59,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Tertiary).HasColumnName("tertiary");
                 entity.Property(e => e.Tricode).HasColumnName("tricode");
                 entity.Property(e => e.League).HasColumnName("league");
+                entity.Property(e => e.SportsDataId).HasColumnName("sportsdataid");
 
             });
 
@@ -868,6 +869,7 @@ namespace FreeAgencyAuctionAPI
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
         public string League { get; set; }
+        public int SportsDataId { get; set; }
         public virtual ICollection<NflTeamMatchup> LeftMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> RightMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> WinMatchups { get; } = new List<NflTeamMatchup>();
