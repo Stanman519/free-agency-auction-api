@@ -249,5 +249,20 @@ namespace FreeAgencyAuctionAPI
             return NoContent();
 
         }
+        [HttpPost("propose-trade")]
+        public async Task<IActionResult> ProposeTrade([FromBody] string body)
+        {
+            //do some verification
+            // make guid
+            // add cap eats to db
+
+            // post trade to mfl
+            // retry?
+
+            //
+
+            return Ok();
+
+        }
     }
 }
