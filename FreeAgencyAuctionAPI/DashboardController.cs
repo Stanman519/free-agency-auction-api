@@ -215,6 +215,23 @@ namespace FreeAgencyAuctionAPI
             return NoContent();
         }
 
+        [HttpGet("leagues/{leagueId}/years/{year}/playerIds/{playerIds}")]
+        public async Task<IActionResult> GetDetailsForPlayerIds([FromRoute] int leagueId, [FromRoute] int year, [FromRoute] string playerIds)
+        {
+            var players = await _mfl.GetMflPlayersByIds(leagueId, year, playerIds);
+           
+            return Ok(players);
+        }
+
+        [HttpGet("leagues/{leagueId}/years/{year}/franchises/{franchiseId}/full-mfl-league")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetBigLeagueObject([FromRoute] int leagueId, [FromRoute] int year, [FromRoute] int franchiseId)
+        {
+            return Ok(await _mfl.GetMflLeagueRootAndAssets(leagueId, year, franchiseId));
+        }
+
         [HttpPost("tag-player")]
         public async Task<IActionResult> FranchiseTagPlayer([FromBody] FranchiseTagRequestBody body)
         {

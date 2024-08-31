@@ -23,6 +23,8 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<PlayerDTO>> GetTaxiSquadPlayers(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId);
+        Task<List<PlayerDTO>> GetMflPlayersByIds(int leagueId, int year, string mflIds);
+        Task<DashboardTradeLeagueDTO> GetMflLeagueRootAndAssets(int leagueId, int year, int franchiseId);
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
         Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
@@ -62,6 +64,22 @@ namespace FreeAgencyAuctionAPI.Services
             return playerRes.players.player.FirstOrDefault();
 
         }
+        public async Task<List<PlayerDTO>> GetMflPlayersByIds(int leagueId, int year, string mflIds)
+        {
+            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflIds, year);
+
+            return playerRes.players.player.Select(p => new PlayerDTO
+            {
+                Age = GetAgeInt(p.birthdate),
+                FirstName = p.first_name,
+                LastName = p.last_name,
+                FullName = p.name,
+                Team = p.team,
+                Position = p.position,
+                MflId = int.TryParse(p.id, out var x) ? x : 0
+            }).ToList();
+
+        }
 
         public async Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId)
         {
@@ -88,7 +106,88 @@ namespace FreeAgencyAuctionAPI.Services
             
         }
 
+        public async Task<DashboardTradeLeagueDTO> GetMflLeagueRootAndAssets(int leagueId, int year, int franchiseId)
+        {
+            var bigRet = new DashboardTradeLeagueDTO();
+            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year);
+            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, year);
+            var salariesTask = _leagueApi.GetSalaries(leagueId, year);
+            await Task.WhenAll(bigLeagueTask, assetsTask, salariesTask);
+            var myPlayerIds = assetsTask.Result.assets.franchise
+                .FirstOrDefault(f => f.id == franchiseId.ToString("0000"))
+                .players.player
+                .Select(p => p.id)
+                .ToList();
+            MflPlayerDetailsRoot myPlayers = new MflPlayerDetailsRoot();
+            if (myPlayerIds != null && myPlayerIds.Count > 0) 
+            {
+                myPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', myPlayerIds));
+            }
+            var mflLeague = bigLeagueTask.Result.league;
+            bigRet.Name = mflLeague.name;
+            var playerSalaries = salariesTask.Result.Salaries.LeagueUnit.Player;
 
+
+            mflLeague.franchises.franchise.ForEach(f =>
+            {
+                var strFranchId = franchiseId.ToString("0000");
+                var assetsDTO = new DashboardTradeFranchiseAssetsDTO();
+                var isMyFranchise = f.id == strFranchId;
+
+
+
+                var newFranch = new DashboardTradeFranchiseDTO
+                {
+                    name = f.name,
+                    username = f.username,
+                    email = f.email,
+                    icon = f.icon,
+                    id = f.id,
+                    abbrev = f.abbrev,
+                    logo = f.logo,
+                    owner_name = f.owner_name,
+                    salaryCapAmount = f.salaryCapAmount
+                };
+
+                var foundAssets = assetsTask.Result.assets.franchise.FirstOrDefault(a => a.id == f.id);
+
+                if (foundAssets != null)
+                {
+                    assetsDTO.futureYearDraftPicks = foundAssets.futureYearDraftPicks?.draftPick ?? new List<DraftPick>();
+                    assetsDTO.currentYearDraftPicks = foundAssets.currentYearDraftPicks?.draftPick ?? new List<DraftPick>();
+                    foundAssets.players.player.ForEach(p =>
+                    {
+                        var foundPlayerSalary = playerSalaries.FirstOrDefault(s => s.id == p.id);
+                        if (foundPlayerSalary != null)
+                        {
+                            var playerDTO = new PlayerDTO
+                            {
+                                Length = int.TryParse(foundPlayerSalary.contractYear, out var cY) ? cY : 0,
+                                Salary = int.TryParse(foundPlayerSalary.salary, out var s) ? s : 0,
+                                MflId = int.TryParse(foundPlayerSalary.id, out var id) ? id : 0,
+                            };
+                          // if my player get more details
+                            if (isMyFranchise && myPlayers != null)
+                            {
+                                var fpd = myPlayers.players.player.FirstOrDefault(mp => mp.id == p.id);
+                                if (fpd != null)
+                                {
+                                    playerDTO.Position = fpd.position;
+                                    playerDTO.FullName = fpd.name;
+                                    playerDTO.FirstName = fpd.first_name;
+                                    playerDTO.LastName = fpd.last_name;
+                                    playerDTO.Team = fpd.team;
+                                }
+                            }
+                            assetsDTO.Players.Add(playerDTO);
+                        }
+                    });
+                    newFranch.assets = assetsDTO;
+                }
+                bigRet.Franchises.Add(newFranch);
+            });
+            return bigRet;
+        }
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction)

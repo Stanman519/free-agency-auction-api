@@ -12,7 +12,7 @@ namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IOwnerRepo
     {
-        public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises);
+        public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<FranchisePlusAssets> franchises);
 
         public Task UpdateCapRoomForAllOwners(List<int> capSpace, int leagueId);
         public Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId);
@@ -181,7 +181,7 @@ namespace FreeAgencyAuctionAPI.Repos
              }*/
         }
 
-        public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<Franchise> franchises)
+        public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<FranchisePlusAssets> franchises)
         {
             if (franchises.Count == 0) 
             {

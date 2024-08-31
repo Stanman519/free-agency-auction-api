@@ -87,7 +87,7 @@ namespace FreeAgencyAuctionAPI.Services
             // With addition of games, how do we skip this process?? new screen i guess.
             if (dto == null || dto.OwnerId < 1) 
             {
-                var matchingFranchises = new List<Franchise>();
+                var matchingFranchises = new List<FranchisePlusAssets>();
                 /*var leagues = await _repo.GetAllRealLeagueIds();
                 foreach (var league in leagues)
                 {

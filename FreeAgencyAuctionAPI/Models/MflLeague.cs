@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace FreeAgencyAuctionAPI.Models
 {
-    public class Franchise
+    public class FranchisePlusAssets
     {
         public string icon { get; set; }
         public string abbrev { get; set; }
@@ -16,12 +16,13 @@ namespace FreeAgencyAuctionAPI.Models
         public string username { get; set; }
         public string owner_name { get; set; }
         public int leagueId { get; set; } // doesn't come from API, my use only
+        public MflAssetsFranchise assets { get; set; }
     }
 
     public class Franchises
     {
         public string count { get; set; }
-        public List<Franchise> franchise { get; set; }
+        public List<FranchisePlusAssets> franchise { get; set; }
     }
 
     public class League2

@@ -55,6 +55,24 @@ namespace FreeAgencyAuctionAPI.Mapping
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
+/*    public class MflDashboardTradeProfile : Profile
+    {
+        public MflDashboardTradeProfile()
+        {
+            CreateMap<League2, Pick>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.MatchupId, opt => opt.MapFrom(src => src.MatchupId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points));
+            CreateMap<Pick, NflPicksDTO>()
+                .ForMember(dest => dest.Choice, opt => opt.MapFrom(src => src.Choice))
+                .ForMember(dest => dest.MatchupId, opt => opt.MapFrom(src => src.MatchupId))
+                .ForMember(dest => dest.OwnerId, opt => opt.MapFrom(src => src.OwnerId))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points))
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id));
+        }
+    }*/
+
 
     public class NflPropProfile : Profile
     {

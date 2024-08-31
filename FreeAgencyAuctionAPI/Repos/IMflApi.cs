@@ -44,5 +44,10 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=transactions&L={leagueId}&APIKEY={apiKey}&W=&TRANS_TYPE=&FRANCHISE=&DAYS=&COUNT=&JSON=1")]
         Task<TransactionsRoot> GetLastYearWaiverTransactions([Path] int leagueId, [Path] string apiKey, [Path] int year = Utils.ThisYear - 1);
+        [Get("{year}/export?TYPE=assets&L={leagueId}&APIKEY=&JSON=1")]
+        Task<MflAssetsRoot> GetFranchiseAssets([Path] int leagueId, [Path] int year);
+        [Get("{year}/export?TYPE=salaries&L={leagueId}&APIKEY=&JSON=1")]
+        Task<MflSalariesParent> GetSalaries([Path] int leagueId, [Path] int year);
+
     }
 }
