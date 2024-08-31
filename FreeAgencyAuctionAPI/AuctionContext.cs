@@ -602,8 +602,6 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("eaterid");
                 entity.Property(e => e.ReceiverId)
                     .HasColumnName("receiverId");
-                entity.Property(e => e.PlayerId)
-                    .HasColumnName("playerId");
                 entity.Property(e => e.Year)
                     .HasColumnName("year");
                 entity.Property(e => e.MflPlayerId)
@@ -1036,7 +1034,6 @@ namespace FreeAgencyAuctionAPI
         public int EaterId { get; set; }
         public int ReceiverId { get; set; }
         public int LeagueId { get; set; }
-        public int PlayerId { get; set; }
         public string ProposalGUID { get; set; }
         public int Year { get; set; }
         public int MflPlayerId { get; set; }

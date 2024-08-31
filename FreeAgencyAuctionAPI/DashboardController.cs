@@ -250,11 +250,52 @@ namespace FreeAgencyAuctionAPI
 
         }
         [HttpPost("propose-trade")]
-        public async Task<IActionResult> ProposeTrade([FromBody] string body)
+        public async Task<IActionResult> ProposeTrade([FromBody] TradeRequest body)
         {
             //do some verification
             // make guid
+            body.CommentGuid = Guid.NewGuid();
+
             // add cap eats to db
+            var dbCapEats = body.ReceivingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
+            {
+                CapAdjustment = a.Amount,
+                EaterId = a.EaterId,
+                LeagueId = body.LeagueId,
+                MflPlayerId = a.MflId,
+                ReceiverId = a.ReceiverId,
+                ProposalGUID = body.CommentGuid.ToString(),
+                Year = a.Year
+            });
+            var moreCapEats = body.SendingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
+            {
+                CapAdjustment = a.Amount,
+                EaterId = a.EaterId,
+                LeagueId = body.LeagueId,
+                MflPlayerId = a.MflId,
+                ReceiverId = a.ReceiverId,
+                ProposalGUID = body.CommentGuid.ToString(),
+                Year = a.Year
+            });
+            dbCapEats = dbCapEats.Concat(moreCapEats);
+            try
+            {
+                await _db.CapEatCandidates.AddRangeAsync(dbCapEats);
+                _db.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ErrorResponse($"couldn't save to database: {ex.Message}"));
+            }
+            try
+            {
+                await _mfl.ProposeMflTrade(body);
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ErrorResponse(e.Message));
+            }
 
             // post trade to mfl
             // retry?

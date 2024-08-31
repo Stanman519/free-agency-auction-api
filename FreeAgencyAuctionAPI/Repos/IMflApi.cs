@@ -44,5 +44,7 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=transactions&L={leagueId}&APIKEY={apiKey}&W=&TRANS_TYPE=&FRANCHISE=&DAYS=&COUNT=&JSON=1")]
         Task<TransactionsRoot> GetLastYearWaiverTransactions([Path] int leagueId, [Path] string apiKey, [Path] int year = Utils.ThisYear - 1);
+        [Get("{year}/import?TYPE=tradeProposal&L={leagueId}&OFFEREDTO={offeredTo}&WILL_GIVE_UP={willGiveUp}&WILL_RECEIVE={willReceive}&COMMENTS={comments}&EXPIRES={expires}&FRANCHISE_ID={offeringFranchise}")]
+        Task<HttpResponseMessage> SendTradeOffer([Path] int year, [Path] int leagueId, [Path] string offeredTo, [Path] string willGiveUp, [Path] string willReceive, [Path] string comments, [Path] long expires, [Path] string offeringFranchise);
     }
 }

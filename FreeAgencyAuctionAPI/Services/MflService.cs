@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -31,6 +33,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
+        Task ProposeMflTrade(TradeRequest req);
     }
 
     public class MflService : IMflService
@@ -625,6 +628,70 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
+        public async Task ProposeMflTrade(TradeRequest req)
+        {
+            var hasSenderEats = req.SendingAssets.SelectMany(a => a.CapEats).Any();
+            var hasReceiverEats = req.ReceivingAssets.SelectMany(a => a.CapEats).Any();
+
+            var botId = Utils.leagueBotDict.TryGetValue(req.LeagueId, out var x) ? x : string.Empty;
+            var now = DateTime.Now;
+            var comment = $"THIS TRADE INCLUDES SALARY CAP EATING. - - - "; 
+              
+            if (hasSenderEats) {
+                comment = comment + $"{req.SenderTeamName} will eat these salary portions: - - - ";
+                req.SendingAssets.ForEach(a =>
+                {
+                    if (!a.MflId.StartsWith("DP_") && !a.MflId.StartsWith("FP_") && a.CapEats.Any())
+                    {
+                        comment = comment + $"{a.DisplayName}: - - - ";
+                        a.CapEats.ForEach(c =>
+                        {
+                            comment = comment + $"************ {c.Year}: ${c.Amount} - - - ";
+                        });
+                    }
+                });
+            }
+            if (hasReceiverEats)
+            {
+                comment = comment + $"{req.ReceiverTeamName} will eat these salary portions: - - - ";
+                req.ReceivingAssets.ForEach(a =>
+                {
+                    if (!a.MflId.StartsWith("DP_") && !a.MflId.StartsWith("FP_") && a.CapEats.Any())
+                    {
+                        comment = comment + $"{a.DisplayName}: - - - ";
+                        a.CapEats.ForEach(c =>
+                        {
+                            comment = comment + $"************ {c.Year}: ${c.Amount} - - - ";
+                        });
+                    }
+                });
+            }
+
+            comment = comment + $"#{req.CommentGuid}# * * * * If you would like to counter with a trade that involves salary cap eating, you'll need to go to stanfan.net";
+
+            var sendingAssetIds = string.Join(",", req.SendingAssets.Select(a => a.MflId).ToList());
+            var receivingAssetIds = string.Join(",", req.ReceivingAssets.Select(a => a.MflId).ToList());
+            var expires = ((DateTimeOffset)now.AddDays(7)).ToUnixTimeSeconds();
+            try
+            {
+                var tradeReqRes = await _leagueApi.SendTradeOffer(now.Year, req.LeagueId, req.ReceiverId.ToString("D4"),sendingAssetIds,receivingAssetIds, comment, expires, req.SenderId.ToString("D4"));
+                var respString = await tradeReqRes.Content.ReadAsStringAsync();
+                if (respString.ToUpper().Contains("ERROR"))
+                {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
+                    _logger.LogInformation(respString);
+                    _logger.LogError($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}: {respString}");
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}", botId));
+                    throw new Exception($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}: {respString}");
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "trade offer fail");
+                throw;
+            }
+        }
+
         private int GetTagValueFromPosition(string position, FranchiseTagLeague l)
         {
              switch (position.ToUpper())
@@ -654,7 +721,17 @@ namespace FreeAgencyAuctionAPI.Services
             };
             return ret;
         }
-
+        //private Dictionary<string, string> CreateBodyDataForNewTradeProposal(string franchiseId, string offeredTo, string willGiveUp, string willReceive, string comments,string franchiseId )
+        //{
+        //    var ret = new Dictionary<string, string>()
+        //    {
+        //        {
+        //            "DATA",
+        //            $"<?xml version='1.0' encoding='UTF-8' ?><salary_adjustments><salary_adjustment franchise_id=\"{franchiseId}\" amount=\"{adjustmentAmount}\" explanation=\"{reason} {player.LastName}, {player.FirstName} {player.Team} {player.Position} (Salary: ${player.Salary}, years left: {length})\"/></salary_adjustments>"
+        //        }
+        //    };
+        //    return ret;
+        //}
         private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1)
         {
             var ret = new Dictionary<string, string>()
