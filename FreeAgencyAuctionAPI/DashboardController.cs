@@ -266,5 +266,89 @@ namespace FreeAgencyAuctionAPI
             return NoContent();
 
         }
+        //get taxi players
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/pending-trades")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetMyPendingTrades([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var taxi = await _mfl.GetMyPendingTrades(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(taxi);
+        }
+        [HttpPost("propose-trade")]
+        public async Task<IActionResult> ProposeTrade([FromBody] TradeRequest body)
+        {
+            var now = DateTime.UtcNow;
+            body.Expires = ((DateTimeOffset)now.AddDays(7)).ToUnixTimeSeconds();
+            //do some verification
+            // make guid
+            body.CommentGuid = Guid.NewGuid();
+            var dbProp = new Proposal
+            {
+                CapEatCandidates = body.SendingAssets
+                .Where(_ => _.CapEats.Count > 0).ToList()
+                .Concat(body.ReceivingAssets.Where(r => r.CapEats.Count > 0))
+                .SelectMany(_ => _.CapEats)
+                .Select(_ => new CapEatCandidate
+                {
+                    EaterId = _.EaterId,
+                    LeagueId = body.LeagueId,
+                    CapAdjustment = _.Amount,
+                    MflPlayerId = _.MflId,
+                    ReceiverId = _.ReceiverId,
+                    Year = _.Year
+                }).ToList(),
+                ReceiverId = body.ReceiverId,
+                Expires = body.Expires,
+            }
+            // add cap eats to db
+            var dbCapEats = body.ReceivingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
+            {
+                CapAdjustment = a.Amount,
+                EaterId = a.EaterId,
+                LeagueId = body.LeagueId,
+                MflPlayerId = a.MflId,
+                ReceiverId = a.ReceiverId,
+                Year = a.Year
+            });
+            var moreCapEats = body.SendingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
+            {
+                CapAdjustment = a.Amount,
+                EaterId = a.EaterId,
+                LeagueId = body.LeagueId,
+                MflPlayerId = a.MflId,
+                ReceiverId = a.ReceiverId,
+
+                Year = a.Year
+            });
+            dbCapEats = dbCapEats.Concat(moreCapEats);
+            try
+            {
+                await _db.CapEatCandidates.AddRangeAsync(dbCapEats);
+                _db.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ErrorResponse($"couldn't save to database: {ex.Message}"));
+            }
+            try
+            {
+                await _mfl.ProposeMflTrade(body);
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+
+            // post trade to mfl
+            // retry?
+
+            //
+
+            return Ok();
+
+        }
     }
 }

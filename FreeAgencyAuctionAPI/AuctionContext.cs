@@ -30,6 +30,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<SeasonWins> SeasonWins { get;set; }
         public DbSet<OverUnderPick> OverUnderPicks { get; set; }
         public DbSet<WaiverExtension> WaiverExtensions { get; set; }
+        public DbSet<CapEatCandidate> CapEatCandidates { get; set; }
+        public DbSet<Proposal> Proposals { get; set; }
         public DbSet<Pool> Pools { get; set; }
         public DbSet<PoolUser> PoolUsers { get; set; }
         /*
@@ -565,6 +567,55 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("name");
                 entity.HasKey(e => e.Id);
             });
+            modelBuilder.Entity<Proposal>(entity =>
+            {
+                entity.ToTable("proposal");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.LeagueId)
+                    .HasColumnName("leagueId");
+                entity.Property(e => e.SenderId)
+                    .HasColumnName("senderId");
+                entity.Property(e => e.ReceiverId)
+                    .HasColumnName("receiverId");
+                entity.Property(e => e.Accepted)
+                    .HasColumnName("accepted");
+                entity.Property(e => e.Expires)
+                    .HasColumnName("expires");
+                entity.Property(e => e.MflTradeId)
+                    .HasColumnName("mflTradeId");
+                entity.Property(e => e.CommentGUID).HasColumnName("commentGUID");
+
+                
+                entity.HasKey(e => e.Id);
+            });
+            modelBuilder.Entity<CapEatCandidate>(entity =>
+            {
+                entity.ToTable("capeatcandidate");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.LeagueId)
+                    .HasColumnName("leagueId");
+                entity.Property(e => e.EaterId)
+                    .HasColumnName("eaterid");
+                entity.Property(e => e.ReceiverId)
+                    .HasColumnName("receiverId");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.MflPlayerId)
+                    .HasColumnName("mflPlayerId");
+                entity.Property(e => e.CapAdjustment).HasColumnName("capAdjustment");
+                entity.Property(e => e.TradeId).HasColumnName("tradeId");
+                entity.HasOne(e => e.Proposal)
+                    .WithMany(l => l.CapEatCandidates)
+                    .HasForeignKey(d => d.TradeId)
+                    .HasConstraintName("FK_capeatcandidate_proposal");
+                entity.HasKey(e => e.Id);
+            });
             modelBuilder.Entity<FranchiseTagPlayer>(entity =>
             {
                 entity.ToTable("franchisetagplayer");
@@ -981,5 +1032,30 @@ namespace FreeAgencyAuctionAPI
         public virtual Pool Pool { get; set; } = null!;
         public virtual OwnerEntity Owner { get; set; } = null!;
         public virtual ICollection<OverUnderPick> OverUnderPicks { get; } = new List<OverUnderPick>();
+    }
+    public class CapEatCandidate
+    {
+        [Key]
+        public int Id { get; set; }
+        public int EaterId { get; set; }
+        public int ReceiverId { get; set; }
+        public int LeagueId { get; set; }
+        public int TradeId { get; set; }
+        public int Year { get; set; }
+        public int MflPlayerId { get; set; }
+        public int CapAdjustment { get; set; }
+        public virtual Proposal Proposal { get;set;} = null!;
+    }
+    public class Proposal
+    {
+        [Key]
+        public int Id { get; set; }
+        public int LeagueId { get; set; }
+        public int SenderId { get; set; }
+        public int ReceiverId { get; set; }
+        public bool Accepted { get; set; }
+        public long Expires { get; set; }
+        public int MflTradeId { get; set; }
+        public virtual ICollection<CapEatCandidate> CapEatCandidates { get; set; } = new List<CapEatCandidate>();
     }
 }

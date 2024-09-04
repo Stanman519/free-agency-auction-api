@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,7 +17,7 @@ namespace FreeAgencyAuctionAPI.Services
     public interface IMflService
     {
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
-
+        
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
@@ -33,6 +35,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
+        Task ProposeMflTrade(TradeRequest req);
     }
 
     public class MflService : IMflService
@@ -45,8 +48,9 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IPlayerRepo _pRepo;
         private readonly IMapper _mapper;
         private readonly IOptionsSnapshot<AppConfig> _options;
+        private readonly AuctionContext _db;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IMapper mapper, IOptionsSnapshot<AppConfig> options)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IMapper mapper, AuctionContext db, IOptionsSnapshot<AppConfig> options)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
@@ -56,6 +60,7 @@ namespace FreeAgencyAuctionAPI.Services
             _pRepo = pRepo;
             _mapper = mapper;
             _options = options;
+            _db = db;
         }
 
         public async Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId)
@@ -724,6 +729,86 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
+        public async Task ProposeMflTrade(TradeRequest req)
+        {
+            var hasSenderEats = req.SendingAssets.SelectMany(a => a.CapEats).Any();
+            var hasReceiverEats = req.ReceivingAssets.SelectMany(a => a.CapEats).Any();
+
+            var botId = Utils.leagueBotDict.TryGetValue(req.LeagueId, out var x) ? x : string.Empty;
+            var now = DateTime.Now;
+            var comment = $"THIS TRADE INCLUDES SALARY CAP EATING. - - - "; 
+              
+            if (hasSenderEats) {
+                comment = comment + $"{req.SenderTeamName} will eat these salary portions: - - - ";
+                req.SendingAssets.ForEach(a =>
+                {
+                    if (!a.MflId.StartsWith("DP_") && !a.MflId.StartsWith("FP_") && a.CapEats.Any())
+                    {
+                        comment = comment + $"{a.PlayerDetails.FullName}: - - - ";
+                        a.CapEats.ForEach(c =>
+                        {
+                            comment = comment + $"************ {c.Year}: ${c.Amount} - - - ";
+                        });
+                    }
+                });
+            }
+            if (hasReceiverEats)
+            {
+                comment = comment + $"{req.ReceiverTeamName} will eat these salary portions: - - - ";
+                req.ReceivingAssets.ForEach(a =>
+                {
+                    if (!a.MflId.StartsWith("DP_") && !a.MflId.StartsWith("FP_") && a.CapEats.Any())
+                    {
+                        comment = comment + $"{a.PlayerDetails.FullName}: - - - ";
+                        a.CapEats.ForEach(c =>
+                        {
+                            comment = comment + $"************ {c.Year}: ${c.Amount} - - - ";
+                        });
+                    }
+                });
+            }
+
+            comment = comment + $" * * * * If you would like to counter with a trade that involves salary cap eating, you'll need to go to stanfan.net";
+
+            var sendingAssetIds = string.Join(",", req.SendingAssets.Select(a => a.MflId).ToList());
+            var receivingAssetIds = string.Join(",", req.ReceivingAssets.Select(a => a.MflId).ToList());
+
+            try
+            {
+                var tradeReqRes = await _leagueApi.SendTradeOffer(now.Year, req.LeagueId, req.ReceiverId.ToString("D4"),sendingAssetIds,receivingAssetIds, comment, req.Expires, req.SenderId.ToString("D4"));
+                var respString = await tradeReqRes.Content.ReadAsStringAsync();
+                if (respString.ToUpper().Contains("ERROR"))
+                {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
+                    _logger.LogInformation(respString);
+                    _logger.LogError($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}: {respString}");
+                    await _gm.NotifyMflError(new BotMessage($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}", botId));
+                    throw new Exception($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}: {respString}");
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "trade offer fail");
+                throw;
+            }
+        }
+
+        public async Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var apiKey = _options.Value.Mfl.MflApiKey;
+            var pendingMflTradesRes = await _leagueApi.GetPendingTrades(leagueId, mflFranchiseId.ToString("D4"), now.Year, apiKey);
+            var pendingTrades = pendingMflTradesRes.pendingTrades.pendingTrade;
+            
+            var dbCapEats = await _db.CapEatCandidates.Where(c => c.LeagueId == leagueId )
+            
+            pendingTrades.ForEach(t =>
+            {
+
+            });
+        }
+
+
         private int GetTagValueFromPosition(string position, FranchiseTagLeague l)
         {
              switch (position.ToUpper())
@@ -753,7 +838,17 @@ namespace FreeAgencyAuctionAPI.Services
             };
             return ret;
         }
-
+        //private Dictionary<string, string> CreateBodyDataForNewTradeProposal(string franchiseId, string offeredTo, string willGiveUp, string willReceive, string comments,string franchiseId )
+        //{
+        //    var ret = new Dictionary<string, string>()
+        //    {
+        //        {
+        //            "DATA",
+        //            $"<?xml version='1.0' encoding='UTF-8' ?><salary_adjustments><salary_adjustment franchise_id=\"{franchiseId}\" amount=\"{adjustmentAmount}\" explanation=\"{reason} {player.LastName}, {player.FirstName} {player.Team} {player.Position} (Salary: ${player.Salary}, years left: {length})\"/></salary_adjustments>"
+        //        }
+        //    };
+        //    return ret;
+        //}
         private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1)
         {
             var ret = new Dictionary<string, string>()
