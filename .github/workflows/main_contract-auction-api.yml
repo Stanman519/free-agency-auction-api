@@ -31,7 +31,7 @@ jobs:
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
         run: |
           # Define the path to your appsettings.Development.json file
-          $appSettingsPath = "${{ github.workspace }}\FreeAgencyAuctionAPI\appsettings.Development.json"
+          $appSettingsPath = "${{ github.workspace }}\FreeAgencyAuctionAPI\appsettings.json"
           
           # Update the MflApiKey with the respective keys from secrets
           jq --arg key1 "$env:MFL_API_KEY_15238" '.Mfl.MflApiKey[0].key = $key1' $appSettingsPath | Out-File -Encoding utf8 $appSettingsPath
