@@ -1,4 +1,6 @@
-﻿namespace FreeAgencyAuctionAPI
+﻿using System.Collections.Generic;
+
+namespace FreeAgencyAuctionAPI
 {
     public class AppConfig
     {
@@ -30,7 +32,12 @@
     public class MflKeys
     {
         public string CommishCookie { get; set; }
-        public string MflApiKey { get; set; }
+        public List<MflApiKey> MflApiKey { get; set; }
+    }
+    public class MflApiKey
+    {
+        public int id { get; set; }
+        public string key { get; set; }
     }
     public class StreamClient
     {

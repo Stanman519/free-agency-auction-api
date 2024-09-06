@@ -586,7 +586,6 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("expires");
                 entity.Property(e => e.MflTradeId)
                     .HasColumnName("mflTradeId");
-                entity.Property(e => e.CommentGUID).HasColumnName("commentGUID");
 
                 
                 entity.HasKey(e => e.Id);

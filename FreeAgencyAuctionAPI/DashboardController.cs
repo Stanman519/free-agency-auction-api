@@ -284,48 +284,31 @@ namespace FreeAgencyAuctionAPI
             //do some verification
             // make guid
             body.CommentGuid = Guid.NewGuid();
+
             var dbProp = new Proposal
             {
                 CapEatCandidates = body.SendingAssets
-                .Where(_ => _.CapEats.Count > 0).ToList()
-                .Concat(body.ReceivingAssets.Where(r => r.CapEats.Count > 0))
-                .SelectMany(_ => _.CapEats)
-                .Select(_ => new CapEatCandidate
-                {
-                    EaterId = _.EaterId,
-                    LeagueId = body.LeagueId,
-                    CapAdjustment = _.Amount,
-                    MflPlayerId = _.MflId,
-                    ReceiverId = _.ReceiverId,
-                    Year = _.Year
-                }).ToList(),
+                    .Where(_ => _.CapEats.Count > 0).ToList()
+                    .Concat(body.ReceivingAssets.Where(r => r.CapEats.Count > 0))
+                        .SelectMany(_ => _.CapEats)
+                        .Select(_ => new CapEatCandidate
+                        {
+                            EaterId = _.EaterId,
+                            LeagueId = body.LeagueId,
+                            CapAdjustment = _.Amount,
+                            MflPlayerId = _.MflId,
+                            ReceiverId = _.ReceiverId,
+                            Year = _.Year
+                        }).ToList(),
                 ReceiverId = body.ReceiverId,
                 Expires = body.Expires,
-            }
-            // add cap eats to db
-            var dbCapEats = body.ReceivingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
-            {
-                CapAdjustment = a.Amount,
-                EaterId = a.EaterId,
                 LeagueId = body.LeagueId,
-                MflPlayerId = a.MflId,
-                ReceiverId = a.ReceiverId,
-                Year = a.Year
-            });
-            var moreCapEats = body.SendingAssets.Where(a => a.CapEats.Any()).SelectMany(x => x.CapEats).Select(a => new CapEatCandidate
-            {
-                CapAdjustment = a.Amount,
-                EaterId = a.EaterId,
-                LeagueId = body.LeagueId,
-                MflPlayerId = a.MflId,
-                ReceiverId = a.ReceiverId,
+                SenderId = body.SenderId
+            };
 
-                Year = a.Year
-            });
-            dbCapEats = dbCapEats.Concat(moreCapEats);
             try
             {
-                await _db.CapEatCandidates.AddRangeAsync(dbCapEats);
+                await _db.Proposals.AddAsync(dbProp);
                 _db.SaveChanges();
             }
             catch (Exception ex)

@@ -9,6 +9,7 @@ using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -35,6 +36,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
+        Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId);
         Task ProposeMflTrade(TradeRequest req);
     }
 
@@ -202,7 +204,7 @@ namespace FreeAgencyAuctionAPI.Services
             //Check out other api to add custom json serializer so you dont have to do this.
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
             var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
-            var apiKey = _options.Value.Mfl.MflApiKey;
+            var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear, position, apiKey);
             var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 1, position, apiKey);
             var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 2, position, apiKey);
@@ -266,7 +268,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
-            var apiKey = _options.Value.Mfl.MflApiKey;
+            var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             // get all waivered guys
             var transactionResp = await _leagueApi.GetLastYearWaiverTransactions(leagueId, apiKey);
             if (transactionResp.transactions.transaction == null) return new List<PlayerDTO>();
@@ -796,16 +798,121 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId)
         {
             var now = DateTimeOffset.UtcNow;
-            var apiKey = _options.Value.Mfl.MflApiKey;
+            var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             var pendingMflTradesRes = await _leagueApi.GetPendingTrades(leagueId, mflFranchiseId.ToString("D4"), now.Year, apiKey);
             var pendingTrades = pendingMflTradesRes.pendingTrades.pendingTrade;
-            
-            var dbCapEats = await _db.CapEatCandidates.Where(c => c.LeagueId == leagueId )
-            
-            pendingTrades.ForEach(t =>
+            if (pendingTrades.Count == 0) 
             {
+                return new PendingTradeResponse
+                {
+                    tradeRequests = new List<TradeRequest>()
+                };
+            }
+            var dbCapEatsTask = _db.CapEatCandidates
+                .Where(c => c.LeagueId == leagueId && pendingTrades.Select(pt => pt.expires).ToList()
+                    .Contains(c.Proposal.Expires.ToString()))
+                .ToListAsync();
+            var lookupIds = pendingTrades.SelectMany(p => p.will_give_up.Split(","))
+                    .Concat(pendingTrades.SelectMany(pt => pt.will_receive.Split(",")))
+                    .Where(id => !id.StartsWith("FP_") && !id.StartsWith("DP_"));
 
-            });
+
+            var tradePlayersTask =  _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", lookupIds));
+            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, now.Year);
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
+
+            await Task.WhenAll(tradePlayersTask, assetsTask, dbCapEatsTask, rostersTask);
+            
+            var dbPlayers = await _db.Players.Where(p => lookupIds.Contains(p.Mflid.ToString())).ToListAsync();
+            var tradePlayers = tradePlayersTask.Result.players.player;
+            var pickAssets = assetsTask.Result.assets.franchise.SelectMany(f => f.futureYearDraftPicks.draftPick)
+                .Concat(assetsTask.Result.assets.franchise.SelectMany(f => f.currentYearDraftPicks.draftPick));
+            var playerContracts = rostersTask.Result.rosters.franchise.SelectMany(f => f.player);
+
+
+            var returnList = pendingTrades.GroupJoin(dbCapEatsTask.Result, 
+                mfl => new { mfl.expires, mfl.offeringTeam }, 
+                db => new { expires = db.Proposal.Expires.ToString(), offeringTeam = db.Proposal.SenderId.ToString("D4") }, 
+                (mfl, db) => new TradeRequest
+            {
+                    Expires = long.Parse(mfl.expires),
+                    ReceiverId = int.Parse(mfl.offeredTo),
+                    LeagueId = leagueId,
+                    SenderId = int.Parse(mfl.offeringTeam),
+                    ReceiverTeamName = mfl.offeredTo,
+                    SenderTeamName = mfl.offeringTeam,
+                    ReceivingAssets = mfl.will_receive.Split(",").Select(a => new TradeOfferAsset
+                    {
+                        MflId = a,
+                        PlayerDetails = (a.StartsWith("DP_") || a.StartsWith("FP_")) ?
+                            new PlayerDTO { FullName = pickAssets.FirstOrDefault(asset => asset.pick == a).description } : 
+                            tradePlayers.Where(t => t.id == a).Select(found => {
+
+                                var dbFound = dbPlayers.FirstOrDefault(dbPlayer => dbPlayer.Mflid.ToString() == a);
+                                var contract = playerContracts.FirstOrDefault(con => con.id == a);
+                                return new PlayerDTO
+                                {
+                                    Headshot = dbFound.Headshot,
+                                    Age = GetAgeInt(found.birthdate),
+                                    FirstName = found.first_name,
+                                    LastName = found.last_name,
+                                    FullName = found.name,
+                                    Length = int.TryParse(contract.contractYear, out var l) ? l : 0,
+                                    Salary = int.TryParse(contract.salary, out var s) ? s : 0,
+                                    MflId = int.Parse(a),
+                                    Position = found.position,
+                                    Team = found.team
+                                };
+                                }).FirstOrDefault(), 
+                        CapEats = db.Where(capEat => capEat.EaterId == (int.TryParse(mfl.offeredTo, out var to) ? to : 0)).Select(capEat => new CapEat
+                        {
+                            Amount = capEat.CapAdjustment,
+                            Year = capEat.Year,
+                            EaterId = capEat.EaterId,
+                            ReceiverId = capEat.ReceiverId,
+                            MflId = capEat.MflPlayerId
+                        }).ToList()
+                    }).ToList(),
+                    SendingAssets = mfl.will_give_up.Split(",").Select(a => new TradeOfferAsset
+                    {
+                        MflId = a,
+                        PlayerDetails = (a.StartsWith("DP_") || a.StartsWith("FP_")) ?
+                        new PlayerDTO { FullName = pickAssets.FirstOrDefault(asset => asset.pick == a).description } :
+                        tradePlayers.Where(t => t.id == a).Select(found => {
+
+                            var dbFound = dbPlayers.FirstOrDefault(dbPlayer => dbPlayer.Mflid.ToString() == a);
+                            var contract = playerContracts.FirstOrDefault(con => con.id == a);
+                            return new PlayerDTO
+                            {
+                                Headshot = dbFound.Headshot,
+                                Age = GetAgeInt(found.birthdate),
+                                FirstName = found.first_name,
+                                LastName = found.last_name,
+                                FullName = found.name,
+                                Length = int.TryParse(contract.contractYear, out var l) ? l : 0,
+                                Salary = int.TryParse(contract.salary, out var s) ? s : 0,
+                                MflId = int.Parse(a),
+                                Position = found.position,
+                                Team = found.team
+                            };
+                        }).FirstOrDefault(),
+                        CapEats = db.Where(capEat => capEat.EaterId == (int.TryParse(mfl.offeringTeam, out var to) ? to : 0)).Select(capEat => new CapEat
+                        {
+                            Amount = capEat.CapAdjustment,
+                            Year = capEat.Year,
+                            EaterId = capEat.EaterId,
+                            ReceiverId = capEat.ReceiverId,
+                            MflId = capEat.MflPlayerId
+                        }).ToList()
+                    }).ToList()
+
+
+                });
+
+            return new PendingTradeResponse
+            {
+                tradeRequests = returnList.ToList()
+            };
         }
 
 

@@ -268,3 +268,4 @@ __pycache__/
 **/secrets.json
 .DS_Store
 appsettings.local.json
+/FreeAgencyAuctionAPI/appsettings.Development.json
