@@ -26,7 +26,6 @@ jobs:
         run: choco install jq -y
       - name: Replace strings in appsettings.json
         env:
-          COMMISH_COOKIE: ${{ secrets.COMMISH_COOKIE }}
           MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
         run: |
