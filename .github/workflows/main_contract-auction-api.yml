@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy ASP.Net Core app to Azure Web App - contract-auction-api
 
 on:
@@ -21,23 +18,28 @@ jobs:
         with:
           dotnet-version: '6.0.x'
           include-prerelease: true
-      
-      - name: Install jq
-        run: choco install jq -y
+
       - name: Replace strings in appsettings.json
         env:
           MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
         run: |
-          # Define the path to your appsettings.Development.json file
+          # Define the path to your appsettings.json file
           $appSettingsPath = "${{ github.workspace }}\FreeAgencyAuctionAPI\appsettings.json"
           
-          # Update the MflApiKey with the respective keys from secrets
-          jq --arg key1 "$env:MFL_API_KEY_15238" '.Mfl.MflApiKey[0].key = $key1' $appSettingsPath | Out-File -Encoding utf8 $appSettingsPath
-          jq --arg key2 "$env:MFL_API_KEY_26548" '.Mfl.MflApiKey[1].key = $key2' $appSettingsPath | Out-File -Encoding utf8 $appSettingsPath
-
-          # Output the updated appsettings.json (optional for logging)
+          # Read the file contents
+          $json = Get-Content $appSettingsPath | Out-String | ConvertFrom-Json
+          
+          # Update the JSON properties with secrets
+          $json.Mfl.MflApiKey[0].key = $env:MFL_API_KEY_15238
+          $json.Mfl.MflApiKey[1].key = $env:MFL_API_KEY_26548
+          
+          # Save the updated JSON back to the file
+          $json | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath
+          
+          # Optional: Output the updated appsettings.json for verification
           Get-Content $appSettingsPath
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
