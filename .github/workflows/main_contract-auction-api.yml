@@ -18,28 +18,14 @@ jobs:
         with:
           dotnet-version: '6.0.x'
           include-prerelease: true
-
-      - name: Replace strings in appsettings.json
+      - uses: cschleiden/replace-tokens@v1
+        with:
+          files: 'FreeAgencyAuctionAPI/appsettings.json'
         env:
           MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
-        run: |
-          # Define the path to your appsettings.json file
-          $appSettingsPath = "${{ github.workspace }}\FreeAgencyAuctionAPI\appsettings.json"
+          files: '["**/*.js"]'
           
-          # Read the file contents
-          $json = Get-Content $appSettingsPath | Out-String | ConvertFrom-Json
-          
-          # Update the JSON properties with secrets
-          $json.Mfl.MflApiKey[0].key = $env:MFL_API_KEY_15238
-          $json.Mfl.MflApiKey[1].key = $env:MFL_API_KEY_26548
-          
-          # Save the updated JSON back to the file
-          $json | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath
-          
-          # Optional: Output the updated appsettings.json for verification
-          Get-Content $appSettingsPath
-
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
