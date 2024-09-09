@@ -849,7 +849,7 @@ namespace FreeAgencyAuctionAPI.Services
                     SenderId = int.Parse(mfl.offeringTeam),
                     ReceiverTeamName = mfl.offeredTo,
                     SenderTeamName = mfl.offeringTeam,
-                    ReceivingAssets = mfl.will_receive.Split(",").Select(a => new TradeOfferAsset
+                    ReceivingAssets = mfl.will_receive.Split(",").Where(_ => !string.IsNullOrEmpty(_)).Select(a => new TradeOfferAsset
                     {
                         MflId = a,
                         PlayerDetails = (a.StartsWith("DP_") || a.StartsWith("FP_")) ?
@@ -872,7 +872,7 @@ namespace FreeAgencyAuctionAPI.Services
                                     Team = found.team
                                 };
                                 }).FirstOrDefault(), 
-                        CapEats = db.Where(capEat => capEat.EaterId == (int.TryParse(mfl.offeredTo, out var to) ? to : 0)).Select(capEat => new CapEat
+                        CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeredTo, out var to) ? to : 0)) && capEat.MflPlayerId.ToString() == a).Select(capEat => new CapEat
                         {
                             Amount = capEat.CapAdjustment,
                             Year = capEat.Year,
@@ -881,7 +881,7 @@ namespace FreeAgencyAuctionAPI.Services
                             MflId = capEat.MflPlayerId
                         }).ToList()
                     }).ToList(),
-                    SendingAssets = mfl.will_give_up.Split(",").Select(a => new TradeOfferAsset
+                    SendingAssets = mfl.will_give_up.Split(",").Where(_ => !string.IsNullOrEmpty(_)).Select(a => new TradeOfferAsset
                     {
                         MflId = a,
                         PlayerDetails = (a.StartsWith("DP_") || a.StartsWith("FP_")) ?
@@ -904,7 +904,7 @@ namespace FreeAgencyAuctionAPI.Services
                                 Team = found.team
                             };
                         }).FirstOrDefault(),
-                        CapEats = db.Where(capEat => capEat.EaterId == (int.TryParse(mfl.offeringTeam, out var to) ? to : 0)).Select(capEat => new CapEat
+                        CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeringTeam, out var to) ? to : 0) && capEat.MflPlayerId.ToString() == a)).Select(capEat => new CapEat
                         {
                             Amount = capEat.CapAdjustment,
                             Year = capEat.Year,
