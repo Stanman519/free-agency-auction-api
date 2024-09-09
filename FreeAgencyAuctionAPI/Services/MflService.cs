@@ -820,8 +820,16 @@ namespace FreeAgencyAuctionAPI.Services
             var tradePlayersTask =  _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", lookupIds));
             var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, now.Year);
             var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
+            try
+            {
+                await Task.WhenAll(tradePlayersTask, assetsTask, dbCapEatsTask, rostersTask);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                throw;
+            }
 
-            await Task.WhenAll(tradePlayersTask, assetsTask, dbCapEatsTask, rostersTask);
             
             var dbPlayers = await _db.Players.Where(p => lookupIds.Contains(p.Mflid.ToString())).ToListAsync();
             var tradePlayers = tradePlayersTask.Result.players.player;

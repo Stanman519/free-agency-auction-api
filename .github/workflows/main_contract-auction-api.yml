@@ -24,7 +24,6 @@ jobs:
         env:
           MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
-          files: '["**/*.js"]'
           
       - name: Build with dotnet
         run: dotnet build --configuration Release
