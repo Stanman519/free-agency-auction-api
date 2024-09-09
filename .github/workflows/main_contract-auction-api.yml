@@ -20,7 +20,7 @@ jobs:
           include-prerelease: true
       - uses: cschleiden/replace-tokens@v1
         with:
-          files: 'FreeAgencyAuctionAPI/appsettings.json'
+          files: '**/*.json' # Target all JSON files in the repository
         env:
           MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
           MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
