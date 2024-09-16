@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RestEase;
 
 namespace FreeAgencyAuctionAPI.Services
 {
@@ -38,6 +39,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
         Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId);
         Task ProposeMflTrade(TradeRequest req);
+        Task ResponseToMflTrade(int year, int leagueId, int tradeId, string response, string comments, string franchiseId);
     }
 
     public class MflService : IMflService
@@ -921,6 +923,11 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 tradeRequests = returnList.ToList()
             };
+        }
+
+        public async Task ResponseToMflTrade( int year,  int leagueId,int tradeId,string response, string comments, string franchiseId)
+        {
+            var res = await _leagueApi.RespondToTrade(year, leagueId, tradeId, response, comments, franchiseId);
         }
 
 

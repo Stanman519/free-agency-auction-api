@@ -53,6 +53,7 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=pendingTrades&L={leagueId}&APIKEY={ApiKey}&FRANCHISE_ID={franchiseNum}&JSON=1")]
         Task<MflPendingTradesListRoot> GetPendingTrades([Path] int leagueId, [Path] string franchiseNum, [Path] int year, [Path] string ApiKey);
-
+        [Get("{year}/import?TYPE=tradeResponse&L={leagueId}&TRADE_ID={tradeId}&RESPONSE={response}&COMMENTS={comments}&FRANCHISE_ID={franchiseId}")]
+        Task<HttpResponseMessage> RespondToTrade([Path] int year, [Path] int leagueId, [Path] int tradeId, [Path] string response, [Path] string comments, [Path] string franchiseId);
     }
 }

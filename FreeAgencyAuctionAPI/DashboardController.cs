@@ -76,7 +76,7 @@ namespace FreeAgencyAuctionAPI
 
 
         // THESE ARE THE NEW CALLS TO SPLIT INTO
-        [HttpPost("auth")] 
+        [HttpPost("auth")]
         public async Task<IActionResult> SynchronizeAuth0ToDbOwner([Body] AuthUser user, [Query] string leagueId)
         {
             var hasLogin = !string.IsNullOrEmpty(user.Sub);
@@ -149,7 +149,7 @@ namespace FreeAgencyAuctionAPI
 
         [HttpPost("league-home")] //NEED TO CHANGE NAME ON CLIENT
         public async Task<IActionResult> GetOnLoadInfo([Body] AuthUser user, [Query] string leagueId)
-        {           
+        {
             // this is fucking disgusting. separate into multiple calls.
             var dashboard = new LeagueDashboardDTO();
             OwnerDTO profile = null;
@@ -163,34 +163,34 @@ namespace FreeAgencyAuctionAPI
                 int.TryParse(leagueId, out safeLeagueId);
             }
             if (!hasLogin) return new BadRequestResult();
-            
-            profile = await _oService.SynchronizeAuthorizedUser(user); 
+
+            profile = await _oService.SynchronizeAuthorizedUser(user);
             dashboard.Profile = profile;
 
             if (profile.Leagues.Any())
             {
 
             }
-            var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ? 
-                                    profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) : 
+            var chosenLeague = (queryLeague && safeLeagueId != 0 && profile.Leagues.Any(l => l.League.LeagueId == safeLeagueId)) ?
+                                    profile.Leagues.FirstOrDefault(l => l.League.LeagueId == safeLeagueId) :
                                     profile.Leagues.FirstOrDefault();
 
-            chosenLeagueId =  chosenLeague?.League?.LeagueId ?? null;
+            chosenLeagueId = chosenLeague?.League?.LeagueId ?? null;
             if (profile != null && chosenLeagueId != null)
             {
                 var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)chosenLeagueId, chosenLeague);
                 chosenLeague.TagCandidates = ownerOffseasonData.TagCandidates;
                 chosenLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
-                chosenLeague.CutCandidates = ownerOffseasonData.CutCandidates; 
+                chosenLeague.CutCandidates = ownerOffseasonData.CutCandidates;
             }
-            
+
             try
             {
                 if (chosenLeagueId != null)
                 {
                     dashboard.Leagues = profile.Leagues.Select(l => l.League).ToList();
                 }
-                return Ok(dashboard); 
+                return Ok(dashboard);
             }
             catch (Exception e)
             {
@@ -219,7 +219,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> GetDetailsForPlayerIds([FromRoute] int leagueId, [FromRoute] int year, [FromRoute] string playerIds)
         {
             var players = await _mfl.GetMflPlayersByIds(leagueId, year, playerIds);
-           
+
             return Ok(players);
         }
 
@@ -257,7 +257,7 @@ namespace FreeAgencyAuctionAPI
         {
             await _mfl.FreeDropTaxiPlayer(body);
             return NoContent();
-            
+
         }
         [HttpPost("buyout")]
         public async Task<IActionResult> BuyoutPlayer([FromBody] CutRequestBody body)
@@ -266,7 +266,42 @@ namespace FreeAgencyAuctionAPI
             return NoContent();
 
         }
-        //get taxi players
+
+        [HttpGet("league/{leagueId}/trades/{tradeId}/{leagueOwnerId}/mfl/{mflFranchiseId}/reject-trade/comments/{comments}")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> RejectPendingTrade([Path] int leagueId, [Path] int tradeId, [Path] int leagueOwnerId, [Path] int mflFranchiseId, [Path] string comments)
+        {
+            var year = DateTime.UtcNow.Year;
+            var response = "reject";
+            await _mfl.ResponseToMflTrade(year, leagueId, tradeId, response, comments, mflFranchiseId.ToString("D4"));
+            return Ok();
+        }
+
+        [HttpGet("league/{leagueId}/trades/{tradeId}/{leagueOwnerId}/mfl/{mflFranchiseId}/revoke-trade/comments/{comments}")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Revoke([Path] int leagueId, [Path] int tradeId, [Path] int leagueOwnerId, [Path] int mflFranchiseId, [Path] string comments)
+        {
+            var year = DateTime.UtcNow.Year;
+            var response = "revoke";
+            await _mfl.ResponseToMflTrade(year, leagueId, tradeId, response, comments, mflFranchiseId.ToString("D4"));
+            return Ok();
+        }
+        [HttpGet("league/{leagueId}/trades/{tradeId}/{leagueOwnerId}/mfl/{mflFranchiseId}/accept-trade")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Revoke([Path] int leagueId, [Path] int tradeId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var year = DateTime.UtcNow.Year;
+            var response = "accept";
+            await _mfl.ResponseToMflTrade(year, leagueId, tradeId, response, string.Empty, mflFranchiseId.ToString("D4"));
+            return Ok();
+        }
+
         [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/pending-trades")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
