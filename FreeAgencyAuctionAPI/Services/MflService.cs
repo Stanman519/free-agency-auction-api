@@ -37,7 +37,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
-        Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId);
+        Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int mflFranchiseId);
         Task ProposeMflTrade(TradeRequest req);
         Task ResponseToMflTrade(int year, int leagueId, int tradeId, string response, string comments, string franchiseId);
     }
@@ -797,7 +797,7 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        public async Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int franchiseOwnerId, int mflFranchiseId)
+        public async Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int mflFranchiseId)
         {
             var now = DateTimeOffset.UtcNow;
             var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;

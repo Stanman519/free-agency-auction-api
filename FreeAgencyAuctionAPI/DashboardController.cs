@@ -308,7 +308,7 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetMyPendingTrades([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
         {
-            var taxi = await _mfl.GetMyPendingTrades(leagueId, leagueOwnerId, mflFranchiseId);
+            var taxi = await _mfl.GetMyPendingTrades(leagueId, mflFranchiseId);
             return Ok(taxi);
         }
         [HttpPost("propose-trade")]
@@ -319,6 +319,9 @@ namespace FreeAgencyAuctionAPI
             //do some verification
             // make guid
             body.CommentGuid = Guid.NewGuid();
+            var currentTrades = await _mfl.GetMyPendingTrades(body.LeagueId, body.SenderId);
+
+
 
             var dbProp = new Proposal
             {
