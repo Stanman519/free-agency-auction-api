@@ -845,6 +845,7 @@ namespace FreeAgencyAuctionAPI.Services
                 db => new { expires = db.Proposal.Expires.ToString(), offeringTeam = db.Proposal.SenderId.ToString("D4") }, 
                 (mfl, db) => new TradeRequest
             {
+                    TradeId = mfl.trade_id,
                     Expires = long.Parse(mfl.expires),
                     ReceiverId = int.Parse(mfl.offeredTo),
                     LeagueId = leagueId,

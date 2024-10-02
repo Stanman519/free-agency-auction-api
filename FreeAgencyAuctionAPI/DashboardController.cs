@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using RestEase;
 using System;
 using System.Collections.Generic;
@@ -320,8 +321,31 @@ namespace FreeAgencyAuctionAPI
             // make guid
             body.CommentGuid = Guid.NewGuid();
             var currentTrades = await _mfl.GetMyPendingTrades(body.LeagueId, body.SenderId);
+            //check if there are any trades out there where all the assets are the same to cancel them.
+            var potentialDupeTrades = currentTrades.tradeRequests
+                .Where(t => (t.SenderId == body.SenderId && t.ReceiverId == body.ReceiverId) ||
+                (t.SenderId == body.ReceiverId && t.ReceiverId == body.SenderId)).ToList();
+            var dupe = potentialDupeTrades.FirstOrDefault(p =>
+            {
+                var sendingInts = p.SendingAssets.Where(sa => !string.IsNullOrEmpty(sa.MflId)).Select(sa => sa.MflId);
+                var receivingInts = p.ReceivingAssets.Where(sa => !string.IsNullOrEmpty(sa.MflId)).Select(sa => sa.MflId);
+                var newSendings = body.SendingAssets.Where(sa => !string.IsNullOrEmpty(sa.MflId)).Select(sa => sa.MflId);
+                var newRecevings = body.ReceivingAssets.Where(sa => !string.IsNullOrEmpty(sa.MflId)).Select(sa => sa.MflId);
 
+                return
+                    (sendingInts.SequenceEqual(newSendings) && receivingInts.SequenceEqual(newRecevings)) ||
+                    (sendingInts.SequenceEqual(newRecevings) && receivingInts.SequenceEqual(newSendings));
 
+            });
+
+            if (dupe != null)
+            {
+                //revoke duplicate trade so new one doesnt fail.
+                var response = dupe.SenderId == body.SenderId ? "revoke" : "reject";
+                await _mfl.ResponseToMflTrade(now.Year, body.LeagueId, int.Parse(dupe.TradeId), response, "Revoked to prevent duplicate mfl trade.", body.SenderId.ToString("D4"));
+            }
+
+            
 
             var dbProp = new Proposal
             {

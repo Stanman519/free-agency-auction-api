@@ -14,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Models
         public Guid CommentGuid { get; set; }
         public int LeagueId { get; set; }
         public long Expires { get; set; }
+        public string TradeId { get; set; }
     }
     public class CapEat
     {
@@ -26,7 +27,7 @@ namespace FreeAgencyAuctionAPI.Models
     public class TradeOfferAsset {
         public string MflId { get; set; }
         public PlayerDTO PlayerDetails { get; set; }
-        public List<CapEat> CapEats { get; set; }
+        public List<CapEat> CapEats { get; set; } = new List<CapEat>();
     }
     
 
