@@ -4,7 +4,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public static class Utils
     {
-        public const int ThisYear = 2024;
+        public const int ThisYear = 2025;
         public static Dictionary<int, string> Owners = new()
         {
             {1, "Ryan"},

@@ -660,7 +660,7 @@ namespace FreeAgencyAuctionAPI.Services
             }
             try
             {
-                var data = CreateBodyDataForNewSalaryAdj(franchiseStr, -req.rebate, "TAXI_REBATE", req.player);
+                var data = CreateBodyDataForNewSalaryAdj(franchiseStr, -req.rebate, "TAXI_REBATE", req.player, req.player.Length ?? 1);
                 var dropRequest = await _leagueApi.AddSalaryAdjustment(req.leagueId, data);
                 var respString = await dropRequest.Content.ReadAsStringAsync();
                 if (respString.ToUpper().Contains("ERROR"))
@@ -950,7 +950,7 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        private Dictionary<string, string> CreateBodyDataForNewSalaryAdj(string franchiseId, double adjustmentAmount, string reason, PlayerDTO player, int length = 1)
+        private Dictionary<string, string> CreateBodyDataForNewSalaryAdj(string franchiseId, double adjustmentAmount, string reason, PlayerDTO player, int length)
         {
             var ret = new Dictionary<string, string>()
             {
