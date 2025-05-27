@@ -105,11 +105,11 @@ namespace FreeAgencyAuctionAPI
             {
                 app.UseDeveloperExceptionPage();
             }
-
+            app.UseCors("AllowSpecificOrigin");
             app.UseHttpsRedirection();
 
             app.UseRouting();
-            app.UseCors("AllowSpecificOrigin");
+
 
             app.UseSwagger();
             app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Free Agency Auction"); });
