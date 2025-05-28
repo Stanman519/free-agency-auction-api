@@ -395,5 +395,33 @@ namespace FreeAgencyAuctionAPI
             return Ok();
 
         }
+        // get all holdout players in league
+        [HttpGet("league/{leagueId}/holdout-players")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetAllHoldoutPlayers([Path] int leagueId)
+        {
+            var x = await _mfl.GetHoldoutPlayers(leagueId);
+            return Ok(x);
+        }
+        // need config for threshholds of position rankings
+        // get all scores from mfl with YTD as W
+        // get players from mfl
+        // get contracts from mfl
+
+        // join on id
+
+        // get players who have > 1 year left on contract
+        // make threshholds for paygrades of each position
+        // make service method to get players who performed higher than threshholds above their paygrade
+
+
+
+
+        // get buyout player - 
+
+
+
     }
 }

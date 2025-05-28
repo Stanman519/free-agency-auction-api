@@ -417,6 +417,14 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("wr");
                 entity.Property(e => e.TE)
                     .HasColumnName("te");
+                entity.Property(e => e.QBTop3)
+    .HasColumnName("qbtop3");
+                entity.Property(e => e.RBTop3)
+    .HasColumnName("rbtop3");
+                entity.Property(e => e.WRTop3)
+    .HasColumnName("wrtop3");
+                entity.Property(e => e.TETop3)
+    .HasColumnName("tetop3");
                 entity.HasOne(e => e.League)
                 .WithMany(l => l.FranchiseTagLeagues)
                 .HasForeignKey(d => d.Mflleagueid)
@@ -876,6 +884,10 @@ namespace FreeAgencyAuctionAPI
         public int RB { get; set; }
         public int WR { get; set; }
         public int TE { get; set; }
+        public int QBTop3 { get; set; }
+        public int RBTop3 { get; set; }
+        public int WRTop3 { get; set; }
+        public int TETop3 { get; set; }
         public virtual LeagueEntity League { get; set; }
         public virtual ICollection<FranchiseTagPlayer> FranchiseTagPlayers { get; } = new List<FranchiseTagPlayer>();
     }

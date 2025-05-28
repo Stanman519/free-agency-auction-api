@@ -30,6 +30,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task AddBuyoutPlayer(CutRequestBody body);
         List<Buyout> GetBuyoutsUsedForTeam(int leagueownerId);
         List<FranchiseTagPlayer> GetTagsUsedForTeam(int leagueownerId);
+        List<FranchiseTagPlayer> GetAllTagsForLeague(int leagueId);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -82,6 +83,10 @@ namespace FreeAgencyAuctionAPI.Repos
         public List<FranchiseTagPlayer> GetTagsUsedForTeam(int leagueownerId)
         {
             return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == Utils.ThisYear).ToList();
+        }
+        public List<FranchiseTagPlayer> GetAllTagsForLeague(int leagueId)
+        {
+            return _db.FranchiseTagPlayers.Where(t => t.Mflleagueid == leagueId).ToList();
         }
 
         public async Task AddFranchiseTagForTeam(FranchiseTagPlayer player)

@@ -40,6 +40,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<PendingTradeResponse> GetMyPendingTrades(int leagueId, int mflFranchiseId);
         Task ProposeMflTrade(TradeRequest req);
         Task ResponseToMflTrade(int year, int leagueId, int tradeId, string response, string comments, string franchiseId);
+        Task<List<PlayerEligibility>> GetHoldoutPlayers(int leagueId);
     }
 
     public class MflService : IMflService
@@ -566,7 +567,11 @@ namespace FreeAgencyAuctionAPI.Services
                 await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
 
                 var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwner.Leagueownerid);
-                var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwner.Leagueownerid);
+
+                var allTags = _pRepo.GetAllTagsForLeague(leagueId);
+                var allTagsForThisFranchise = allTags.Where(t => t.Leagueownerid == leagueOwner.Leagueownerid).ToList();
+                var tagNotUsedYet = allTagsForThisFranchise.FirstOrDefault(t => t.Year == DateTime.Now.Year) == null;
+                
 
                 var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player : new List<Player>();
 
@@ -577,22 +582,49 @@ namespace FreeAgencyAuctionAPI.Services
                 var queryIds = myTaxiPlayersNow.Select(p => int.Parse(p.id)).Concat(cutCandidates.Select(p => int.Parse(p.id)));
 
 
-                if (previousTags.Count == 0)
+                if (tagNotUsedYet)
                 {
                     myExpiringPlayersLastYear = lastRosterRootTask.Result.error == null ? lastRosterRootTask.Result.rosters.franchise.First(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player.Where(p => p.contractYear == "1").ToList() : new List<Player>();
                     queryIds = queryIds.Concat(myExpiringPlayersLastYear.Select(p => int.Parse(p.id)));
                 }
 
                 var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
-                if (previousTags.Count == 0 && myExpiringPlayersLastYear.Count() > 0) 
+
+
+
+
+
+                if (tagNotUsedYet && myExpiringPlayersLastYear.Count() > 0)
                 {
                     var leagueTagData = await _pRepo.GetLeagueTagInfo(leagueId, Utils.ThisYear);
-                    retOwner.TagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
+                    retOwner.TagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) =>
+                    {
+                        var lastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0;
+                        var prevTagsForPlayer = allTags.Where(t => t.Mflplayerid == db.Mflid).ToList();
+                        if (prevTagsForPlayer.Count >= 3) 
+                        {
+                            return null; // max of 3 tags per player
+                        }
+                        var defaultTagAmount = GetTagValueFromPosition(db.Position, leagueTagData);
+                        
+                        var altTagAmount = lastSeasonSalary * 1.2; // last years salary + 20%
+
+                        var tagAmount = Math.Max(defaultTagAmount, (int)Math.Round(altTagAmount));
+                        if (allTags.FirstOrDefault(t => t.Mflplayerid == db.Mflid && t.Year == Utils.ThisYear - 1) != null) //if this player was tagged by this team last year. 
+                        {
+                            var top3Price = GetTop3TagValueFromPosition(db.Position, leagueTagData);
+                            tagAmount = Math.Max((int)Math.Round(altTagAmount), top3Price);
+                        }
+                        return new TagCandidate
                         {
                             Player = _mapper.Map<PlayerDTO>(db),
-                            LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
-                            TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
-                        }).ToList();
+                            LastSeasonSalary = lastSeasonSalary,
+                            TagAmount = tagAmount 
+                        };
+                    })
+                    .Where(tc => tc != null)
+                    .ToList();
+                
                 }
                 
                 retOwner.TaxiPlayers = myTaxiPlayersNow.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new PlayerDTO
@@ -931,6 +963,118 @@ namespace FreeAgencyAuctionAPI.Services
             var res = await _leagueApi.RespondToTrade(year, leagueId, tradeId, response, comments, franchiseId);
         }
 
+        public async Task<List<PlayerEligibility>> GetHoldoutPlayers(int leagueId)
+        {
+            // need config for threshholds of position rankings
+            // get all scores from mfl with YTD as W
+            // get players from mfl 
+            // get contracts from mfl
+            var year = DateTime.Now.Month < 8 ? Utils.ThisYear - 1 : Utils.ThisYear;
+            var apiKey = _options.Value.Mfl.MflApiKey.FirstOrDefault(k => k.id == leagueId).key;
+            if (apiKey == null) return new List<PlayerEligibility>();
+            var scorePlayerTask = _leagueApi.GetMflPositionScoresByYear(leagueId, year, string.Empty, apiKey);
+            var playerTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year);
+
+            await Task.WhenAll(scorePlayerTask, playerTask);
+            var scoresAndContracts = scorePlayerTask.Result.PlayerScores.PlayerScore
+                .Join(
+                    playerTask.Result.rosters.franchise.SelectMany(f =>
+                        f.player.Select(p => new { Player = p, FranchiseId = f.id })),
+                    s => s.Id,
+                    fp => fp.Player.id,
+                    (s, fp) => new { s, p = fp.Player, FranchiseId = fp.FranchiseId })
+                .ToList();
+            var playerDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", scoresAndContracts.Select(s => s.p.id)));
+
+            var allJoined = scoresAndContracts.Join(playerDetails.players.player, s => s.s.Id, pd => pd.id,
+                (sc, pd) => new ScoreContractPlayer { sc = new ScoreAndContract { s = sc.s, p = sc.p, franchiseId = int.TryParse(sc.FranchiseId, out var fid) ? fid : 0 } , pd =  pd }).ToList().OrderByDescending(_ => decimal.TryParse(_.sc.s.Score, out var ts) ? ts : 0);
+
+            var qb = new HoldoutPosThreshhold("QB");
+            var rb = new HoldoutPosThreshhold("RB");
+            var wr = new HoldoutPosThreshhold("WR");
+            var te = new HoldoutPosThreshhold("TE");
+            var scoreThreshholds = new List<HoldoutPosThreshhold> { qb, rb, wr, te };
+            foreach (var item in allJoined)
+            {
+                var posGroup = scoreThreshholds.FirstOrDefault(t => t.Pos == item.pd.position);
+                if (posGroup == null) continue;
+                if (posGroup.scores1st.Count < 12)
+                {
+                    posGroup.scores1st.Add(decimal.TryParse(item.sc.s.Score, out var ts) ? ts : 0);
+                    continue;
+                }
+                else if (posGroup.scores2nd.Count < 12)
+                {
+                    posGroup.scores2nd.Add(decimal.TryParse(item.sc.s.Score, out var ts) ? ts : 0);
+                }
+                else if (posGroup.scores3rd.Count < 12)
+                {
+                    posGroup.scores3rd.Add(decimal.TryParse(item.sc.s.Score, out var ts) ? ts : 0);
+                }
+            }
+
+            var qb2 = new HoldoutPosThreshhold("QB");
+            var rb2 = new HoldoutPosThreshhold("RB");
+            var wr2 = new HoldoutPosThreshhold("WR");
+            var te2 = new HoldoutPosThreshhold("TE");
+            var payThreshholds = new List<HoldoutPosThreshhold> { qb2, rb2, wr2, te2 };
+            var payOrder = allJoined.OrderByDescending(_ => int.TryParse(_.sc.p.salary, out var sal) ? sal : 1);
+            foreach (var item in payOrder)
+            {
+                var posGroup = payThreshholds.FirstOrDefault(t => t.Pos == item.pd.position);
+                if (posGroup == null) continue;
+                if (posGroup.scores1st.Count < 12)
+                {
+                    posGroup.scores1st.Add(decimal.TryParse(item.sc.p.salary, out var ts) ? ts : 0);
+                    continue;
+                }
+                else if (posGroup.scores2nd.Count < 12)
+                {
+                    posGroup.scores2nd.Add(decimal.TryParse(item.sc.p.salary, out var ts) ? ts : 0);
+                }
+                else if (posGroup.scores3rd.Count < 12)
+                {
+                    posGroup.scores3rd.Add(decimal.TryParse(item.sc.p.salary, out var ts) ? ts : 0);
+                }
+                else if (posGroup.scores4th.Count < 12)
+                {
+                    posGroup.scores4th.Add(decimal.TryParse(item.sc.p.salary, out var ts) ? ts : 0);
+                }
+            }
+
+            var franchiseIds = Enumerable.Range(1, 12).Select(i => i.ToString("D4")).ToArray();
+            var calculator = new HoldoutEligibilityCalculator();
+            var eligiblePlayers = calculator.GetEligiblePlayers(scoreThreshholds, payThreshholds, allJoined);
+
+            return eligiblePlayers;
+
+            
+            //QB 1 scorers
+
+            // rb 1 & 2 scorers
+
+            // wr 1 2 3 scorers
+
+
+        }
+
+        private int GetTop3TagValueFromPosition(string position, FranchiseTagLeague l)
+        {
+            switch (position.ToUpper())
+            {
+                case "QB":
+                    return l.QBTop3;
+                case "RB":
+                    return l.RBTop3;
+                case "WR":
+                    return l.WRTop3;
+                case "TE":
+                    return l.TETop3;
+                default:
+                    return 0;
+            }
+
+        }
 
         private int GetTagValueFromPosition(string position, FranchiseTagLeague l)
         {
@@ -1014,10 +1158,160 @@ namespace FreeAgencyAuctionAPI.Services
             } 
         }
     }
+    public class HoldoutPosThreshhold
+    {
+        public string Pos { get; set; }
+        public List<decimal> scores1st = new List<decimal>();
+        public List<decimal> scores2nd = new List<decimal>();
+        public List<decimal> scores3rd = new List<decimal>();
+        public List<decimal> scores4th = new List<decimal>();
 
+        public HoldoutPosThreshhold()
+        {
+            
+        }
+        public HoldoutPosThreshhold(string pos)
+        {
+            Pos = pos;
+        }
+    }
 
     public class MflRosterResponse
     {
         [XmlElement("error")] public string Error { get; set; }
+    }
+    public class ScoreAndContract
+    {
+        public int franchiseId { get; set; }
+        public PlayerScore s { get; set; }
+        public Player p { get; set; } 
+    }
+    public class ScoreContractPlayer
+    {
+        public ScoreAndContract sc { get; set; }
+        public MflPlayerDetails pd { get; set; }
+    }
+    public class HoldoutEligibilityCalculator
+    {
+        private const decimal MINIMUM_RAISE = 3m;
+        private const decimal MAXIMUM_RAISE = 10m;
+        private const decimal RAISE_PERCENTAGE = 0.20m;
+
+        // Dictionary format: Position -> (ScoreTierToCheck, SalaryTierToCompareAgainst)
+        private readonly Dictionary<(string Position, int ScoreTier), int> _positionRules = new()
+    {
+        { ("QB", 1), 2 },  // QB1 (top 12 scores) compared against QB2 (next 12) median salary
+        { ("RB", 1), 2 },  // RB1 (top 12 scores) compared against RB2 (next 12) median salary
+        { ("RB", 2), 3 },  // RB2 (13-24 scores) compared against RB3 (25-36) median salary
+        { ("WR", 1), 2 },  // WR1 (top 12 scores) compared against WR2 (next 12) median salary
+        { ("WR", 2), 3 },  // WR2 (13-24 scores) compared against WR3 (25-36) median salary
+        { ("WR", 3), 4 },  // WR3 (25-36 scores) compared against WR4 (37-48) median salary
+    };
+
+        public List<PlayerEligibility> GetEligiblePlayers(
+            List<HoldoutPosThreshhold> scoreThresholds,
+            List<HoldoutPosThreshhold> payThresholds,
+            IEnumerable<ScoreContractPlayer> players)
+        {
+            var eligiblePlayers = new List<PlayerEligibility>();
+
+            foreach (var player in players)
+            {
+
+                var position = player.pd.position;
+                if (position == "TE") continue; // TE's are not eligible for holdout
+                if (eligiblePlayers.FirstOrDefault(ep => ep.FranchiseId == player.sc.franchiseId) != null) continue; // Only one player per franchise
+                decimal playerScore = decimal.TryParse(player.sc.s.Score, out var score) ? score : 0;
+                int playerSalary = int.TryParse(player.sc.p.salary, out var salary) ? salary : 0;
+
+                // Get the score and salary thresholds for this position
+                var posScoreThreshold = scoreThresholds.First(t => t.Pos == position);
+                var posSalaryThreshold = payThresholds.First(t => t.Pos == position);
+
+                // Get player's score tier
+                var scoreTier = GetScoreTier(position, playerScore, posScoreThreshold);
+
+                // Check if this position/tier combination is eligible for holdout
+                if (!_positionRules.TryGetValue((position, scoreTier), out var salaryTierToCompare))
+                    continue;
+
+                // Get the median salary of the comparison tier
+                var salaryThresholdMedian = GetSalaryTierMedian(posSalaryThreshold, salaryTierToCompare);
+
+                // Player is eligible if their salary is below the comparison tier's median
+                if (playerSalary < salaryThresholdMedian)
+                {
+                    var holdoutSalary = CalculateHoldoutSalary(playerSalary);
+                    eligiblePlayers.Add(new PlayerEligibility
+                    {
+                        FranchiseId = player.sc.franchiseId,
+                        PlayerId = player.pd.id,
+                        Name = player.pd.name,
+                        Position = position,
+                        Score = playerScore,
+                        CurrentSalary = playerSalary,
+                        HoldoutSalary = holdoutSalary,
+                        ScoreTier = scoreTier,
+                        SalaryComparison = salaryThresholdMedian
+                    });
+                }
+            }
+
+            return eligiblePlayers;
+        }
+        private int CalculateHoldoutSalary(int currentSalary)
+        {
+            // Calculate 20% raise and round to integer
+            var raise = Math.Round(currentSalary * RAISE_PERCENTAGE, 0);
+
+            // Ensure minimum $3 raise
+            raise = Math.Max(raise, MINIMUM_RAISE);
+
+            // Cap raise at $10
+            raise = Math.Min(raise, MAXIMUM_RAISE);
+
+            return currentSalary + (int)raise;
+        }
+        private int GetScoreTier(string position, decimal playerScore, HoldoutPosThreshhold threshold)
+        {
+            if (threshold.scores1st.Contains(playerScore)) return 1;
+            if (threshold.scores2nd.Contains(playerScore)) return 2;
+            if (threshold.scores3rd.Contains(playerScore)) return 3;
+            return 4;
+        }
+
+        private decimal GetSalaryTierMedian(HoldoutPosThreshhold threshold, int tier)
+        {
+            var salaries = tier switch
+            {
+                1 => threshold.scores1st,
+                2 => threshold.scores2nd,
+                3 => threshold.scores3rd,
+                4 => threshold.scores4th,
+                _ => new List<decimal>()
+            };
+
+            if (!salaries.Any()) return 0;
+
+            var sortedSalaries = salaries.OrderBy(x => x).ToList();
+            var mid = sortedSalaries.Count / 2;
+
+            return sortedSalaries.Count % 2 == 0
+                ? (sortedSalaries[mid - 1] + sortedSalaries[mid]) / 2
+                : sortedSalaries[mid];
+        }
+    }
+
+    public class PlayerEligibility
+    {
+        public int FranchiseId { get; set; }
+        public string PlayerId { get; set; }
+        public string Name { get; set; }
+        public string Position { get; set; }
+        public decimal Score { get; set; }
+        public int CurrentSalary { get; set; }
+        public int HoldoutSalary { get; set; }
+        public int ScoreTier { get; set; }
+        public decimal SalaryComparison { get; set; }
     }
 }
