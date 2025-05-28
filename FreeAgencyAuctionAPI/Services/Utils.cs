@@ -38,7 +38,7 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 "RB", new()
                 {
-                    BonusThreshhold = 1,
+                    BonusThreshhold = 1, 
                     Low = 25,
                     High = 26
                 }

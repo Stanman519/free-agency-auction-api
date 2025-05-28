@@ -243,7 +243,8 @@ namespace FreeAgencyAuctionAPI.OverUnders
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpdateNFLTeamWins()
         {
-            var thisYear = DateTime.UtcNow.Year;
+            var thisYear = DateTime.UtcNow.Month < 4 ? DateTime.UtcNow.Year - 1 : DateTime.UtcNow.Year; //dealing with games after the new year
+
             var key = _options.Value.SportsDataConfig.SportsDataApiKey;
 
 

@@ -295,7 +295,7 @@ namespace FreeAgencyAuctionAPI
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Revoke([Path] int leagueId, [Path] int tradeId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        public async Task<IActionResult> Accept([Path] int leagueId, [Path] int tradeId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
         {
             var year = DateTime.UtcNow.Year;
             var response = "accept";
