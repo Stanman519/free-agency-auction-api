@@ -38,7 +38,7 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 "RB", new()
                 {
-                    BonusThreshhold = 1, 
+                    BonusThreshhold = 1,
                     Low = 25,
                     High = 26
                 }
@@ -60,6 +60,86 @@ namespace FreeAgencyAuctionAPI.Services
                     High = 27
                 }
             }
+        };
+        public static Dictionary<int, int> draftPicks = new Dictionary<int, int>
+        {
+            {1, 30},
+            {2, 28},
+            {3, 26},
+            {4, 24},
+            {5, 22},
+            {6, 22},
+            {7, 22},
+            {8, 22},
+            {9, 20},
+            {10, 20},
+            {11, 20},
+            {12, 20},
+            {13, 18},
+            {14, 18},
+            {15, 18},
+            {16, 18},
+            {17, 16},
+            {18, 16},
+            {19, 16},
+            {20, 16},
+            {21, 14},
+            {22, 14},
+            {23, 14},
+            {24, 14},
+            {25, 12},
+            {26, 12},
+            {27, 12},
+            {28, 12},
+            {29, 10},
+            {30, 10},
+            {31, 10},
+            {32, 10},
+            {33, 8},
+            {34, 8},
+            {35, 8},
+            {36, 8},
+            {37,  6}
+        };
+        public static Dictionary<int, int> rbDraftPicks = new Dictionary<int, int>
+        {
+            {1, 36},
+            {2, 34},
+            {3, 31},
+            {4, 28},
+            {5, 26},
+            {6, 26},
+            {7, 26},
+            {8, 26},
+            {9, 23},
+            {10, 23},
+            {11, 23},
+            {12, 23},
+            {13, 21},
+            {14, 21},
+            {15, 21},
+            {16, 21},
+            {17, 19},
+            {18, 19},
+            {19, 19},
+            {20, 19},
+            {21, 16},
+            {22, 16},
+            {23, 16},
+            {24, 16},
+            {25, 14},
+            {26, 14},
+            {27, 14},
+            {28, 14},
+            {29, 12},
+            {30, 12},
+            {31, 12},
+            {32, 12},
+            {33, 10},
+            {34, 10},
+            {35, 10},
+            {36, 10},
+            {37,  7}
         };
         public static List<PositionProjectionRange> PositionRanges = new()
         {
@@ -86,7 +166,7 @@ namespace FreeAgencyAuctionAPI.Services
                 RankMin = 25,
                 SalaryMed = 19,
                 SalaryUpper = 30
-            },            
+            },
             new()
             {
                 Position = "QB",
@@ -266,6 +346,4 @@ namespace FreeAgencyAuctionAPI.Services
         public int SalaryUpper { get; set; }
         
     }
-    
-    
 }

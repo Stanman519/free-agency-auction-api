@@ -75,6 +75,16 @@ namespace FreeAgencyAuctionAPI.Models
         public int TagAmount { get; set; }
 
     }
+    
+    public class FifthYearOptionCandidate
+    {
+        public PlayerDTO Player { get; set; }
+        public int OriginalRookieSalary { get; set; }
+        public int OptionSalary { get; set; }
+        public int DraftYear { get; set; }
+        public int DraftPick { get; set; }
+    }
+
     public class FranchiseTagRequestBody
     {
         public int leagueId { get; set; }
@@ -89,5 +99,29 @@ namespace FreeAgencyAuctionAPI.Models
         public PlayerDTO player { get; set; }
         public int mflFranchiseId { get; set; }
         public double rebate { get; set; }
+    }
+
+    public class HoldoutDTO
+    {
+        public int Id { get; set; }
+        public int LeagueId { get; set; }
+        public int LeagueOwnerId { get; set; }
+        public int Year { get; set; }
+        public PlayerDTO Player { get; set; }
+        public int OriginalSalary { get; set; }
+        public int HoldoutSalary { get; set; }
+        public string Status { get; set; } // "Pending", "Accepted", "Denied"
+        public int ScoreTier { get; set; }
+        public decimal SalaryComparison { get; set; }
+        public int YearsRemaining { get; set; }
+    }
+
+    public class HoldoutResponseBody
+    {
+        public int holdoutId { get; set; }
+        public string status { get; set; } // "Accepted" or "Denied"
+        public int leagueId { get; set; }
+        public int mflPlayerId { get; set; }
+        public int mflFranchiseId { get; set; }
     }
 }

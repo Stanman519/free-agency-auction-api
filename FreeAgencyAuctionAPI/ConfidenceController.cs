@@ -10,7 +10,6 @@
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Identity.Client;
     using RestEase;
     using System;
     using System.Collections.Generic;
@@ -29,14 +28,24 @@
             private AuctionContext _db;
             private readonly IMapper _mapper;
             private readonly IGMBot _gm;
+            private readonly IConfidencePickValidationService _validationService;
+            private readonly IAdminAuthorizationService _adminAuthService;
 
-            public ConfidenceController(ILogger<ConfidenceController> logger, AuctionContext db, IMapper mapper, IGMBot gm)
+            public ConfidenceController(
+                ILogger<ConfidenceController> logger, 
+                AuctionContext db, 
+                IMapper mapper, 
+                IGMBot gm, 
+                IConfidencePickValidationService validationService,
+                IAdminAuthorizationService adminAuthService)
             {
 
                 _logger = logger;
                 _db = db;
                 _mapper = mapper;
                 _gm = gm;
+                _validationService = validationService;
+                _adminAuthService = adminAuthService;
             }
 
             [HttpGet("ping")]
@@ -54,7 +63,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetAllNflTeams()
             {
-                var teams = _mapper.Map<List<NflTeamDTO>>(_db.NflTeams.ToList());
+                var teams = _mapper.Map<List<NflTeamDTO>>(await _db.NflTeams.ToListAsync());
                 return Ok(teams);
             }
 
@@ -112,42 +121,99 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups)
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups, [Query] string user = "")
             {
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
-                var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
-                dbMatchups.ForEach(matchup => matchup.Pickable = true);
-                try
+                if (!authResult.IsAuthenticated)
                 {
-                    _db.NflTeamMatchups.AddRange(dbMatchups);
-                    _db.SaveChanges();
-                }
-                catch (Exception e)
-                {
-                    return BadRequest(new ErrorResponse(e.Message));
+                    return Unauthorized(new ErrorResponse("Authentication required."));
                 }
 
-                return Ok(dbMatchups);
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} creating {Count} new matchups", 
+                    authResult.Owner.Ownerid, matchups.Count);
+
+                var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
+                dbMatchups.ForEach(matchup => matchup.Pickable = true);
+                
+                try
+                {
+                    await _db.NflTeamMatchups.AddRangeAsync(dbMatchups);
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully created {Count} matchups", dbMatchups.Count);
+                    return Ok(dbMatchups);
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database error creating matchups");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("Unable to create matchups. Please check the data and try again."));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error creating matchups");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("An unexpected error occurred."));
+                }
             }
             [HttpPost("admin/new-props")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> PostPickableProps([Body] List<PropDTO> props)
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> PostPickableProps([Body] List<PropDTO> props, [Query] string user = "")
             {
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                
+                if (!authResult.IsAuthenticated)
+                {
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} creating {Count} new props", 
+                    authResult.Owner.Ownerid, props.Count);
 
                 var dbProps = _mapper.Map<List<Prop>>(props);
-                dbProps.ForEach(matchup => matchup.Pickable = true);
+                dbProps.ForEach(prop => prop.Pickable = true);
+                
                 try
                 {
-                    _db.Props.AddRange(dbProps);
-                    _db.SaveChanges();
+                    await _db.Props.AddRangeAsync(dbProps);
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully created {Count} props", dbProps.Count);
+                    return Ok(dbProps);
                 }
-                catch (Exception e)
+                catch (DbUpdateException ex)
                 {
-                    return BadRequest(new ErrorResponse(e.Message));
+                    _logger.LogError(ex, "Database error creating props");  
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("Unable to create props. Please check the data and try again."));
                 }
-                return Ok(dbProps);
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error creating props");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("An unexpected error occurred."));
+                }
             }
 
             [HttpGet("admin/unpaid")]
@@ -156,8 +222,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetUnpaidOwners()
             {
-
-                var owners = _db.Owners.Where(o => !o.istest && !o.ConfidencePaid).ToList();
+                var owners = await _db.Owners.Where(o => !o.istest && !o.ConfidencePaid).ToListAsync();
                 var ret = _mapper.Map<List<OwnerDTO>>(owners);
                 return Ok(ret);
             }
@@ -166,9 +231,33 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> MarkOwnerAsPaid([Body] List<int> ownerIds)
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            public async Task<IActionResult> MarkOwnerAsPaid([Body] List<int> ownerIds, [Query] string user = "")
             {
-                var editOwners = _db.Owners.Where(o => ownerIds.Contains(o.Ownerid)).ToList();
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                
+                if (!authResult.IsAuthenticated)
+                {
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} marking {Count} owners as paid", 
+                    authResult.Owner.Ownerid, ownerIds.Count);
+
+                var editOwners = await _db.Owners.Where(o => ownerIds.Contains(o.Ownerid)).ToListAsync();
+                
+                if (!editOwners.Any())
+                {
+                    return BadRequest(new ErrorResponse("No owners found with the provided IDs."));
+                }
+
                 editOwners.ForEach(o =>
                 {
                     o.ConfidencePaid = true;
@@ -176,35 +265,84 @@
 
                 try
                 {
-                    _db.SaveChanges();
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully marked {Count} owners as paid", editOwners.Count);
+                    return Ok(new { markedPaid = editOwners.Count });
                 }
-                catch (Exception e)
+                catch (DbUpdateException ex)
                 {
-                    return BadRequest(new ErrorResponse(e.Message));
+                    _logger.LogError(ex, "Database error marking owners as paid");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("Unable to update payment status. Please try again."));
                 }
-                return Ok();
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error marking owners as paid");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("An unexpected error occurred."));
+                }
             }
 
             [HttpPost("admin/props/{propId}/results/{winningOption}")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> PostPropAnswer([Path] int propId, [Path] string winningOption)
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            [ProducesResponseType(StatusCodes.Status404NotFound)]
+            public async Task<IActionResult> PostPropAnswer([Path] int propId, [Path] string winningOption, [Query] string user = "")
             {
-                var dbMatchupToUpdate = _db.Props.FirstOrDefault(m => m.Id == propId);
-                if (dbMatchupToUpdate == null) return BadRequest(new ErrorResponse("Wrong id"));
-                if (winningOption != "A" && winningOption != "B") return BadRequest(new ErrorResponse("wrong winning option input method"));
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                
+                if (!authResult.IsAuthenticated)
+                {
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} setting winner for prop {PropId}", 
+                    authResult.Owner.Ownerid, propId);
+
+                var dbPropToUpdate = await _db.Props.FirstOrDefaultAsync(m => m.Id == propId);
+                
+                if (dbPropToUpdate == null)
+                {
+                    _logger.LogWarning("Prop {PropId} not found", propId);
+                    return NotFound(new ErrorResponse("Prop not found."));
+                }
+                
+                if (winningOption != "A" && winningOption != "B")
+                {
+                    return BadRequest(new ErrorResponse("Winning option must be 'A' or 'B'."));
+                }
+                
                 try
                 {
-                    dbMatchupToUpdate.Winner = winningOption;
-                    _db.SaveChanges();
+                    dbPropToUpdate.Winner = winningOption;
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully set winner {Option} for prop {PropId}", winningOption, propId);
+                    return Ok(new { propId, winningOption });
                 }
-                catch (Exception e)
+                catch (DbUpdateException ex)
                 {
-                    return BadRequest(e.Message);
+                    _logger.LogError(ex, "Database error setting prop winner");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("Unable to update prop result. Please try again."));
                 }
-              
-                return Ok();
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error setting prop winner");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("An unexpected error occurred."));
+                }
             }
 
             [HttpGet("year/{year}/week/{week}/coummunity-stats")]
@@ -262,98 +400,305 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] int winningTeamId) //THIS 2nd PARAM TO BE UPDATED ON THE CLIENT FOR 2025 it used to be tricode
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status404NotFound)]
+            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] int winningTeamId, [Query] string user = "")
             {
-                var dbMatchupToUpdate = _db.NflTeamMatchups.FirstOrDefault(m => m.Id == matchupId);
-                if (dbMatchupToUpdate != null) 
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                
+                if (!authResult.IsAuthenticated)
                 {
-                    try
-                    {
-                        dbMatchupToUpdate.Winner = winningTeamId;
-                        _db.SaveChanges();
-                    }
-                    catch (Exception e)
-                    {
-                        return BadRequest(e.Message);
-                    }    
+                    return Unauthorized(new ErrorResponse("Authentication required."));
                 }
-                return Ok();
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} setting winner for matchup {MatchupId}", 
+                    authResult.Owner.Ownerid, matchupId);
+
+                var dbMatchupToUpdate = await _db.NflTeamMatchups.FirstOrDefaultAsync(m => m.Id == matchupId);
+                
+                if (dbMatchupToUpdate == null)
+                {
+                    _logger.LogWarning("Matchup {MatchupId} not found", matchupId);
+                    return NotFound(new ErrorResponse("Matchup not found."));
+                }
+
+                // Validate that the winning team is one of the teams in the matchup
+                if (winningTeamId != dbMatchupToUpdate.Left && winningTeamId != dbMatchupToUpdate.Right)
+                {
+                    _logger.LogWarning("Invalid winning team {TeamId} for matchup {MatchupId}", winningTeamId, matchupId);
+                    return BadRequest(new ErrorResponse("Winning team must be one of the teams in the matchup."));
+                }
+
+                try
+                {
+                    dbMatchupToUpdate.Winner = winningTeamId;
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully set winner {TeamId} for matchup {MatchupId}", winningTeamId, matchupId);
+                    return Ok(new { matchupId, winningTeamId });
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database error setting matchup winner");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("Unable to update matchup result. Please try again."));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error setting matchup winner");
+                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                        new ErrorResponse("An unexpected error occurred."));
+                }
             }
 
             [HttpPost("lock-matchups")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> MakeAllMatchupsUnpickable([Query] int year = Utils.ThisYear)
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> MakeAllMatchupsUnpickable([Query] int year = Utils.ThisYear, [Query] string user = "")
             {
-                //Figure out a way to make this only doable by commish
-                var matchups = _db.NflTeamMatchups.Where(m => m.Year == year).ToList();
-                var props = _db.Props.Where(p => p.Year == year).ToList();
-                props.ForEach(p => p.Pickable = false);
-                matchups.ForEach(m => m.Pickable = false);
-                _db.SaveChanges();
-                return Ok();
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                
+                if (!authResult.IsAuthenticated)
+                {
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} locking matchups for year {Year}", 
+                    authResult.Owner.Ownerid, year);
+
+                using (var transaction = await _db.Database.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        var matchups = await _db.NflTeamMatchups.Where(m => m.Year == year).ToListAsync();
+                        var props = await _db.Props.Where(p => p.Year == year).ToListAsync();
+                        
+                        props.ForEach(p => p.Pickable = false);
+                        matchups.ForEach(m => m.Pickable = false);
+                        
+                        await _db.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        _logger.LogInformation("Successfully locked {MatchupCount} matchups and {PropCount} props for year {Year}", 
+                            matchups.Count, props.Count, year);
+                        
+                        return Ok(new { matchupsLocked = matchups.Count, propsLocked = props.Count });
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Error locking matchups for year {Year}", year);
+                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                            new ErrorResponse("Unable to lock matchups. Please try again."));
+                    }
+                }
             }
 
             [HttpPost("picks")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] NflPickSubmission pickSubmission)
+            public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] NflPickSubmission pickSubmission, [Query] string user = "")
             {
+                // AUTHENTICATION: Verify user is authenticated
+                if (string.IsNullOrEmpty(user))
+                {
+                    _logger.LogWarning("Pick submission attempted without user authentication");
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
 
-                // need to know who sent it - part of the body
-                // get picks that match user, week, year
-                // if there's none, save these new ones
+                // Verify the user exists in the database
+                var authenticatedOwner = await _db.Owners.FirstOrDefaultAsync(o => o.authid == user);
+                if (authenticatedOwner == null)
+                {
+                    _logger.LogWarning("Pick submission attempted with invalid user: {User}", user);
+                    return Unauthorized(new ErrorResponse("Invalid user credentials."));
+                }
+
+                // Basic validation
+                if (pickSubmission?.Picks == null || !pickSubmission.Picks.Any())
+                {
+                    return BadRequest(new ErrorResponse("Invalid pick submission - no picks provided."));
+                }
+
                 var picks = pickSubmission.Picks;
-                var props = pickSubmission.Props;
-                // or does it not matter if there are extra in the db? (could just get latest picks because you ahve to submit all at the same timee)
-                if (!picks.Any() || picks[0] == null || picks[0]?.OwnerId == null || picks[0]?.MatchupId == null) return BadRequest("invalid matchup or profile.");
-                var dbPicks = _db.NflPicks.Where(p => picks.Select(_ => _.MatchupId).Contains(p.MatchupId) && p.OwnerId == picks[0].OwnerId);
-               
-                if (dbPicks.Any(_ => !_.NflTeamMatchup.Pickable)) return BadRequest(new ErrorResponse("You have submitted picks for matchups that are locked."));
-                var existingPicks = dbPicks.Where(p => picks.First().OwnerId == p.OwnerId).ToList();
-                if (existingPicks.Any())
+                var props = pickSubmission.Props ?? new List<PropPickDTO>();
+
+                // Get the matchup IDs to determine expected counts
+                var matchupIds = picks.Select(p => p.MatchupId).Distinct().ToList();
+                var pickableMatchups = await _db.NflTeamMatchups
+                    .Where(m => matchupIds.Contains(m.Id) && m.Pickable)
+                    .ToListAsync();
+
+                if (!pickableMatchups.Any())
                 {
-                    //overwrite
-                    var existingProps = _db.ExtraPicks.Where(p => props.Select(_ => _.PropId).Contains(p.PropId) && p.OwnerId == props[0].OwnerId).ToList();
-                    existingPicks.ForEach(p =>
-                    {
-                        var thisPick = picks.FirstOrDefault(pick => pick.MatchupId == p.MatchupId);
-                        p.Choice = thisPick.Choice;
-                        p.Points = thisPick.Points;
-                    });
-                    if (picks.Count > existingPicks.Count)
-                    {
-                        var dtosToAdd = picks.Where(p => !existingPicks.Select(ep => ep.Id).Contains(p.Id)).ToList();
-                        var picksToAdd = _mapper.Map<List<Pick>>(dtosToAdd);
-                        _db.NflPicks.AddRange(picksToAdd);
-                    }
-                    existingProps.ForEach(p =>
-                    {
-                        p.Choice = props.FirstOrDefault(prop => prop.PropId == p.PropId).Choice;
-                    });
-                    if (props.Count > existingProps.Count)
-                    {
-                        var dtosToAdd = props.Where(p => !existingProps.Select(ep => ep.Id).Contains(p.Id)).ToList();
-                        var propsToAdd = _mapper.Map<List<ExtraPick>>(dtosToAdd);
-                        _db.ExtraPicks.AddRange(propsToAdd);
-                    }
-
-
-
-                    _db.SaveChanges();
+                    return BadRequest(new ErrorResponse("No pickable matchups found."));
                 }
-                else
+
+                // Get pickable props for this week/year
+                var year = pickableMatchups.First().Year;
+                var week = pickableMatchups.First().Week;
+                var pickableProps = await _db.Props
+                    .Where(p => p.Year == year && p.Week == week && p.Pickable)
+                    .ToListAsync();
+
+                // Validate the submission structure
+                var validationResult = _validationService.ValidatePickSubmission(
+                    pickSubmission, 
+                    pickableMatchups.Count, 
+                    pickableProps.Count
+                );
+
+                if (!validationResult.IsValid)
                 {
-                    //insert
-                    var entities = _mapper.Map<List<Pick>>(picks);
-                    var extraEntities = _mapper.Map<List<ExtraPick>>(props);
-                    _db.NflPicks.AddRange(entities);
-                    _db.ExtraPicks.AddRange(extraEntities);
-                    _db.SaveChanges();
+                    _logger.LogWarning("Pick validation failed for user {User}: {Error}", user, validationResult.ErrorMessage);
+                    return BadRequest(new ErrorResponse(validationResult.ErrorMessage));
                 }
-                return Ok();
+
+                // AUTHORIZATION: Verify the authenticated user matches the submission owner
+                if (validationResult.OwnerId != authenticatedOwner.Ownerid)
+                {
+                    _logger.LogWarning("User {User} attempted to submit picks for owner {OwnerId}", user, validationResult.OwnerId);
+                    return Forbid();
+                }
+
+                // Validate that all choices are valid (Left or Right team in matchup)
+                foreach (var pick in picks)
+                {
+                    var matchup = pickableMatchups.FirstOrDefault(m => m.Id == pick.MatchupId);
+                    if (matchup == null)
+                    {
+                        return BadRequest(new ErrorResponse($"Matchup {pick.MatchupId} is not pickable."));
+                    }
+
+                    if (pick.Choice != matchup.Left && pick.Choice != matchup.Right)
+                    {
+                        return BadRequest(new ErrorResponse($"Invalid team choice for matchup {pick.MatchupId}."));
+                    }
+                }
+
+                // USE TRANSACTION to prevent race conditions
+                using (var transaction = await _db.Database.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        // Re-check that matchups are still pickable within the transaction
+                        var stillPickable = await _db.NflTeamMatchups
+                            .Where(m => matchupIds.Contains(m.Id))
+                            .Select(m => new { m.Id, m.Pickable })
+                            .ToListAsync();
+
+                        if (stillPickable.Any(m => !m.Pickable))
+                        {
+                            _logger.LogWarning("Matchups locked during pick submission for user {User}", user);
+                            return BadRequest(new ErrorResponse("One or more matchups were locked while you were submitting. Please refresh and try again."));
+                        }
+
+                        // Get existing picks for this owner and these matchups
+                        var existingPicks = await _db.NflPicks
+                            .Where(p => matchupIds.Contains(p.MatchupId) && p.OwnerId == authenticatedOwner.Ownerid)
+                            .ToListAsync();
+
+                        var propIds = props.Select(p => p.PropId).ToList();
+                        var existingProps = await _db.ExtraPicks
+                            .Where(p => propIds.Contains(p.PropId) && p.OwnerId == authenticatedOwner.Ownerid)
+                            .ToListAsync();
+
+                        if (existingPicks.Any())
+                        {
+                            // UPDATE existing picks
+                            foreach (var existingPick in existingPicks)
+                            {
+                                var submittedPick = picks.FirstOrDefault(p => p.MatchupId == existingPick.MatchupId);
+                                if (submittedPick != null)
+                                {
+                                    existingPick.Choice = submittedPick.Choice;
+                                    existingPick.Points = submittedPick.Points;
+                                }
+                            }
+
+                            // ADD any new picks (if new matchups were added to the week)
+                            var newPickMatchupIds = matchupIds.Except(existingPicks.Select(ep => ep.MatchupId)).ToList();
+                            if (newPickMatchupIds.Any())
+                            {
+                                var newPickDtos = picks.Where(p => newPickMatchupIds.Contains(p.MatchupId)).ToList();
+                                var newPicks = _mapper.Map<List<Pick>>(newPickDtos);
+                                await _db.NflPicks.AddRangeAsync(newPicks);
+                            }
+
+                            // UPDATE existing props
+                            foreach (var existingProp in existingProps)
+                            {
+                                var submittedProp = props.FirstOrDefault(p => p.PropId == existingProp.PropId);
+                                if (submittedProp != null)
+                                {
+                                    existingProp.Choice = submittedProp.Choice;
+                                }
+                            }
+
+                            // ADD any new props
+                            var newPropIds = propIds.Except(existingProps.Select(ep => ep.PropId)).ToList();
+                            if (newPropIds.Any())
+                            {
+                                var newPropDtos = props.Where(p => newPropIds.Contains(p.PropId)).ToList();
+                                var newProps = _mapper.Map<List<ExtraPick>>(newPropDtos);
+                                await _db.ExtraPicks.AddRangeAsync(newProps);
+                            }
+                        }
+                        else
+                        {
+                            // INSERT new picks
+                            var pickEntities = _mapper.Map<List<Pick>>(picks);
+                            await _db.NflPicks.AddRangeAsync(pickEntities);
+
+                            if (props.Any())
+                            {
+                                var propEntities = _mapper.Map<List<ExtraPick>>(props);
+                                await _db.ExtraPicks.AddRangeAsync(propEntities);
+                            }
+                        }
+
+                        // Save all changes
+                        await _db.SaveChangesAsync();
+                        
+                        // Commit transaction
+                        await transaction.CommitAsync();
+
+                        _logger.LogInformation("Successfully saved picks for user {User}, owner {OwnerId}", user, authenticatedOwner.Ownerid);
+                        return Ok(new { message = "Picks saved successfully" });
+                    }
+                    catch (DbUpdateException ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Database error saving picks for user {User}", user);
+                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                            new ErrorResponse("Unable to save picks. Please try again."));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Unexpected error saving picks for user {User}", user);
+                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                            new ErrorResponse("An unexpected error occurred. Please try again."));
+                    }
+                }
             }
 
             [HttpGet("error")]

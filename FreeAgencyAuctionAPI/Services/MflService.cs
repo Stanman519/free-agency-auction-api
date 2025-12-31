@@ -32,6 +32,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId);
         Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
+        Task<List<FifthYearOptionCandidate>> GetFifthYearOptionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
             string lastName, string position, bool hasAction);
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
@@ -41,6 +42,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task ProposeMflTrade(TradeRequest req);
         Task ResponseToMflTrade(int year, int leagueId, int tradeId, string response, string comments, string franchiseId);
         Task<List<PlayerEligibility>> GetHoldoutPlayers(int leagueId);
+        Task<List<HoldoutDTO>> GenerateAndSaveHoldouts(int leagueId, int year);
     }
 
     public class MflService : IMflService
@@ -523,6 +525,116 @@ namespace FreeAgencyAuctionAPI.Services
             }
             return tagCandidates;
         }
+        
+        public async Task<List<FifthYearOptionCandidate>> GetFifthYearOptionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
+        {
+            // Determine which draft year we're looking for (4 years ago)
+            // For 2026 options (ThisYear + 1), we look at 2022 draft (ThisYear - 3)
+            var draftYear = Utils.ThisYear - 3; //TODO: change this to 4 before releasing
+            
+            // Get current roster to check current salaries
+            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
+            
+            // Get the draft results from the target year
+            var draftResultsTask = _leagueApi.GetDraftResults(leagueId, draftYear);
+            
+            // Get accepted holdouts for this league to account for salary changes
+            var acceptedHoldoutsTask = _pRepo.GetHoldoutsForLeague(leagueId, Utils.ThisYear);
+            
+            await Task.WhenAll(currentRosterTask, draftResultsTask, acceptedHoldoutsTask);
+            
+            var currentRoster = currentRosterTask.Result.error == null ? 
+                currentRosterTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId)?.player : 
+                new List<Player>();
+                
+            if (currentRoster == null || currentRoster.Count == 0) 
+                return new List<FifthYearOptionCandidate>();
+            
+            var draftResults = draftResultsTask.Result.draftResults?.draftUnit?.draftPick ?? new List<MflDraftPick>();
+            
+            // Filter for first round picks only (round "01")
+            var firstRoundPicks = draftResults.Where(d => d.round == "01").ToList();
+            
+            // Get the picks that are currently on this team's roster
+            var myFirstRoundPicks = firstRoundPicks
+                .Where(pick => currentRoster.Any(p => p.id == pick.player))
+                .ToList();
+            
+            if (myFirstRoundPicks.Count == 0)
+                return new List<FifthYearOptionCandidate>();
+            
+            // Get player details from MFL API
+            var playerIds = myFirstRoundPicks.Select(p => p.player).ToList();
+            var mflPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', playerIds));
+            
+            // Create a lookup for accepted holdouts
+            var acceptedHoldouts = acceptedHoldoutsTask.Result
+                .Where(h => h.Status == "Accepted")
+                .ToDictionary(h => h.PlayerId, h => h);
+            
+            var optionCandidates = new List<FifthYearOptionCandidate>();
+            
+            foreach (var draftPick in myFirstRoundPicks)
+            {
+                var currentPlayerData = currentRoster.FirstOrDefault(p => p.id == draftPick.player);
+                if (currentPlayerData == null) continue;
+                
+                var mflPlayer = mflPlayers.players.player.FirstOrDefault(p => p.id == draftPick.player);
+                if (mflPlayer == null) continue;
+                
+                // Get the original rookie salary based on draft position and position
+                var pickNumber = int.TryParse(draftPick.pick, out var pn) ? pn : 0;
+                if (pickNumber == 0) continue;
+                
+                var isRB = mflPlayer.position == "RB";
+                var originalSalary = isRB ? 
+                    Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0) : 
+                    Utils.draftPicks.GetValueOrDefault(pickNumber, 0);
+                
+                if (originalSalary == 0) continue;
+                
+                var currentSalary = int.TryParse(currentPlayerData.salary, out var cs) ? cs : 0;
+                
+                // Check if player had an accepted holdout - if so, use their original salary from before the holdout
+                var salaryToCompare = currentSalary;
+                if (acceptedHoldouts.TryGetValue(int.Parse(draftPick.player), out var holdout))
+                {
+                    // Player had an accepted holdout - compare against their pre-holdout salary
+                    salaryToCompare = holdout.OriginalSalary;
+                    _logger.LogInformation($"Player {mflPlayer.name} had accepted holdout. Using original salary {holdout.OriginalSalary} instead of current {currentSalary}");
+                }
+                
+                // Only include if salary matches original rookie salary (still on original contract or holdout-adjusted rookie contract)
+                if (salaryToCompare == originalSalary)
+                {
+                    // Calculate option salary (30% increase, rounded to whole number)
+                    var optionSalary = (int)Math.Round(originalSalary * 1.3);
+                    
+                    optionCandidates.Add(new FifthYearOptionCandidate
+                    {
+                        Player = new PlayerDTO
+                        {
+                            MflId = int.TryParse(mflPlayer.id, out var id) ? id : 0,
+                            FirstName = mflPlayer.first_name,
+                            LastName = mflPlayer.last_name,
+                            FullName = mflPlayer.name,
+                            Position = mflPlayer.position,
+                            Team = mflPlayer.team,
+                            Age = GetAgeInt(mflPlayer.birthdate),
+                            Salary = currentSalary, // Show their actual current salary (may be holdout-adjusted)
+                            Length = int.TryParse(currentPlayerData.contractYear, out var l) ? l : 0
+                        },
+                        OriginalRookieSalary = originalSalary,
+                        OptionSalary = optionSalary,
+                        DraftYear = draftYear,
+                        DraftPick = pickNumber
+                    });
+                }
+            }
+            
+            return optionCandidates;
+        }
+
         public async Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
             var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwnerId);
@@ -1047,15 +1159,99 @@ namespace FreeAgencyAuctionAPI.Services
             var eligiblePlayers = calculator.GetEligiblePlayers(scoreThreshholds, payThreshholds, allJoined);
 
             return eligiblePlayers;
+        }
 
-            
-            //QB 1 scorers
+        public async Task<List<HoldoutDTO>> GenerateAndSaveHoldouts(int leagueId, int year)
+        {
+            // Check if holdouts already exist for this league and year
+            var existingHoldouts = await _pRepo.GetHoldoutsForLeague(leagueId, year);
+            if (existingHoldouts.Any())
+            {
+                _logger.LogWarning($"Holdouts already exist for league {leagueId} year {year}");
+                return new List<HoldoutDTO>();
+            }
 
-            // rb 1 & 2 scorers
+            // Get all eligible players
+            var eligiblePlayers = await GetHoldoutPlayers(leagueId);
 
-            // wr 1 2 3 scorers
+            // Group by franchise and select the player with highest raise for each
+            var holdoutsByFranchise = eligiblePlayers
+                .GroupBy(p => p.FranchiseId)
+                .Select(g => g.OrderByDescending(p => p.HoldoutSalary - p.CurrentSalary).First())
+                .ToList();
 
+            // Get league owners to map franchise IDs to league owner IDs
+            var leagueOwners = await _db.LeagueOwners
+                .Where(lo => lo.Leagueid == leagueId)
+                .ToListAsync();
 
+            var savedHoldouts = new List<HoldoutDTO>();
+
+            foreach (var player in holdoutsByFranchise)
+            {
+                var leagueOwner = leagueOwners.FirstOrDefault(lo => lo.Mflfranchiseid == player.FranchiseId);
+                if (leagueOwner == null)
+                {
+                    _logger.LogWarning($"Could not find league owner for franchise {player.FranchiseId}");
+                    continue;
+                }
+
+                // Get player details from database
+                var dbPlayer = await _pRepo.GetPlayerById(int.Parse(player.PlayerId));
+                if (dbPlayer == null)
+                {
+                    _logger.LogWarning($"Could not find player {player.PlayerId} in database");
+                    continue;
+                }
+
+                var holdout = new Holdout
+                {
+                    LeagueId = leagueId,
+                    LeagueOwnerId = leagueOwner.Leagueownerid,
+                    Year = year,
+                    PlayerId = int.Parse(player.PlayerId),
+                    OriginalSalary = player.CurrentSalary,
+                    HoldoutSalary = player.HoldoutSalary,
+                    Status = "Pending",
+                    ScoreTier = player.ScoreTier,
+                    SalaryComparison = player.SalaryComparison,
+                    YearsRemaining = 0 // Will be set from MFL data
+                };
+
+                // Get years remaining from MFL roster data
+                var roster = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year);
+                var franchiseRoster = roster.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == player.FranchiseId);
+                if (franchiseRoster != null)
+                {
+                    var playerContract = franchiseRoster.player.FirstOrDefault(p => p.id == player.PlayerId);
+                    if (playerContract != null)
+                    {
+                        holdout.YearsRemaining = int.TryParse(playerContract.contractYear, out var years) ? years : 0;
+                    }
+                }
+
+                await _pRepo.AddHoldout(holdout);
+
+                savedHoldouts.Add(new HoldoutDTO
+                {
+                    Id = holdout.Id,
+                    LeagueId = holdout.LeagueId,
+                    LeagueOwnerId = holdout.LeagueOwnerId,
+                    Year = holdout.Year,
+                    Player = _mapper.Map<PlayerDTO>(dbPlayer),
+                    OriginalSalary = holdout.OriginalSalary,
+                    HoldoutSalary = holdout.HoldoutSalary,
+                    Status = holdout.Status,
+                    ScoreTier = holdout.ScoreTier,
+                    SalaryComparison = holdout.SalaryComparison,
+                    YearsRemaining = holdout.YearsRemaining
+                });
+            }
+
+            var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
+            await _gm.SendBotNotification(new BotMessage($"{savedHoldouts.Count} holdouts generated for {year} season.", botId));
+
+            return savedHoldouts;
         }
 
         private int GetTop3TagValueFromPosition(string position, FranchiseTagLeague l)
@@ -1221,6 +1417,11 @@ namespace FreeAgencyAuctionAPI.Services
                 var position = player.pd.position;
                 if (position == "TE") continue; // TE's are not eligible for holdout
                 if (eligiblePlayers.FirstOrDefault(ep => ep.FranchiseId == player.sc.franchiseId) != null) continue; // Only one player per franchise
+                
+                // Check years remaining - must have more than 1 year left on contract
+                int yearsRemaining = int.TryParse(player.sc.p.contractYear, out var years) ? years : 0;
+                if (yearsRemaining <= 1) continue; // Players with 1 or 0 years left will be free agents
+                
                 decimal playerScore = decimal.TryParse(player.sc.s.Score, out var score) ? score : 0;
                 int playerSalary = int.TryParse(player.sc.p.salary, out var salary) ? salary : 0;
 

@@ -130,6 +130,16 @@ namespace FreeAgencyAuctionAPI
             return Ok(candidates);
         }
 
+        // get 5th year option candidates
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/mfl/{mflFranchiseId}/fifth-year-option-candidates")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetFifthYearOptionCandidates([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
+        {
+            var candidates = await _mfl.GetFifthYearOptionCandidates(leagueId, leagueOwnerId, mflFranchiseId);
+            return Ok(candidates);
+        }
 
         // get league transactions and team dead caps
         [HttpGet("leagues/{leagueId}/league-caps")]
@@ -212,6 +222,16 @@ namespace FreeAgencyAuctionAPI
             };
             await _pRepo.AddWaiverExtensionForTeam(waiver);
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, $"{player.first_name} {player.last_name}");
+            return NoContent();
+        }
+
+        [HttpPost("fifth-year-option")]
+        public async Task<IActionResult> SignFifthYearOption([FromBody] FranchiseTagRequestBody body)
+        {
+            var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
+            // No need to add player to team - they're already on the roster
+            // Just update their contract with the new salary (1 year at option salary)
             await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, $"{player.first_name} {player.last_name}");
             return NoContent();
         }
@@ -405,23 +425,137 @@ namespace FreeAgencyAuctionAPI
             var x = await _mfl.GetHoldoutPlayers(leagueId);
             return Ok(x);
         }
+
+        // HOLDOUT ENDPOINTS
+        
+        // 1. Generate holdouts for a league (admin endpoint)
+        [HttpPost("league/{leagueId}/year/{year}/generate-holdouts")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GenerateHoldouts([Path] int leagueId, [Path] int year)
+        {
+            try
+            {
+                var holdouts = await _mfl.GenerateAndSaveHoldouts(leagueId, year);
+                
+                if (!holdouts.Any())
+                {
+                    return BadRequest(new ErrorResponse($"Holdouts already exist for league {leagueId} year {year}, or no eligible players found."));
+                }
+                
+                return Ok(holdouts);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error generating holdouts");
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+        }
+
+        // 2. Get holdouts for a specific owner
+        [HttpGet("league/{leagueId}/owners/{leagueOwnerId}/holdouts")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetOwnerHoldouts([Path] int leagueId, [Path] int leagueOwnerId)
+        {
+            try
+            {
+                var holdouts = await _pRepo.GetHoldoutsForOwner(leagueOwnerId, Utils.ThisYear);
+                
+                var holdoutDTOs = holdouts.Select(h => new HoldoutDTO
+                {
+                    Id = h.Id,
+                    LeagueId = h.LeagueId,
+                    LeagueOwnerId = h.LeagueOwnerId,
+                    Year = h.Year,
+                    Player = new PlayerDTO
+                    {
+                        MflId = h.Player.Mflid,
+                        FirstName = h.Player.Firstname,
+                        LastName = h.Player.Lastname,
+                        FullName = h.Player.Fullname,
+                        Position = h.Player.Position,
+                        Team = h.Player.Team,
+                        Age = h.Player.Age,
+                        Headshot = h.Player.Headshot,
+                        ActionShot = h.Player.Actionshot
+                    },
+                    OriginalSalary = h.OriginalSalary,
+                    HoldoutSalary = h.HoldoutSalary,
+                    Status = h.Status,
+                    ScoreTier = h.ScoreTier,
+                    SalaryComparison = h.SalaryComparison,
+                    YearsRemaining = h.YearsRemaining
+                }).ToList();
+
+                return Ok(holdoutDTOs);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error getting owner holdouts");
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+        }
+
+        // 3. Respond to a holdout (Accept or Deny)
+        [HttpPost("holdout-response")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> RespondToHoldout([FromBody] HoldoutResponseBody body)
+        {
+            try
+            {
+                // Validate status
+                if (body.status != "Accepted" && body.status != "Denied")
+                {
+                    return BadRequest(new ErrorResponse("Status must be either 'Accepted' or 'Denied'"));
+                }
+
+                // Get the holdout
+                var holdout = await _pRepo.GetHoldoutById(body.holdoutId);
+                if (holdout == null)
+                {
+                    return BadRequest(new ErrorResponse($"Holdout with id {body.holdoutId} not found"));
+                }
+
+                // Check if already processed
+                if (holdout.Status != "Pending")
+                {
+                    return BadRequest(new ErrorResponse($"Holdout has already been {holdout.Status.ToLower()}"));
+                }
+
+                // Update status
+                await _pRepo.UpdateHoldoutStatus(body.holdoutId, body.status);
+
+                // If accepted, update the player's contract in MFL
+                if (body.status == "Accepted")
+                {
+                    var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
+                    var playerName = $"{player.first_name} {player.last_name}";
+                    
+                    // Update contract with new salary (keeping same contract length)
+                    // The GiveNewContractToPlayer method will send bot notification
+                    await _mfl.GiveNewContractToPlayer(
+                        body.leagueId, 
+                        body.mflPlayerId, 
+                        holdout.HoldoutSalary, 
+                        false, 
+                        $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}"
+                    );
+                }
+
+                return NoContent();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error responding to holdout");
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+        }
+        
         // need config for threshholds of position rankings
-        // get all scores from mfl with YTD as W
-        // get players from mfl
-        // get contracts from mfl
-
-        // join on id
-
-        // get players who have > 1 year left on contract
-        // make threshholds for paygrades of each position
-        // make service method to get players who performed higher than threshholds above their paygrade
-
-
-
-
-        // get buyout player - 
-
-
-
     }
 }

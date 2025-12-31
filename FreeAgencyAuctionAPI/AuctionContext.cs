@@ -34,10 +34,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<Proposal> Proposals { get; set; }
         public DbSet<Pool> Pools { get; set; }
         public DbSet<PoolUser> PoolUsers { get; set; }
-        /*
-                public DbSet<NflTeamEntity> NflTeams { get; set; }
-                public DbSet<NflOverPickEntity> NflPicks { get; set; }
-        */
+        public DbSet<Holdout> Holdouts { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -500,6 +497,50 @@ namespace FreeAgencyAuctionAPI
                 entity.HasKey(e => e.Id);
             });
 
+            modelBuilder.Entity<Holdout>(entity =>
+            {
+                entity.ToTable("holdout");
+
+                entity.Property(e => e.Id)
+                    .ValueGeneratedOnAdd()
+                    .HasColumnName("id");
+                entity.Property(e => e.LeagueId)
+                    .HasColumnName("leagueid");
+                entity.Property(e => e.PlayerId)
+                    .HasColumnName("playerid");
+                entity.Property(e => e.Year)
+                    .HasColumnName("year");
+                entity.Property(e => e.LeagueOwnerId)
+                    .HasColumnName("leagueownerid");
+                entity.Property(e => e.OriginalSalary)
+                    .HasColumnName("originalsalary");
+                entity.Property(e => e.HoldoutSalary)
+                    .HasColumnName("holdoutsalary");
+                entity.Property(e => e.Status)
+                    .HasMaxLength(20)
+                    .HasColumnName("status");
+                entity.Property(e => e.ScoreTier)
+                    .HasColumnName("scoretier");
+                entity.Property(e => e.SalaryComparison)
+                    .HasColumnName("salarycomparison");
+                entity.Property(e => e.YearsRemaining)
+                    .HasColumnName("yearsremaining");
+                entity.HasOne(e => e.League)
+                    .WithMany(l => l.Holdouts)
+                    .HasForeignKey(d => d.LeagueId)
+                    .HasConstraintName("FK_holdout_League");
+                entity.HasOne(e => e.Player)
+                    .WithMany(l => l.Holdouts)
+                    .HasForeignKey(d => d.PlayerId)
+                    .HasConstraintName("FK_holdout_player");
+                entity.HasOne(e => e.LeagueOwner)
+                    .WithMany(l => l.Holdouts)
+                    .HasForeignKey(d => d.LeagueOwnerId)
+                    .HasConstraintName("FK_holdout_leagueowner");
+
+                entity.HasKey(e => e.Id);
+            });
+
             modelBuilder.Entity<SeasonWins>(entity =>
             {
                 entity.ToTable("seasonwins");
@@ -708,6 +749,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
+        public virtual ICollection<Holdout> Holdouts { get; } = new List<Holdout>();
     }
     public partial class BidEntity
     {
@@ -740,9 +782,10 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
-        public virtual LeagueEntity League { get; set; } = null!;
-        public virtual OwnerEntity Owner { get; set; } = null!;
+        public virtual LeagueEntity League { get; set; }
+        public virtual OwnerEntity Owner { get; set; }
         public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
+        public virtual ICollection<Holdout> Holdouts { get; } = new List<Holdout>();
     }
 
     public partial class SuggestionEntity
@@ -821,7 +864,7 @@ namespace FreeAgencyAuctionAPI
         public virtual ICollection<ContractEntity> Contracts { get; } = new List<ContractEntity>();
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<LotEntity> Lots { get; } = new List<LotEntity>();
-
+        public virtual ICollection<Holdout> Holdouts { get; } = new List<Holdout>();
     }
 
     public partial class ContractEntity
@@ -913,6 +956,25 @@ namespace FreeAgencyAuctionAPI
         public int LeagueOwnerId { get; set; }
         public int Year { get; set; }
         public int PlayerId { get; set; }
+        public virtual LeagueEntity League { get; set; }
+        public virtual LeagueOwnerEntity LeagueOwner { get; set; }
+        public virtual PlayerEntity Player { get; set; }
+    }
+
+    public partial class Holdout
+    {
+        [Key]
+        public int Id { get; set; }
+        public int LeagueId { get; set; }
+        public int LeagueOwnerId { get; set; }
+        public int Year { get; set; }
+        public int PlayerId { get; set; }
+        public int OriginalSalary { get; set; }
+        public int HoldoutSalary { get; set; }
+        public string Status { get; set; } = "Pending"; // "Pending", "Accepted", "Denied"
+        public int ScoreTier { get; set; }
+        public decimal SalaryComparison { get; set; }
+        public int YearsRemaining { get; set; } // Years left on contract when holdout occurred
         public virtual LeagueEntity League { get; set; }
         public virtual LeagueOwnerEntity LeagueOwner { get; set; }
         public virtual PlayerEntity Player { get; set; }

@@ -39,21 +39,29 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=playerScores&L={leagueId}&APIKEY={apiKey}&W=YTD&YEAR={year}&PLAYERS=&POSITION={position}&STATUS=&RULES=1&COUNT=&JSON=1")]
         Task<MflPositionRanks> GetMflPositionScoresByYear([Path] int leagueId, [Path] int year, [Path] string position, [Path] string apiKey);
+        
         [Get("{year}/import?TYPE=taxi_squad&L={leagueId}&PROMOTE=&DEMOTE=&DROP={playerId}&FRANCHISE_ID={franchiseId}")]
         Task<HttpResponseMessage> DropPlayerFromTaxi([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year = Utils.ThisYear);
 
         [Get("{year}/export?TYPE=transactions&L={leagueId}&APIKEY={apiKey}&W=&TRANS_TYPE=&FRANCHISE=&DAYS=&COUNT=&JSON=1")]
         Task<TransactionsRoot> GetLastYearWaiverTransactions([Path] int leagueId, [Path] string apiKey, [Path] int year = Utils.ThisYear - 1);
+        
         [Get("{year}/import?TYPE=tradeProposal&L={leagueId}&OFFEREDTO={offeredTo}&WILL_GIVE_UP={willGiveUp}&WILL_RECEIVE={willReceive}&COMMENTS={comments}&EXPIRES={expires}&FRANCHISE_ID={offeringFranchise}")]
         Task<HttpResponseMessage> SendTradeOffer([Path] int year, [Path] int leagueId, [Path] string offeredTo, [Path] string willGiveUp, [Path] string willReceive, [Path] string comments, [Path] long expires, [Path] string offeringFranchise);
+        
         [Get("{year}/export?TYPE=assets&L={leagueId}&APIKEY=&JSON=1")]
         Task<MflAssetsRoot> GetFranchiseAssets([Path] int leagueId, [Path] int year);
+        
         [Get("{year}/export?TYPE=salaries&L={leagueId}&APIKEY=&JSON=1")]
         Task<MflSalariesParent> GetSalaries([Path] int leagueId, [Path] int year);
 
         [Get("{year}/export?TYPE=pendingTrades&L={leagueId}&APIKEY={ApiKey}&FRANCHISE_ID={franchiseNum}&JSON=1")]
         Task<MflPendingTradesListRoot> GetPendingTrades([Path] int leagueId, [Path] string franchiseNum, [Path] int year, [Path] string ApiKey);
+        
         [Get("{year}/import?TYPE=tradeResponse&L={leagueId}&TRADE_ID={tradeId}&RESPONSE={response}&COMMENTS={comments}&FRANCHISE_ID={franchiseId}")]
         Task<HttpResponseMessage> RespondToTrade([Path] int year, [Path] int leagueId, [Path] int tradeId, [Path] string response, [Path] string comments, [Path] string franchiseId);
+        
+        [Get("{year}/export?TYPE=draftResults&L={leagueId}&APIKEY=&JSON=1")]
+        Task<MflDraftResultsRoot> GetDraftResults([Path] int leagueId, [Path] int year);
     }
 }

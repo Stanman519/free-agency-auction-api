@@ -78,6 +78,8 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
+            services.AddScoped<IConfidencePickValidationService, ConfidencePickValidationService>();
+            services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
             services.AddAutoMapper(typeof(Startup));
            
             services.AddAzureClients(builder =>

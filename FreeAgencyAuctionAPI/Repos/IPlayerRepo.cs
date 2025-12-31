@@ -31,6 +31,11 @@ namespace FreeAgencyAuctionAPI.Repos
         List<Buyout> GetBuyoutsUsedForTeam(int leagueownerId);
         List<FranchiseTagPlayer> GetTagsUsedForTeam(int leagueownerId);
         List<FranchiseTagPlayer> GetAllTagsForLeague(int leagueId);
+        Task AddHoldout(Holdout holdout);
+        Task<List<Holdout>> GetHoldoutsForLeague(int leagueId, int year);
+        Task<List<Holdout>> GetHoldoutsForOwner(int leagueOwnerId, int year);
+        Task<Holdout> GetHoldoutById(int holdoutId);
+        Task UpdateHoldoutStatus(int holdoutId, string status);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -308,5 +313,87 @@ namespace FreeAgencyAuctionAPI.Repos
                 throw;
             }
         }*/
+
+        public async Task AddHoldout(Holdout holdout)
+        {
+            var botId = Utils.leagueBotDict.TryGetValue(holdout.LeagueId, out var x) ? x : string.Empty;
+            try
+            {
+                await _db.Holdouts.AddAsync(holdout);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                await _gm.NotifyMflError(new BotMessage($"holdout db error: {e.Message}", botId));
+                throw;
+            }
+        }
+
+        public async Task<List<Holdout>> GetHoldoutsForLeague(int leagueId, int year)
+        {
+            try
+            {
+                return await _db.Holdouts
+                    .Include(h => h.Player)
+                    .Include(h => h.LeagueOwner)
+                    .Where(h => h.LeagueId == leagueId && h.Year == year)
+                    .ToListAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error getting holdouts for league");
+                return new List<Holdout>();
+            }
+        }
+
+        public async Task<List<Holdout>> GetHoldoutsForOwner(int leagueOwnerId, int year)
+        {
+            try
+            {
+                return await _db.Holdouts
+                    .Include(h => h.Player)
+                    .Where(h => h.LeagueOwnerId == leagueOwnerId && h.Year == year)
+                    .ToListAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error getting holdouts for owner");
+                return new List<Holdout>();
+            }
+        }
+
+        public async Task<Holdout> GetHoldoutById(int holdoutId)
+        {
+            try
+            {
+                return await _db.Holdouts
+                    .Include(h => h.Player)
+                    .Include(h => h.LeagueOwner)
+                    .FirstOrDefaultAsync(h => h.Id == holdoutId);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error getting holdout by id");
+                return null;
+            }
+        }
+
+        public async Task UpdateHoldoutStatus(int holdoutId, string status)
+        {
+            try
+            {
+                var holdout = await _db.Holdouts.FirstOrDefaultAsync(h => h.Id == holdoutId);
+                if (holdout != null)
+                {
+                    holdout.Status = status;
+                    await _db.SaveChangesAsync();
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error updating holdout status");
+                throw;
+            }
+        }
     }
 }
