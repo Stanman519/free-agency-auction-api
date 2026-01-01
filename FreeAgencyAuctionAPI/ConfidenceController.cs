@@ -39,13 +39,24 @@
                 IConfidencePickValidationService validationService,
                 IAdminAuthorizationService adminAuthService)
             {
-
                 _logger = logger;
                 _db = db;
                 _mapper = mapper;
                 _gm = gm;
                 _validationService = validationService;
                 _adminAuthService = adminAuthService;
+            }
+
+            // Helper method to decode user parameter
+            private string DecodeUserParam(string user)
+            {
+                if (string.IsNullOrEmpty(user))
+                {
+                    return user;
+                }
+                
+                // Decode URL-encoded characters like %7C back to |
+                return System.Net.WebUtility.UrlDecode(user);
             }
 
             [HttpGet("ping")]
@@ -73,13 +84,11 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> GetCurrentMatchupsForm([Query] int year = Utils.ThisYear, [Query] string user = "")
+            public async Task<IActionResult> GetCurrentMatchupsForm([FromQuery] int year = Utils.ThisYear, [FromQuery] string user = "")
             {
-                //switch for demo to take negative pool?
-
-                // look for matchups in db with the latest week but not decided  (need some sort of LOCKED) mechanism
-                // if the matchups are ready for picking, send them back.  If they're live, send them back and let the client handle non form mode
-
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 if (!dbMatchups.Any())
                 {
@@ -90,7 +99,7 @@
                     });
                 }
                 var dbProps = _db.Props.Where(_ => _.Year == year).ToList();
-                var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList(); // can't do this serverside because groupby => orderby doesnt work on EFCore?
+                var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList();
                 var propsThisWeek = dbProps.GroupBy(p => p.Week).OrderByDescending(p => p.Key).FirstOrDefault()?.Select(p => _mapper.Map<PropDTO>(p)).ToList();
                 var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList() ?? new List<PropDTO>();
                 if (!string.IsNullOrEmpty(user))
@@ -110,22 +119,25 @@
                         var dbProp = userProps.FirstOrDefault(db => db.PropId == p.Id);
                         if (dbProp != null) p.Pick = _mapper.Map<PropPickDTO>(dbProp);
                     });
-                    }
+                }
                 return Ok(new MatchupForm
                 {
                     Matchups = thisWeek,
                     Props = props,
                 });
-
             }
+
             [HttpPost("admin/new-matchups")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
             [ProducesResponseType(StatusCodes.Status403Forbidden)]
-            public async Task<IActionResult> PostPickableMatchups([Body] List<NflMatchupDTO> matchups, [Query] string user = "")
+            public async Task<IActionResult> PostPickableMatchups([FromBody] List<NflMatchupDTO> matchups, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -167,14 +179,18 @@
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
+
             [HttpPost("admin/new-props")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
             [ProducesResponseType(StatusCodes.Status403Forbidden)]
-            public async Task<IActionResult> PostPickableProps([Body] List<PropDTO> props, [Query] string user = "")
+            public async Task<IActionResult> PostPickableProps([FromBody] List<PropDTO> props, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -233,8 +249,12 @@
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-            public async Task<IActionResult> MarkOwnerAsPaid([Body] List<int> ownerIds, [Query] string user = "")
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> MarkOwnerAsPaid([FromBody] List<int> ownerIds, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -292,8 +312,11 @@
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
             [ProducesResponseType(StatusCodes.Status403Forbidden)]
             [ProducesResponseType(StatusCodes.Status404NotFound)]
-            public async Task<IActionResult> PostPropAnswer([Path] int propId, [Path] string winningOption, [Query] string user = "")
+            public async Task<IActionResult> PostPropAnswer([FromRoute] int propId, [FromRoute] string winningOption, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -352,11 +375,8 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCommunityStats(int year, int week)
             {
-
-
                 var allPicksThisWeek = _db.NflPicks.Where(p => p.NflTeamMatchup.Week ==  week && p.NflTeamMatchup.Year == year).ToList().GroupBy(p => p.MatchupId);
                 var isStillPickable = false;
-                //var matchupStats = new List<MatchupCommunityStats>();
                 
                 var matchupStats = allPicksThisWeek.Select(mup =>
                 {
@@ -402,9 +422,13 @@
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
             [ProducesResponseType(StatusCodes.Status404NotFound)]
-            public async Task<IActionResult> PostRealMatchupWinner([Path] int matchupId, [Path] int winningTeamId, [Query] string user = "")
+            public async Task<IActionResult> PostRealMatchupWinner([FromRoute] int matchupId, [FromRoute] int winningTeamId, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -465,8 +489,11 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
             [ProducesResponseType(StatusCodes.Status403Forbidden)]
-            public async Task<IActionResult> MakeAllMatchupsUnpickable([Query] int year = Utils.ThisYear, [Query] string user = "")
+            public async Task<IActionResult> MakeAllMatchupsUnpickable([FromQuery] int year = Utils.ThisYear, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
                 
@@ -516,8 +543,13 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> SaveOrOverwriteMyPicks([Body] NflPickSubmission pickSubmission, [Query] string user = "")
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> SaveOrOverwriteMyPicks([FromBody] NflPickSubmission pickSubmission, [FromQuery] string user = "")
             {
+                // Decode user parameter
+                user = DecodeUserParam(user);
+                
                 // AUTHENTICATION: Verify user is authenticated
                 if (string.IsNullOrEmpty(user))
                 {
@@ -762,7 +794,7 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> CreateDemoData([Query] int year = -1)
+            public async Task<IActionResult> CreateDemoData([FromQuery] int year = -1)
             {
                 // if there's less than 50 owners create 50 fake owners
                 if (_db.Owners.Where(o => o.istest).ToList().Count > 50) return BadRequest();
@@ -844,9 +876,6 @@
 
 
                 return Ok();
-
-
-
             }
 
 
