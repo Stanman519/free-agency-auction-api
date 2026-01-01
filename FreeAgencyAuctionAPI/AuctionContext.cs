@@ -993,7 +993,7 @@ namespace FreeAgencyAuctionAPI
         public string Logo { get; set; }
         public string SecondaryLogo { get; set; }
         public string League { get; set; }
-        public int SportsDataId { get; set; }
+        public int? SportsDataId { get; set; }
         public virtual ICollection<NflTeamMatchup> LeftMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> RightMatchups { get; } = new List<NflTeamMatchup>();
         public virtual ICollection<NflTeamMatchup> WinMatchups { get; } = new List<NflTeamMatchup>();
