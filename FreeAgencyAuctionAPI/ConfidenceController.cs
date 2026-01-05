@@ -614,7 +614,8 @@
                 if (validationResult.OwnerId != authenticatedOwner.Ownerid)
                 {
                     _logger.LogWarning("User {User} attempted to submit picks for owner {OwnerId}", user, validationResult.OwnerId);
-                    return Forbid();
+                    return StatusCode(StatusCodes.Status403Forbidden, 
+                        new ErrorResponse("You cannot submit picks for another user."));
                 }
 
                 // Validate that all choices are valid (Left or Right team in matchup)
