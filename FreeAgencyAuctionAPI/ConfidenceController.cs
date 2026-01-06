@@ -32,10 +32,10 @@
             private readonly IAdminAuthorizationService _adminAuthService;
 
             public ConfidenceController(
-                ILogger<ConfidenceController> logger, 
-                AuctionContext db, 
-                IMapper mapper, 
-                IGMBot gm, 
+                ILogger<ConfidenceController> logger,
+                AuctionContext db,
+                IMapper mapper,
+                IGMBot gm,
                 IConfidencePickValidationService validationService,
                 IAdminAuthorizationService adminAuthService)
             {
@@ -54,7 +54,7 @@
                 {
                     return user;
                 }
-                
+
                 // Decode URL-encoded characters like %7C back to |
                 return System.Net.WebUtility.UrlDecode(user);
             }
@@ -88,7 +88,7 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 var dbMatchups = _db.NflTeamMatchups.Where(_ => _.Year == year).ToList();
                 if (!dbMatchups.Any())
                 {
@@ -102,13 +102,13 @@
                 var thisWeek = dbMatchups.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<NflMatchupDTO>(_)).ToList();
                 var propsThisWeek = dbProps.GroupBy(p => p.Week).OrderByDescending(p => p.Key).FirstOrDefault()?.Select(p => _mapper.Map<PropDTO>(p)).ToList();
                 var props = dbProps.GroupBy(m => m.Week).OrderByDescending(m => m.Key).FirstOrDefault()?.Select(_ => _mapper.Map<PropDTO>(_)).ToList() ?? new List<PropDTO>();
-                
+
                 if (!string.IsNullOrEmpty(user))
                 {
                     var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
-                    
+
                     // Only query user props if there are props this week
-                    var userProps = propsThisWeek != null && propsThisWeek.Any() 
+                    var userProps = propsThisWeek != null && propsThisWeek.Any()
                         ? _db.ExtraPicks.Where(p => p.Owner.authid == user && propsThisWeek.Select(w => w.Id).Contains(p.PropId)).ToList()
                         : new List<ExtraPick>();
 
@@ -142,10 +142,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -153,34 +153,34 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} creating {Count} new matchups", 
+                _logger.LogInformation("Admin user {OwnerId} creating {Count} new matchups",
                     authResult.Owner.Ownerid, matchups.Count);
 
                 var dbMatchups = _mapper.Map<List<NflTeamMatchup>>(matchups);
                 dbMatchups.ForEach(matchup => matchup.Pickable = true);
-                
+
                 try
                 {
                     await _db.NflTeamMatchups.AddRangeAsync(dbMatchups);
                     await _db.SaveChangesAsync();
-                    
+
                     _logger.LogInformation("Successfully created {Count} matchups", dbMatchups.Count);
                     return Ok(dbMatchups);
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogError(ex, "Database error creating matchups");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("Unable to create matchups. Please check the data and try again."));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error creating matchups");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
@@ -195,10 +195,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -206,34 +206,34 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} creating {Count} new props", 
+                _logger.LogInformation("Admin user {OwnerId} creating {Count} new props",
                     authResult.Owner.Ownerid, props.Count);
 
                 var dbProps = _mapper.Map<List<Prop>>(props);
                 dbProps.ForEach(prop => prop.Pickable = true);
-                
+
                 try
                 {
                     await _db.Props.AddRangeAsync(dbProps);
                     await _db.SaveChangesAsync();
-                    
+
                     _logger.LogInformation("Successfully created {Count} props", dbProps.Count);
                     return Ok(dbProps);
                 }
                 catch (DbUpdateException ex)
                 {
-                    _logger.LogError(ex, "Database error creating props");  
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    _logger.LogError(ex, "Database error creating props");
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("Unable to create props. Please check the data and try again."));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error creating props");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
@@ -259,10 +259,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -270,15 +270,15 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} marking {Count} owners as paid", 
+                _logger.LogInformation("Admin user {OwnerId} marking {Count} owners as paid",
                     authResult.Owner.Ownerid, ownerIds.Count);
 
                 var editOwners = await _db.Owners.Where(o => ownerIds.Contains(o.Ownerid)).ToListAsync();
-                
+
                 if (!editOwners.Any())
                 {
                     return BadRequest(new ErrorResponse("No owners found with the provided IDs."));
@@ -292,20 +292,20 @@
                 try
                 {
                     await _db.SaveChangesAsync();
-                    
+
                     _logger.LogInformation("Successfully marked {Count} owners as paid", editOwners.Count);
                     return Ok(new { markedPaid = editOwners.Count });
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogError(ex, "Database error marking owners as paid");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("Unable to update payment status. Please try again."));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error marking owners as paid");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
@@ -321,10 +321,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -332,44 +332,44 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} setting winner for prop {PropId}", 
+                _logger.LogInformation("Admin user {OwnerId} setting winner for prop {PropId}",
                     authResult.Owner.Ownerid, propId);
 
                 var dbPropToUpdate = await _db.Props.FirstOrDefaultAsync(m => m.Id == propId);
-                
+
                 if (dbPropToUpdate == null)
                 {
                     _logger.LogWarning("Prop {PropId} not found", propId);
                     return NotFound(new ErrorResponse("Prop not found."));
                 }
-                
+
                 if (winningOption != "A" && winningOption != "B")
                 {
                     return BadRequest(new ErrorResponse("Winning option must be 'A' or 'B'."));
                 }
-                
+
                 try
                 {
                     dbPropToUpdate.Winner = winningOption;
                     await _db.SaveChangesAsync();
-                    
+
                     _logger.LogInformation("Successfully set winner {Option} for prop {PropId}", winningOption, propId);
                     return Ok(new { propId, winningOption });
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogError(ex, "Database error setting prop winner");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("Unable to update prop result. Please try again."));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error setting prop winner");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
@@ -380,9 +380,9 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCommunityStats(int year, int week)
             {
-                var allPicksThisWeek = _db.NflPicks.Where(p => p.NflTeamMatchup.Week ==  week && p.NflTeamMatchup.Year == year).ToList().GroupBy(p => p.MatchupId);
+                var allPicksThisWeek = _db.NflPicks.Where(p => p.NflTeamMatchup.Week == week && p.NflTeamMatchup.Year == year).ToList().GroupBy(p => p.MatchupId);
                 var isStillPickable = false;
-                
+
                 var matchupStats = allPicksThisWeek.Select(mup =>
                 {
                     decimal count = 0;
@@ -433,10 +433,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -444,15 +444,15 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} setting winner for matchup {MatchupId}", 
+                _logger.LogInformation("Admin user {OwnerId} setting winner for matchup {MatchupId}",
                     authResult.Owner.Ownerid, matchupId);
 
                 var dbMatchupToUpdate = await _db.NflTeamMatchups.FirstOrDefaultAsync(m => m.Id == matchupId);
-                
+
                 if (dbMatchupToUpdate == null)
                 {
                     _logger.LogWarning("Matchup {MatchupId} not found", matchupId);
@@ -470,20 +470,20 @@
                 {
                     dbMatchupToUpdate.Winner = winningTeamId;
                     await _db.SaveChangesAsync();
-                    
+
                     _logger.LogInformation("Successfully set winner {TeamId} for matchup {MatchupId}", winningTeamId, matchupId);
                     return Ok(new { matchupId, winningTeamId });
                 }
                 catch (DbUpdateException ex)
                 {
                     _logger.LogError(ex, "Database error setting matchup winner");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("Unable to update matchup result. Please try again."));
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Unexpected error setting matchup winner");
-                    return StatusCode(StatusCodes.Status500InternalServerError, 
+                    return StatusCode(StatusCodes.Status500InternalServerError,
                         new ErrorResponse("An unexpected error occurred."));
                 }
             }
@@ -498,10 +498,10 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // ADMIN AUTHENTICATION & AUTHORIZATION
                 var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
-                
+
                 if (!authResult.IsAuthenticated)
                 {
                     return Unauthorized(new ErrorResponse("Authentication required."));
@@ -509,11 +509,11 @@
 
                 if (!authResult.IsAuthorized)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("Admin privileges required for this action."));
                 }
 
-                _logger.LogInformation("Admin user {OwnerId} locking matchups for year {Year}", 
+                _logger.LogInformation("Admin user {OwnerId} locking matchups for year {Year}",
                     authResult.Owner.Ownerid, year);
 
                 using (var transaction = await _db.Database.BeginTransactionAsync())
@@ -522,23 +522,23 @@
                     {
                         var matchups = await _db.NflTeamMatchups.Where(m => m.Year == year).ToListAsync();
                         var props = await _db.Props.Where(p => p.Year == year).ToListAsync();
-                        
+
                         props.ForEach(p => p.Pickable = false);
                         matchups.ForEach(m => m.Pickable = false);
-                        
+
                         await _db.SaveChangesAsync();
                         await transaction.CommitAsync();
 
-                        _logger.LogInformation("Successfully locked {MatchupCount} matchups and {PropCount} props for year {Year}", 
+                        _logger.LogInformation("Successfully locked {MatchupCount} matchups and {PropCount} props for year {Year}",
                             matchups.Count, props.Count, year);
-                        
+
                         return Ok(new { matchupsLocked = matchups.Count, propsLocked = props.Count });
                     }
                     catch (Exception ex)
                     {
                         await transaction.RollbackAsync();
                         _logger.LogError(ex, "Error locking matchups for year {Year}", year);
-                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                        return StatusCode(StatusCodes.Status500InternalServerError,
                             new ErrorResponse("Unable to lock matchups. Please try again."));
                     }
                 }
@@ -554,7 +554,7 @@
             {
                 // Decode user parameter
                 user = DecodeUserParam(user);
-                
+
                 // AUTHENTICATION: Verify user is authenticated
                 if (string.IsNullOrEmpty(user))
                 {
@@ -599,8 +599,8 @@
 
                 // Validate the submission structure
                 var validationResult = _validationService.ValidatePickSubmission(
-                    pickSubmission, 
-                    pickableMatchups.Count, 
+                    pickSubmission,
+                    pickableMatchups.Count,
                     pickableProps.Count
                 );
 
@@ -614,7 +614,7 @@
                 if (validationResult.OwnerId != authenticatedOwner.Ownerid)
                 {
                     _logger.LogWarning("User {User} attempted to submit picks for owner {OwnerId}", user, validationResult.OwnerId);
-                    return StatusCode(StatusCodes.Status403Forbidden, 
+                    return StatusCode(StatusCodes.Status403Forbidden,
                         new ErrorResponse("You cannot submit picks for another user."));
                 }
 
@@ -712,11 +712,18 @@
                                 var propEntities = _mapper.Map<List<ExtraPick>>(props);
                                 await _db.ExtraPicks.AddRangeAsync(propEntities);
                             }
+                            try
+                            {
+                                await _gm.NotifyMflError(new BotMessage($"User {authenticatedOwner.Displayname} ({authenticatedOwner.Ownerid}) submitted their confidence picks.", String.Empty));
+                            } catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error sending notification for pick submission by user {User}", user);
+                            }
                         }
 
                         // Save all changes
                         await _db.SaveChangesAsync();
-                        
+
                         // Commit transaction
                         await transaction.CommitAsync();
 
@@ -727,14 +734,14 @@
                     {
                         await transaction.RollbackAsync();
                         _logger.LogError(ex, "Database error saving picks for user {User}", user);
-                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                        return StatusCode(StatusCodes.Status500InternalServerError,
                             new ErrorResponse("Unable to save picks. Please try again."));
                     }
                     catch (Exception ex)
                     {
                         await transaction.RollbackAsync();
                         _logger.LogError(ex, "Unexpected error saving picks for user {User}", user);
-                        return StatusCode(StatusCodes.Status500InternalServerError, 
+                        return StatusCode(StatusCodes.Status500InternalServerError,
                             new ErrorResponse("An unexpected error occurred. Please try again."));
                     }
                 }
@@ -746,7 +753,7 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> ErrorTest()
             {
-                return BadRequest(new ErrorResponse("beep boop test.")); 
+                return BadRequest(new ErrorResponse("beep boop test."));
             }
             [HttpGet("results")]
             [Produces("application/json")]
@@ -759,34 +766,34 @@
                     .GroupBy(_ => _.OwnerId)
                     .ToList()
                     .Select(_ => new ConfidencePlayerResult
+                    {
+                        PickSubmitted = _.Any(p => p.NflTeamMatchup.Pickable),
+                        Avatar = _.FirstOrDefault().Owner.Avatar,
+                        DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
+                        IsPaid = _.FirstOrDefault().Owner.ConfidencePaid,
+                        OwnerId = _.Key,
+                        TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
+                        ExtraPoints = (extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null || extraPts.Count == 0) ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop?.Winner ? 1 : 0),
+                        WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
                         {
-                            PickSubmitted = _.Any(p => p.NflTeamMatchup.Pickable),
-                            Avatar = _.FirstOrDefault().Owner.Avatar,
-                            DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
-                            IsPaid = _.FirstOrDefault().Owner.ConfidencePaid,
-                            OwnerId = _.Key,
-                            TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
-                            ExtraPoints = (extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null || extraPts.Count == 0) ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop?.Winner ? 1 : 0),
-                            WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
-                                {
-                                    Week = wk.Key,
-                                    TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
-                                    Results = wk.Select(wRes => new PickResult
-                                    {
-                                        Id = wRes.Id,
-                                        OwnerId = wRes.OwnerId,
-                                        MatchupId = wRes.MatchupId,
-                                        Choice = wRes.NflTeamMatchup.Pickable ? null : wRes.Choice,
-                                        Points = wRes.Points,
-                                        Correct = wRes.NflTeamMatchup.Winner == null ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
-                                        PickTeam = (wRes.NflTeamMatchup.Pickable && year != -1) ? null : _mapper.Map<NflTeamBaseDTO>(wRes.ChosenTeam)
-                                    }).OrderByDescending(r => r.Points)
-                                
-                            }).OrderBy(wr => wr.Week)
+                            Week = wk.Key,
+                            TotalPoints = wk.Sum(r => r.Choice == r.NflTeamMatchup.Winner ? r.Points : 0),
+                            Results = wk.Select(wRes => new PickResult
+                            {
+                                Id = wRes.Id,
+                                OwnerId = wRes.OwnerId,
+                                MatchupId = wRes.MatchupId,
+                                Choice = wRes.NflTeamMatchup.Pickable ? null : wRes.Choice,
+                                Points = wRes.Points,
+                                Correct = wRes.NflTeamMatchup.Winner == null ? null : wRes.NflTeamMatchup.Winner == wRes.Choice,
+                                PickTeam = (wRes.NflTeamMatchup.Pickable && year != -1) ? null : _mapper.Map<NflTeamBaseDTO>(wRes.ChosenTeam)
+                            }).OrderByDescending(r => r.Points)
+
+                        }).OrderBy(wr => wr.Week)
                     }
 
                     ).OrderByDescending(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
-                    
+
                 var scores = results.Select(r => r.TotalPoints + (r.ExtraPoints * 0.1)).ToList();
                 results.ForEach(res =>
                 {
@@ -796,14 +803,27 @@
                 return Ok(results);
             }
 
-            [HttpGet("demo/generate")]
+/*            [HttpGet("demo/generate")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> CreateDemoData([FromQuery] int year = -1)
             {
-                // if there's less than 50 owners create 50 fake owners
-                if (_db.Owners.Where(o => o.istest).ToList().Count > 50) return BadRequest();
+                // Check if there are already too many test owners
+                if (_db.Owners.Where(o => o.istest).ToList().Count > 50)
+                    return BadRequest(new ErrorResponse("Too many test owners already exist."));
+
+                // Get existing week 1 matchups for the specified year
+                var week1Matchups = await _db.NflTeamMatchups
+                    .Where(m => m.Year == year && m.Week == 1)
+                    .ToListAsync();
+
+                if (!week1Matchups.Any())
+                {
+                    return BadRequest(new ErrorResponse($"No matchups found for year {year}, week 1. Please create matchups first."));
+                }
+
+                // Generate fake demo users
                 var users = new Faker<OwnerEntity>()
                     .RuleFor(o => o.Ownername, f => f.Internet.UserName())
                     .RuleFor(o => o.PasswordHash, f => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(f.Internet.Password())))
@@ -813,92 +833,55 @@
                     .RuleFor(o => o.authid, f => f.Internet.Password())
                     .Generate(20);
 
-                // create 4 matchups for week 1 of this year, 4 matchups for week 2, USE ANY TEAM EXCEPT tricode == FA
-                var leftTms = _db.NflTeams.Where(t => t.Tricode != "FA").OrderBy(t => t.Secondary).ToList();
-                var rightTms = leftTms.TakeLast(15).ToList();
-                leftTms.RemoveRange(15, 15);
-
-                var week1 = leftTms.Take(6).Select((lt, index) => new NflTeamMatchup
-                {
-                    Left = lt.Id,
-                    Right = rightTms[index].Id,
-                    Week = 1,
-                    Year = year,
-                    Winner = new Random().Next(2) > 0 ? lt.Id : rightTms[index].Id,
-                    Pickable = false
-                }).ToList();
-
-
-                var week2 = week1.Take(4).Select((w, index) => new NflTeamMatchup
-                {
-                    Week = 2,
-                    Year = year,
-                    Winner = null,
-                    Pickable = true,
-                    Left = index < 2 ? leftTms[8 + index].Id : w.Id,
-                    Right = index < 2 ? w.Id : week1[2 + index].Id
-                }).ToList();
-
                 _db.Owners.AddRange(users);
-                _db.SaveChanges();
+                await _db.SaveChangesAsync();
 
-                _db.NflTeamMatchups.AddRange(week1);
-                _db.NflTeamMatchups.AddRange(week2);
-
-                _db.SaveChanges();
-
+                // Generate picks for all demo users for week 1
                 var allThePicks = new List<Pick>();
-                var points1 = new int[] { 1, 2, 3, 4, 5, 6 };
-                var points2 = new int[] { 2, 3, 4, 5, 6, 7 };
+                var points = Enumerable.Range(1, week1Matchups.Count).ToArray();
                 var rng = new Random();
+
                 users.ForEach(u =>
                 {
-
-                    rng.Shuffle(points1);
-                    var picks1 = week1.Select((m, i) => new Pick
+                    rng.Shuffle(points);
+                    var picks = week1Matchups.Select((m, i) => new Pick
                     {
-                        Choice = new Random().Next(2) == 0 ? m.Left : m.Right,
+                        Choice = rng.Next(2) == 0 ? m.Left : m.Right,
                         MatchupId = m.Id,
                         OwnerId = u.Ownerid,
-                        Points = points1[i]
+                        Points = points[i]
                     }).ToList();
-                    allThePicks.AddRange(picks1);
-                    if (new Random().Next(2) == 0)
-                    {
-                        rng.Shuffle(points2);
-                        var picks2 = week2.Select((m, i) => new Pick
-                        { 
-                            Choice = new Random().Next(2) == 0 ? m.Left : m.Right,
-                            MatchupId = m.Id,
-                            OwnerId = u.Ownerid,
-                            Points = points2[i]
-                        }).ToList();
-                        allThePicks.AddRange(picks2);
-                    }
+                    allThePicks.AddRange(picks);
                 });
 
                 _db.NflPicks.AddRange(allThePicks);
-                _db.SaveChanges();
+                await _db.SaveChangesAsync();
 
+                _logger.LogInformation("Generated {UserCount} demo users with {PickCount} picks for year {Year}, week 1",
+                    users.Count, allThePicks.Count, year);
 
-                return Ok();
-            }
-
-
+                return Ok(new
+                {
+                    message = "Demo data created successfully",
+                    usersCreated = users.Count,
+                    picksCreated = allThePicks.Count,
+                    matchupsUsed = week1Matchups.Count
+                });
+            }*/
 
         }
-    }
-    static class RandomExtensions
-    {
-        public static void Shuffle<T>(this Random rng, T[] array)
+        static class RandomExtensions
         {
-            int n = array.Length;
-            while (n > 1)
+            public static void Shuffle<T>(this Random rng, T[] array)
             {
-                int k = rng.Next(n--);
-                T temp = array[n];
-                array[n] = array[k];
-                array[k] = temp;
+                int n = array.Length;
+                while (n > 1)
+                {
+                    int k = rng.Next(n--);
+                    T temp = array[n];
+                    array[n] = array[k];
+                    array[k] = temp;
+                }
             }
         }
     }
