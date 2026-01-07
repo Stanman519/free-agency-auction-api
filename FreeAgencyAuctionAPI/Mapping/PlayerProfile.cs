@@ -2,7 +2,9 @@ using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Models.Confidence;
 using FreeAgencyAuctionAPI.OverUnders;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using static FreeAgencyAuctionAPI.OverUnders.OverUnderController;
 
 namespace FreeAgencyAuctionAPI.Mapping
@@ -165,7 +167,8 @@ namespace FreeAgencyAuctionAPI.Mapping
         {
             CreateMap<OwnerEntity, OwnerDTO>()
                 .ForMember(dest => dest.ConfidencePaid, opt => opt.MapFrom(src => src.ConfidencePaid))
-                .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.PasswordHash)).ReverseMap();
+                .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.PasswordHash))
+                .ReverseMap();
         }
     }
 

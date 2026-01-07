@@ -1,10 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using FreeAgencyAuctionAPI;
+using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FreeAgencyAuctionAPI
 {
@@ -317,6 +319,8 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.PasswordHash)
                     .IsUnicode(false)
                     .HasColumnName("password_hash");
+                entity.Property(e => e.ConfidenceTitles)
+                    .HasColumnName("confidence_titles");
                 entity.Property(e => e.ConfidencePaid).HasColumnName("confidencepaid");
                 entity.Property(e => e.StreamToken)
                     .HasColumnName("streamtoken");
@@ -822,26 +826,7 @@ namespace FreeAgencyAuctionAPI
         public virtual LeagueEntity League { get; set; } = null!;
     }
 
-    public partial class OwnerEntity
-    {
-        [Key]
-        public int Ownerid { get; set; }
-        public string? Ownername { get; set; }
-        public string? PasswordHash { get; set; }
-        public string? Displayname { get; set; }
-        public bool? Premium { get; set; }
-        public bool istest { get; set; }
-        public string Avatar { get; set; }
-        public string authid { get; set; }
-        public string StreamToken { get; set; }
-        public bool ConfidencePaid { get; set; }
-/*        public virtual ICollection<Pool> Pools { get; } = new List<Pool>();*/
-        public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
-        public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
-        public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();
-        public virtual ICollection<ExtraPick> ExtraPicks { get; } = new List<ExtraPick>();
-        
-    }
+
 
     public partial class LeagueEntity
     {

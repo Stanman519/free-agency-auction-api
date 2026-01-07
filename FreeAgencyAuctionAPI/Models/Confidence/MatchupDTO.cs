@@ -69,6 +69,7 @@ namespace FreeAgencyAuctionAPI.Models.Confidence
     {
         public bool PickSubmitted { get; set; }
         public int Rank { get; set; }
+        public List<int> ConfidenceTitles { get; set; }
         public string Avatar { get; set; }
         public bool IsPaid { get; set; }
         public string DisplayName { get; set; }

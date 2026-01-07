@@ -772,6 +772,7 @@
                         DisplayName = _.FirstOrDefault().Owner.Displayname ?? "",
                         IsPaid = _.FirstOrDefault().Owner.ConfidencePaid,
                         OwnerId = _.Key,
+                        ConfidenceTitles = _.FirstOrDefault().Owner.ConfidenceTitleList,
                         TotalPoints = _.Sum(pk => pk.Choice == pk.NflTeamMatchup.Winner ? pk.Points : 0),
                         ExtraPoints = (extraPts.FirstOrDefault(ep => ep.Key == _.Key) == null || extraPts.Count == 0) ? 0 : extraPts.FirstOrDefault(ep => ep.Key == _.Key).Sum(pick => pick.Choice == pick.Prop?.Winner ? 1 : 0),
                         WeeklyResults = _.GroupBy(pk => pk.NflTeamMatchup.Week).Select(wk => new WeeklyConfidenceResult
