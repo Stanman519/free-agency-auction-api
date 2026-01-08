@@ -804,7 +804,7 @@
                 return Ok(results);
             }
 
-/*            [HttpGet("demo/generate")]
+            /*[HttpGet("demo/generate")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]

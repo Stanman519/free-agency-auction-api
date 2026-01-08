@@ -168,7 +168,16 @@ namespace FreeAgencyAuctionAPI.Mapping
             CreateMap<OwnerEntity, OwnerDTO>()
                 .ForMember(dest => dest.ConfidencePaid, opt => opt.MapFrom(src => src.ConfidencePaid))
                 .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.PasswordHash))
-                .ReverseMap();
+                .ForMember(dest => dest.ConfidenceTitles, opt => opt.MapFrom(src => src.ConfidenceTitleList.ToArray()));
+            
+            CreateMap<OwnerDTO, OwnerEntity>()
+                .ForMember(dest => dest.PasswordHash, opt => opt.MapFrom(src => src.Password))
+                .ForMember(dest => dest.ConfidenceTitles, opt => opt.MapFrom(src => SerializeConfidenceTitles(src.ConfidenceTitles)));
+        }
+
+        private static string SerializeConfidenceTitles(int[] titles)
+        {
+            return JsonSerializer.Serialize(titles ?? new int[0]);
         }
     }
 
