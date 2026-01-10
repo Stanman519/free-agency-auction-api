@@ -23,21 +23,21 @@ namespace FreeAgencyAuctionAPI.Mapping
     {
         public MatchupProfile()
         {
-            // Map from DTO to Entity - need team IDs, not tricodes
             CreateMap<NflMatchupDTO, NflTeamMatchup>()
                 .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
                 .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
                 .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
                 .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.Left != null ? src.Left.Id : 0))
+                .ForMember(dest => dest.IsCurrentGame, opt => opt.MapFrom(src => src.IsCurrentGame))
                 .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.Right != null ? src.Right.Id : 0))
                 .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.Winner != null ? (int?)src.Winner.Id : null));
             
-            // Map from Entity to DTO - populate team objects
             CreateMap<NflTeamMatchup, NflMatchupDTO>()
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Week, opt => opt.MapFrom(src => src.Week))
                 .ForMember(dest => dest.Year, opt => opt.MapFrom(src => src.Year))
                 .ForMember(dest => dest.Pickable, opt => opt.MapFrom(src => src.Pickable))
+                .ForMember(dest => dest.IsCurrentGame, opt => opt.MapFrom(src => src.IsCurrentGame))
                 .ForMember(dest => dest.Right, opt => opt.MapFrom(src => src.RightTeam))
                 .ForMember(dest => dest.Winner, opt => opt.MapFrom(src => src.WinningTeam))
                 .ForMember(dest => dest.Left, opt => opt.MapFrom(src => src.LeftTeam));

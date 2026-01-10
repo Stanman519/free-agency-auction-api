@@ -109,6 +109,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Week).HasColumnName("week");
                 entity.Property(e => e.Pickable).HasColumnName("pickable");
                 entity.Property(e => e.Winner).HasColumnName("winner");
+                entity.Property(e => e.IsCurrentGame).HasColumnName("is_current_game").HasDefaultValue(false);
                 entity.HasOne(e => e.LeftTeam).WithMany(e => e.LeftMatchups).HasForeignKey(d => d.Left).HasConstraintName("FK_matchup_nflteam_left");
                 entity.HasOne(e => e.RightTeam).WithMany(e => e.RightMatchups).HasForeignKey(d => d.Right).HasConstraintName("FK_matchup_nflteam_right");
                 entity.HasOne(e => e.WinningTeam).WithMany(e => e.WinMatchups).HasForeignKey(d => d.Winner).HasConstraintName("FK_matchup_nflteam_winner");
@@ -996,6 +997,7 @@ namespace FreeAgencyAuctionAPI
         public int Week { get; set; }
         public int? Winner { get; set; }
         public bool Pickable { get; set; }
+        public bool IsCurrentGame { get; set; } = false;
         public virtual NflTeam LeftTeam { get; set; }
         public virtual NflTeam RightTeam { get; set; }
         public virtual NflTeam? WinningTeam { get; set; }
