@@ -869,7 +869,83 @@
                     matchupsUsed = week1Matchups.Count
                 });
             }*/
+            [HttpPost("admin/matchups/{matchupId}/set-current")]
+            [Produces("application/json")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            [ProducesResponseType(StatusCodes.Status404NotFound)]
+            public async Task<IActionResult> SetCurrentGame([FromRoute] int matchupId, [FromQuery] string user = "")
+            {
+                // Decode user parameter
+                user = DecodeUserParam(user);
 
+                // ADMIN AUTHENTICATION & AUTHORIZATION
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+
+                if (!authResult.IsAuthenticated)
+                {
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                }
+
+                if (!authResult.IsAuthorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        new ErrorResponse("Admin privileges required for this action."));
+                }
+
+                _logger.LogInformation("Admin user {OwnerId} setting matchup {MatchupId} as current game",
+                    authResult.Owner.Ownerid, matchupId);
+
+                using (var transaction = await _db.Database.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        // Find the matchup to set as current
+                        var matchupToSetCurrent = await _db.NflTeamMatchups.FirstOrDefaultAsync(m => m.Id == matchupId);
+
+                        if (matchupToSetCurrent == null)
+                        {
+                            _logger.LogWarning("Matchup {MatchupId} not found", matchupId);
+                            return NotFound(new ErrorResponse("Matchup not found."));
+                        }
+
+                        // Set all other matchups to false
+                        var allMatchups = await _db.NflTeamMatchups.ToListAsync();
+                        allMatchups.ForEach(m => m.IsCurrentGame = false);
+
+                        // Set the selected matchup as the current game
+                        matchupToSetCurrent.IsCurrentGame = true;
+
+                        await _db.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        _logger.LogInformation("Successfully set matchup {MatchupId} as current game", matchupId);
+
+                        return Ok(new
+                        {
+                            matchupId,
+                            currentGame = true,
+                            message = "Matchup set as current game successfully"
+                        });
+                    }
+                    catch (DbUpdateException ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Database error setting current game");
+                        return StatusCode(StatusCodes.Status500InternalServerError,
+                            new ErrorResponse("Unable to set current game. Please try again."));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Unexpected error setting current game");
+                        return StatusCode(StatusCodes.Status500InternalServerError,
+                            new ErrorResponse("An unexpected error occurred."));
+                    }
+                }
+            }
         }
         static class RandomExtensions
         {
