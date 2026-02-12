@@ -21,6 +21,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
         
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, string botMessage);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
         Task<List<FranchiseRoster>> GetMflRosters(int leagueId);
@@ -360,6 +361,34 @@ namespace FreeAgencyAuctionAPI.Services
                 return;
             }
         }
+
+        // Overload: Accept custom bot message for holdout and other scenarios
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, string botMessage)
+        {
+            var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
+            var data = CreateBodyDataForNewContract(mflPlayerId, salary);
+            try
+            {
+                var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
+                var respString = await resp.Content.ReadAsStringAsync();
+                if (respString.ToUpper().Contains("ERROR"))
+                {
+                    var error = respString.XmlDeserializeFromString<MflXmlError>();
+                    _logger.LogInformation(respString);
+                    _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
+                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}", botId));
+                }
+                else
+                {
+                    await _gm.SendBotNotification(message: new BotMessage(botMessage, botId));
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "New Contract mfl");
+                return;
+            }
+        }
         public async Task<List<FranchiseRoster>> GetMflRosters(int leagueId)
         {
             var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
@@ -691,7 +720,7 @@ namespace FreeAgencyAuctionAPI.Services
 
                 var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
                 var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD");
-                var queryIds = myTaxiPlayersNow.Select(p => int.Parse(p.id)).Concat(cutCandidates.Select(p => int.Parse(p.id)));
+                IEnumerable<int> queryIds = new List<int>();
 
 
                 if (tagNotUsedYet)
@@ -1180,7 +1209,7 @@ namespace FreeAgencyAuctionAPI.Services
                 .Select(g => g.OrderByDescending(p => p.HoldoutSalary - p.CurrentSalary).First())
                 .ToList();
 
-            // Get league owners to map franchise IDs to league owner IDs
+            // Get league owners to map franchise ID to league owner ID
             var leagueOwners = await _db.LeagueOwners
                 .Where(lo => lo.Leagueid == leagueId)
                 .ToListAsync();

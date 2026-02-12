@@ -539,19 +539,9 @@ namespace FreeAgencyAuctionAPI
                     var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
                     var playerName = $"{player.first_name} {player.last_name}";
                     
-                    // Update contract with new salary (keeping same contract length)
-                    // The GiveNewContractToPlayer method will send bot notification
-                    await _mfl.GiveNewContractToPlayer(
-                        body.leagueId, 
-                        body.mflPlayerId, 
-                        holdout.HoldoutSalary, 
-                        false, 
-                        $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}"
-                    );
-                    var botId = Utils.leagueBotDict.GetValueOrDefault(body.leagueId);
-                    BotMessage message = new BotMessage($"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}", 
-                        botId);
-                    await _gm.SendBotNotification(message);
+                    // Update contract with new salary using custom message for holdout scenario
+                    var holdoutMessage = $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}";
+                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, holdoutMessage);
                 }
 
                 return NoContent();
