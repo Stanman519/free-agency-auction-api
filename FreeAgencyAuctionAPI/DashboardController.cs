@@ -23,11 +23,13 @@ namespace FreeAgencyAuctionAPI
         private readonly IOwnerService _oService;
         private readonly ILogger<DashboardController> _logger;
         private AuctionContext _db;
+        private readonly IGMBot _gm;
         private ILeagueService _leagueService;
         private readonly IMflService _mfl;
         private readonly IPlayerRepo _pRepo;
 
-        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, IPlayerRepo prepo, ILogger<DashboardController> logger, AuctionContext db)
+
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, IPlayerRepo prepo, ILogger<DashboardController> logger, AuctionContext db, IGMBot gm)
         {
             _leagueService = leagueService;
             _mfl = mfl;
@@ -35,6 +37,7 @@ namespace FreeAgencyAuctionAPI
             _oService = ownerServiceLayer;
             _logger = logger;
             _db = db;
+            _gm = gm;
         }
 
         [HttpGet("test-stuff")]
@@ -545,6 +548,10 @@ namespace FreeAgencyAuctionAPI
                         false, 
                         $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}"
                     );
+                    var botId = Utils.leagueBotDict.GetValueOrDefault(body.leagueId);
+                    BotMessage message = new BotMessage($"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}", 
+                        botId);
+                    await _gm.SendBotNotification(message);
                 }
 
                 return NoContent();
