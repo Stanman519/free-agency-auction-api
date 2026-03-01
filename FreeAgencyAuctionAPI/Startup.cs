@@ -2,6 +2,7 @@ using Azure.Identity;
 using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -97,7 +98,15 @@ namespace FreeAgencyAuctionAPI
                     options.UseSqlServer(appConfig.SqlServerConnectionString);
                     options.UseLazyLoadingProxies();
                 });
-            
+
+            var auth0Domain = Configuration["Auth0:Domain"];
+            var auth0Audience = Configuration["Auth0:Audience"];
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.Authority = $"https://{auth0Domain}/";
+                    options.Audience = auth0Audience;
+                });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -112,9 +121,12 @@ namespace FreeAgencyAuctionAPI
 
             app.UseRouting();
 
-
-            app.UseSwagger();
-            app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Free Agency Auction"); });
+            app.UseAuthentication();
+            if (env.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "Free Agency Auction"); });
+            }
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

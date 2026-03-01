@@ -42,6 +42,11 @@ namespace FreeAgencyAuctionAPI
     public class StreamClient
     {
         public string StreamKey { get; set; }
-        public string StreamPassword { get; set; } 
+        public string StreamPassword { get; set; }
+    }
+    public class Auth0Config
+    {
+        public string Domain { get; set; }
+        public string Audience { get; set; }
     }
 }

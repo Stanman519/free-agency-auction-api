@@ -6,6 +6,7 @@ using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -15,6 +16,7 @@ using RestEase;
 
 namespace FreeAgencyAuctionAPI
 {
+    [Authorize]
     [ApiController]
     [Route("free-agency")]
     public class FreeAgencyController : ControllerBase
@@ -300,6 +302,7 @@ namespace FreeAgencyAuctionAPI
         /// LOG IN
         /// </summary>
         /// <returns></returns>
+        [AllowAnonymous]
         [HttpPost("login")]
         [Produces("application/json", Type = typeof(OwnerDTO))]
         [ProducesResponseType(typeof(OwnerDTO), StatusCodes.Status200OK)]

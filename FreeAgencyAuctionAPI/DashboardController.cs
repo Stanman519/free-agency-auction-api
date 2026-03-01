@@ -3,6 +3,7 @@ using Bogus.DataSets;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ using System.Threading.Tasks;
 
 namespace FreeAgencyAuctionAPI
 {
+    [Authorize]
     [ApiController]
     [Route("dashboard")]
     public class DashboardController : ControllerBase
@@ -215,12 +217,17 @@ namespace FreeAgencyAuctionAPI
         [HttpPost("waiver-extension")]
         public async Task<IActionResult> SubmitWaiverExtension([FromBody] FranchiseTagRequestBody body)
         {
+            var alreadyExtended = await _db.WaiverExtensions
+                .AnyAsync(w => w.LeagueOwnerId == body.leagueOwnerId && w.PlayerId == body.mflPlayerId && w.Year == DateTime.UtcNow.Year);
+            if (alreadyExtended)
+                return Conflict(new ErrorResponse("This player has already been extended this year."));
+
             var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
             var waiver = new WaiverExtension
             {
                 LeagueId = body.leagueId,
                 LeagueOwnerId = body.leagueOwnerId,
-                Year = Utils.ThisYear,
+                Year = DateTime.UtcNow.Year,
                 PlayerId = body.mflPlayerId
             };
             await _pRepo.AddWaiverExtensionForTeam(waiver);
@@ -264,7 +271,7 @@ namespace FreeAgencyAuctionAPI
             {
                 Mflleagueid = body.leagueId,
                 Leagueownerid = body.leagueOwnerId,
-                Year = Utils.ThisYear,
+                Year = DateTime.UtcNow.Year,
                 Tagprice = body.tagSalary,
                 Position = player.position,
                 Originalsalary = 0,

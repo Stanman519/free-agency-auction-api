@@ -6,6 +6,7 @@
     using global::FreeAgencyAuctionAPI.Models.Confidence;
     using global::FreeAgencyAuctionAPI.Repos;
     using global::FreeAgencyAuctionAPI.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@
 
     namespace FreeAgencyAuctionAPI
     {
+        [Authorize]
         [ApiController]
         [Route("confidence")]
         public class ConfidenceController : ControllerBase
@@ -84,8 +86,9 @@
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> GetCurrentMatchupsForm([FromQuery] int year = Utils.ThisYear, [FromQuery] string user = "")
+            public async Task<IActionResult> GetCurrentMatchupsForm([FromQuery] int year = 0, [FromQuery] string user = "")
             {
+                if (year == 0) year = DateTime.UtcNow.Year;
                 // Decode user parameter
                 user = DecodeUserParam(user);
 
@@ -241,9 +244,17 @@
             [HttpGet("admin/unpaid")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
-            [ProducesResponseType(StatusCodes.Status400BadRequest)]
-            public async Task<IActionResult> GetUnpaidOwners()
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            [ProducesResponseType(StatusCodes.Status403Forbidden)]
+            public async Task<IActionResult> GetUnpaidOwners([FromQuery] string user = "")
             {
+                user = DecodeUserParam(user);
+                var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+                if (!authResult.IsAuthenticated)
+                    return Unauthorized(new ErrorResponse("Authentication required."));
+                if (!authResult.IsAuthorized)
+                    return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponse("Admin privileges required for this action."));
+
                 var owners = await _db.Owners.Where(o => !o.istest && !o.ConfidencePaid).ToListAsync();
                 var ret = _mapper.Map<List<OwnerDTO>>(owners);
                 return Ok(ret);
@@ -494,8 +505,9 @@
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             [ProducesResponseType(StatusCodes.Status401Unauthorized)]
             [ProducesResponseType(StatusCodes.Status403Forbidden)]
-            public async Task<IActionResult> MakeAllMatchupsUnpickable([FromQuery] int year = Utils.ThisYear, [FromQuery] string user = "")
+            public async Task<IActionResult> MakeAllMatchupsUnpickable([FromQuery] int year = 0, [FromQuery] string user = "")
             {
+                if (year == 0) year = DateTime.UtcNow.Year;
                 // Decode user parameter
                 user = DecodeUserParam(user);
 

@@ -559,10 +559,10 @@ namespace FreeAgencyAuctionAPI.Services
         {
             // Determine which draft year we're looking for (4 years ago)
             // For 2026 options (ThisYear + 1), we look at 2022 draft (ThisYear - 3)
-            var draftYear = Utils.ThisYear - 3; //TODO: change this to 4 before releasing
-            
+            var draftYear = DateTime.UtcNow.Year - 3; //TODO: change this to 4 before releasing
+
             // Get current roster to check current salaries
-            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.ThisYear);
+            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, DateTime.UtcNow.Year);
             
             // Get the draft results from the target year
             var draftResultsTask = _leagueApi.GetDraftResults(leagueId, draftYear);
@@ -751,7 +751,7 @@ namespace FreeAgencyAuctionAPI.Services
                         var altTagAmount = lastSeasonSalary * 1.2; // last years salary + 20%
 
                         var tagAmount = Math.Max(defaultTagAmount, (int)Math.Round(altTagAmount));
-                        if (allTags.FirstOrDefault(t => t.Mflplayerid == db.Mflid && t.Year == Utils.ThisYear - 1) != null) //if this player was tagged by this team last year. 
+                        if (allTags.FirstOrDefault(t => t.Mflplayerid == db.Mflid && t.Year == DateTime.UtcNow.Year - 1) != null) //if this player was tagged by this team last year. 
                         {
                             var top3Price = GetTop3TagValueFromPosition(db.Position, leagueTagData);
                             tagAmount = Math.Max((int)Math.Round(altTagAmount), top3Price);

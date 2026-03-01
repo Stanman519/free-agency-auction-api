@@ -64,7 +64,7 @@ namespace FreeAgencyAuctionAPI.Services
             });
             try
             {
-                deadLotsToFix.ForEach(async l => await l);
+                await Task.WhenAll(deadLotsToFix);
             }
             catch (Exception e)
             {

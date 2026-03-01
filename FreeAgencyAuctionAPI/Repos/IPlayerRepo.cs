@@ -72,7 +72,7 @@ namespace FreeAgencyAuctionAPI.Repos
                 LeagueId = body.leagueId,
                 LeagueOwnerId = leagueOwner.Leagueownerid,
                 OriginalSalary = body.player.Salary ?? 0,
-                Year = Utils.ThisYear,
+                Year = DateTime.UtcNow.Year,
                 PlayerId = body.player.MflId,
                 BuyoutPenalty = (decimal)Math.Round((body.player.Salary ?? 0) * 0.2, 2)
 
@@ -83,11 +83,11 @@ namespace FreeAgencyAuctionAPI.Repos
 
         public List<Buyout> GetBuyoutsUsedForTeam(int leagueOwnerId)
         {
-            return _db.Buyouts.Where(b => b.LeagueOwnerId == leagueOwnerId && b.Year == Utils.ThisYear).ToList();
+            return _db.Buyouts.Where(b => b.LeagueOwnerId == leagueOwnerId && b.Year == DateTime.UtcNow.Year).ToList();
         }
         public List<FranchiseTagPlayer> GetTagsUsedForTeam(int leagueownerId)
         {
-            return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == Utils.ThisYear).ToList();
+            return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == DateTime.UtcNow.Year).ToList();
         }
         public List<FranchiseTagPlayer> GetAllTagsForLeague(int leagueId)
         {
