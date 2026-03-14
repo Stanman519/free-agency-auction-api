@@ -1187,8 +1187,9 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<List<HoldoutDTO>> GenerateAndSaveHoldouts(int leagueId, int year)
         {
+            //TODO: check year here and only do next year if it is the last half of the year,
             // Check if holdouts already exist for this league and year
-            var existingHoldouts = await _pRepo.GetHoldoutsForLeague(leagueId, year);
+            var existingHoldouts = await _pRepo.GetHoldoutsForLeague(leagueId, year + 1);
             if (existingHoldouts.Any())
             {
                 _logger.LogWarning($"Holdouts already exist for league {leagueId} year {year}");
@@ -1232,7 +1233,7 @@ namespace FreeAgencyAuctionAPI.Services
                 {
                     LeagueId = leagueId,
                     LeagueOwnerId = leagueOwner.Leagueownerid,
-                    Year = year,
+                    Year = year + 1,
                     PlayerId = int.Parse(player.PlayerId),
                     OriginalSalary = player.CurrentSalary,
                     HoldoutSalary = player.HoldoutSalary,
