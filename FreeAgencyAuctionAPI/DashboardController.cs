@@ -541,10 +541,19 @@ namespace FreeAgencyAuctionAPI
                 if (body.status == "Accepted")
                 {
                     var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
-                    var playerName = $"{player.first_name} {player.last_name}";
+                    var playerName = !string.IsNullOrWhiteSpace(player.first_name)
+                        ? $"{player.first_name} {player.last_name}"
+                        : player.name;
 
-                    var holdoutMessage = $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}";
-                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, holdout.YearsRemaining, holdoutMessage);
+                    var rosters = await _mfl.GetMflRosters(body.leagueId);
+                    var franchise = rosters.FirstOrDefault(f => int.Parse(f.id) == body.mflFranchiseId);
+                    var playerRosterEntry = franchise?.player.FirstOrDefault(p => p.id == body.mflPlayerId.ToString());
+                    var currentContractYears = playerRosterEntry != null && int.TryParse(playerRosterEntry.contractYear, out var cy)
+                        ? cy
+                        : holdout.YearsRemaining;
+
+                    var holdoutMessage = $"{holdout.LeagueOwner.Teamname} accepted {playerName}'s holdout - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}";
+                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, currentContractYears, holdoutMessage);
                 }
 
                 await _pRepo.UpdateHoldoutStatus(body.holdoutId, body.status);
