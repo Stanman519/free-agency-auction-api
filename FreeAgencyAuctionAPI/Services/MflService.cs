@@ -21,7 +21,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
         
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
-        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, string botMessage);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
         Task<List<FranchiseRoster>> GetMflRosters(int leagueId);
@@ -343,12 +343,13 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
                 var respString = await resp.Content.ReadAsStringAsync();
-                if (respString.ToUpper().Contains("ERROR"))
+                _logger.LogInformation("MFL salary import raw response: {respString}", respString);
+                if (!resp.IsSuccessStatusCode || respString.ToUpper().Contains("ERROR"))
                 {
-                    var error = respString.XmlDeserializeFromString<MflXmlError>();
-                    _logger.LogInformation(respString);
-                    _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
-                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}", botId));
+                    string errorMsg = respString;
+                    try { errorMsg = respString.XmlDeserializeFromString<MflXmlError>().ErrorMsg; } catch { }
+                    _logger.LogError("MFL contract update failed. Status: {status} Body: {body}", resp.StatusCode, respString);
+                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId));
                 }
                 else
                 {
@@ -362,31 +363,25 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        // Overload: Accept custom bot message for holdout and other scenarios
-        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, string botMessage)
+        // Overload: Accept custom bot message and contract length for holdout and other scenarios
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage)
         {
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
-            var data = CreateBodyDataForNewContract(mflPlayerId, salary);
-            try
+            var data = CreateBodyDataForNewContract(mflPlayerId, salary, contractLength);
+            var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
+            var respString = await resp.Content.ReadAsStringAsync();
+            _logger.LogInformation("MFL salary import raw response: {respString}", respString);
+            if (!resp.IsSuccessStatusCode || respString.ToUpper().Contains("ERROR"))
             {
-                var resp = await _leagueApi.EditPlayerSalary(leagueId, data);
-                var respString = await resp.Content.ReadAsStringAsync();
-                if (respString.ToUpper().Contains("ERROR"))
-                {
-                    var error = respString.XmlDeserializeFromString<MflXmlError>();
-                    _logger.LogInformation(respString);
-                    _logger.LogError("{lastname}'s contract was not updated in mfl.", mflPlayerId);
-                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n${error.ErrorMsg}", botId));
-                }
-                else
-                {
-                    await _gm.SendBotNotification(message: new BotMessage(botMessage, botId));
-                }
+                string errorMsg = respString;
+                try { errorMsg = respString.XmlDeserializeFromString<MflXmlError>().ErrorMsg; } catch { }
+                _logger.LogError("MFL contract update failed. Status: {status} Body: {body}", resp.StatusCode, respString);
+                await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId));
+                throw new Exception($"MFL contract update failed for player {mflPlayerId}: {errorMsg}");
             }
-            catch (Exception e)
+            else
             {
-                _logger.LogError(e, "New Contract mfl");
-                return;
+                await _gm.SendBotNotification(message: new BotMessage(botMessage, botId));
             }
         }
         public async Task<List<FranchiseRoster>> GetMflRosters(int leagueId)
@@ -975,7 +970,7 @@ namespace FreeAgencyAuctionAPI.Services
             var now = DateTimeOffset.UtcNow;
             var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             var pendingMflTradesRes = await _leagueApi.GetPendingTrades(leagueId, mflFranchiseId.ToString("D4"), now.Year, apiKey);
-            var pendingTrades = pendingMflTradesRes.pendingTrades.pendingTrade;
+            var pendingTrades = pendingMflTradesRes.pendingTrades?.pendingTrade ?? new List<MflPendingTrade>();
             if (pendingTrades.Count == 0) 
             {
                 return new PendingTradeResponse

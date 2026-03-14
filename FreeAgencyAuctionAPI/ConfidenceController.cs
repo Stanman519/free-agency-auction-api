@@ -61,6 +61,7 @@
                 return System.Net.WebUtility.UrlDecode(user);
             }
 
+            [AllowAnonymous]
             [HttpGet("ping")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]

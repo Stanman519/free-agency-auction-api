@@ -269,3 +269,4 @@ __pycache__/
 .DS_Store
 appsettings.local.json
 /FreeAgencyAuctionAPI/appsettings.Development.json
+DEV_AUTH.md

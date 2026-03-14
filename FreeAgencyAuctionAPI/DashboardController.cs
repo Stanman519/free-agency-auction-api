@@ -537,19 +537,17 @@ namespace FreeAgencyAuctionAPI
                     return BadRequest(new ErrorResponse($"Holdout has already been {holdout.Status.ToLower()}"));
                 }
 
-                // Update status
-                await _pRepo.UpdateHoldoutStatus(body.holdoutId, body.status);
-
-                // If accepted, update the player's contract in MFL
+                // If accepted, update MFL contract first — only persist to DB if MFL succeeds
                 if (body.status == "Accepted")
                 {
                     var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
                     var playerName = $"{player.first_name} {player.last_name}";
-                    
-                    // Update contract with new salary using custom message for holdout scenario
+
                     var holdoutMessage = $"{playerName} holdout accepted - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}";
-                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, holdoutMessage);
+                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, holdout.YearsRemaining, holdoutMessage);
                 }
+
+                await _pRepo.UpdateHoldoutStatus(body.holdoutId, body.status);
 
                 return NoContent();
             }

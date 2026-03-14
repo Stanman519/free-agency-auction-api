@@ -210,6 +210,7 @@ namespace FreeAgencyAuctionAPI
         /// A NEW BID
         /// </summary>
         /// <returns></returns>
+        [AllowAnonymous]
         [HttpPost("bid")]
         [Produces("application/json", Type = typeof(BidDTO))]
         [ProducesResponseType(typeof(BidDTO), StatusCodes.Status200OK)]
@@ -354,6 +355,7 @@ namespace FreeAgencyAuctionAPI
             return Ok(await _bService.GetBidHistory(leagueId, playerId));
         }
 
+        [AllowAnonymous]
         [HttpGet("leagues/{leagueId}/bid-updates")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
