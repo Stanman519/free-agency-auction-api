@@ -522,6 +522,7 @@ namespace FreeAgencyAuctionAPI.Services
 
             var leagueTagData = await _pRepo.GetLeagueTagInfo(leagueId, Utils.ThisYear);
             var previousTags = _pRepo.GetTagsUsedForTeam(leagueOwnerId);
+            var allTags = _pRepo.GetAllTagsForLeague(leagueId);
 
             var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
 
@@ -546,15 +547,36 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 tagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) =>
                 {
+                    var careerTags = allTags.Count(t => t.Mflplayerid == db.Mflid);
+                    if (careerTags >= 3) return null; // max 3 career tags
+
+                    var lastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0;
+                    var top6Price = GetTagValueFromPosition(db.Position, leagueTagData);
+                    var twentyPctRaise = (int)Math.Round(lastSeasonSalary * 1.2);
+                    var tagAmount = Math.Max(top6Price, twentyPctRaise); // 1st-year: max(top6, +20%)
+
+                    var wasTaggedByThisOwnerLastYear = allTags.Any(t =>
+                        t.Mflplayerid == db.Mflid &&
+                        t.Year == Utils.ThisYear - 1 &&
+                        t.Leagueownerid == leagueOwnerId);
+
+                    if (wasTaggedByThisOwnerLastYear)
+                    {
+                        var top3Price = GetTop3TagValueFromPosition(db.Position, leagueTagData);
+                        tagAmount = Math.Max(twentyPctRaise, top3Price); // 2nd-year: max(top3, +20%)
+                    }
+
                     var playerDto = _mapper.Map<PlayerDTO>(db);
                     playerDto.Team = mflDetails?.players?.player?.FirstOrDefault(p => p.id == db.Mflid.ToString())?.team ?? db.Team;
                     return new TagCandidate
                     {
                         Player = playerDto,
-                        LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
-                        TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
+                        LastSeasonSalary = lastSeasonSalary,
+                        TagAmount = tagAmount
                     };
-                }).ToList();
+                })
+                .Where(tc => tc != null)
+                .ToList();
             }
             return tagCandidates;
         }
@@ -758,7 +780,7 @@ namespace FreeAgencyAuctionAPI.Services
                         var altTagAmount = lastSeasonSalary * 1.2; // last years salary + 20%
 
                         var tagAmount = Math.Max(defaultTagAmount, (int)Math.Round(altTagAmount));
-                        if (allTags.FirstOrDefault(t => t.Mflplayerid == db.Mflid && t.Year == DateTime.UtcNow.Year - 1) != null) //if this player was tagged by this team last year. 
+                        if (allTags.FirstOrDefault(t => t.Mflplayerid == db.Mflid && t.Year == Utils.ThisYear - 1 && t.Leagueownerid == leagueOwner.Leagueownerid) != null) //if this player was tagged by this team last year.
                         {
                             var top3Price = GetTop3TagValueFromPosition(db.Position, leagueTagData);
                             tagAmount = Math.Max((int)Math.Round(altTagAmount), top3Price);
