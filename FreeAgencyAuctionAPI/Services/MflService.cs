@@ -44,6 +44,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task ResponseToMflTrade(int year, int leagueId, int tradeId, string response, string comments, string franchiseId);
         Task<List<PlayerEligibility>> GetHoldoutPlayers(int leagueId);
         Task<List<HoldoutDTO>> GenerateAndSaveHoldouts(int leagueId, int year);
+        Task<FranchiseTagLeague> GenerateFranchiseTagValues(int leagueId, int year);
     }
 
     public class MflService : IMflService
@@ -538,13 +539,21 @@ namespace FreeAgencyAuctionAPI.Services
                 queryIds = queryIds.Concat(myExpiringPlayersLastYear.Select(p => int.Parse(p.id)));
             }
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+            MflPlayerDetailsRoot mflDetails = new();
+            if (queryIds.Any())
+                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds.Select(id => id.ToString())));
             if (previousTags.Count == 0 && myExpiringPlayersLastYear.Count() > 0)
             {
-                tagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) => new TagCandidate
+                tagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) =>
                 {
-                    Player = _mapper.Map<PlayerDTO>(db),
-                    LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
-                    TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
+                    var playerDto = _mapper.Map<PlayerDTO>(db);
+                    playerDto.Team = mflDetails?.players?.player?.FirstOrDefault(p => p.id == db.Mflid.ToString())?.team ?? db.Team;
+                    return new TagCandidate
+                    {
+                        Player = playerDto,
+                        LastSeasonSalary = int.TryParse(mfl.salary, out var s) ? s : 0,
+                        TagAmount = GetTagValueFromPosition(db.Position, leagueTagData)
+                    };
                 }).ToList();
             }
             return tagCandidates;
@@ -668,6 +677,9 @@ namespace FreeAgencyAuctionAPI.Services
             var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD").ToList();
             var queryIds = cutCandidates.Select(p => int.Parse(p.id));
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
+            MflPlayerDetailsRoot mflDetails = new();
+            if (queryIds.Any())
+                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds));
             var fullCutCandidates = new List<PlayerDTO>();
             if (previousBuyouts.Count == 0)
             {
@@ -683,7 +695,7 @@ namespace FreeAgencyAuctionAPI.Services
                     Salary = int.TryParse(mfl.salary, out var s) ? s : 0,
                     MflId = db.Mflid,
                     Position = db.Position,
-                    Team = db.Team,
+                    Team = mflDetails?.players?.player?.FirstOrDefault(p => p.id == db.Mflid.ToString())?.team ?? db.Team,
                     Length = int.TryParse(mfl.contractYear, out var l) ? l : 0
 
                 }).ToList();
@@ -1251,7 +1263,7 @@ namespace FreeAgencyAuctionAPI.Services
                     var playerContract = franchiseRoster.player.FirstOrDefault(p => p.id == player.PlayerId);
                     if (playerContract != null)
                     {
-                        holdout.YearsRemaining = int.TryParse(playerContract.contractYear, out var years) ? years : 0;
+                        holdout.YearsRemaining = int.TryParse(playerContract.contractYear, out var years) ? Math.Max(0, years - 1) : 0;
                     }
                 }
 
@@ -1376,7 +1388,46 @@ namespace FreeAgencyAuctionAPI.Services
             catch (Exception e)
             {
                 return null;
-            } 
+            }
+        }
+
+        public async Task<FranchiseTagLeague> GenerateFranchiseTagValues(int leagueId, int year)
+        {
+            var salariesRoot = await _leagueApi.GetSalaries(leagueId, year - 1);
+            var mflPlayers = salariesRoot.Salaries.LeagueUnit.Player;
+            var mflIds = mflPlayers
+                .Select(p => int.TryParse(p.id, out var id) ? id : 0)
+                .Where(id => id != 0)
+                .ToList();
+            var dbPlayers = (await _pRepo.GetPlayersByListOfIds(mflIds))?.ToList() ?? new List<PlayerEntity>();
+
+            var joined = mflPlayers
+                .Join(dbPlayers,
+                    mfl => int.TryParse(mfl.id, out var id) ? id : 0,
+                    db => db.Mflid,
+                    (mfl, db) => new { Position = db.Position?.ToUpper(), Salary = int.TryParse(mfl.salary, out var s) ? s : 0 })
+                .Where(x => x.Salary > 0)
+                .ToList();
+
+            int Top6Avg(string pos) => (int)Math.Round(joined.Where(x => x.Position == pos).Select(x => x.Salary).OrderByDescending(s => s).Take(6).DefaultIfEmpty(0).Average());
+            int Top3Avg(string pos) => (int)Math.Round(joined.Where(x => x.Position == pos).Select(x => x.Salary).OrderByDescending(s => s).Take(3).DefaultIfEmpty(0).Average());
+
+            var entity = new FranchiseTagLeague
+            {
+                Mflleagueid = leagueId,
+                Year = year,
+                QB = Top6Avg("QB"),
+                RB = Top6Avg("RB"),
+                WR = Top6Avg("WR"),
+                TE = Top6Avg("TE"),
+                QBTop3 = Top3Avg("QB"),
+                RBTop3 = Top3Avg("RB"),
+                WRTop3 = Top3Avg("WR"),
+                TETop3 = Top3Avg("TE")
+            };
+
+            await _pRepo.UpsertLeagueTagInfo(entity);
+            return entity;
         }
     }
     public class HoldoutPosThreshhold

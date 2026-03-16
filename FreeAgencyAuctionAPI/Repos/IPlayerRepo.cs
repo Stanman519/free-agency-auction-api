@@ -36,6 +36,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<Holdout>> GetHoldoutsForOwner(int leagueOwnerId, int year);
         Task<Holdout> GetHoldoutById(int holdoutId);
         Task UpdateHoldoutStatus(int holdoutId, string status);
+        Task UpsertLeagueTagInfo(FranchiseTagLeague data);
     }
 
     public class PlayerRepo : IPlayerRepo
@@ -393,6 +394,34 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 _logger.LogError(e, "error updating holdout status");
                 throw;
+            }
+        }
+
+        public async Task UpsertLeagueTagInfo(FranchiseTagLeague data)
+        {
+            try
+            {
+                var existing = await _db.FranchiseTagLeagues.FirstOrDefaultAsync(t => t.Mflleagueid == data.Mflleagueid && t.Year == data.Year);
+                if (existing != null)
+                {
+                    existing.QB = data.QB;
+                    existing.RB = data.RB;
+                    existing.WR = data.WR;
+                    existing.TE = data.TE;
+                    existing.QBTop3 = data.QBTop3;
+                    existing.RBTop3 = data.RBTop3;
+                    existing.WRTop3 = data.WRTop3;
+                    existing.TETop3 = data.TETop3;
+                }
+                else
+                {
+                    _db.FranchiseTagLeagues.Add(data);
+                }
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error upserting league tag info");
             }
         }
     }

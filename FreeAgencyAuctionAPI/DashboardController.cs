@@ -567,6 +567,13 @@ namespace FreeAgencyAuctionAPI
             }
         }
         
+        [HttpPost("admin/leagues/{leagueId}/years/{year}/generate-franchise-tag-values")]
+        public async Task<IActionResult> GenerateFranchiseTagValues([FromRoute] int leagueId, [FromRoute] int year)
+        {
+            var result = await _mfl.GenerateFranchiseTagValues(leagueId, year);
+            return Ok(result);
+        }
+
         // need config for threshholds of position rankings
     }
 }
