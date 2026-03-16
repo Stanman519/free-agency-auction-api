@@ -153,8 +153,24 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetLeagueTransactionsAndCaps([Path] int leagueId)
         {
-            var deadCapData = await _leagueService.GetDeadCapData(leagueId);
+            var deadCapTask = _leagueService.GetDeadCapData(leagueId);
+            var capRoomTask = _mfl.GetSalaryCapRoom(leagueId);
+            await Task.WhenAll(deadCapTask, capRoomTask);
+            var deadCapData = deadCapTask.Result;
+            var capRoomList = capRoomTask.Result;
+            foreach (var team in deadCapData.TeamDeadCapData)
+                team.CapRoom = capRoomList.FirstOrDefault(o => o.Mflfranchiseid == team.FranchiseId)?.Caproom ?? 0;
             return Ok(deadCapData);
+        }
+
+        [HttpGet("leagues/{leagueId}/trade-bait")]
+        [AllowAnonymous]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetTradeBait([Path] int leagueId)
+        {
+            var tradeBait = await _mfl.GetTradeBaitForLeague(leagueId);
+            return Ok(tradeBait);
         }
 
 
@@ -222,7 +238,8 @@ namespace FreeAgencyAuctionAPI
             if (alreadyExtended)
                 return Conflict(new ErrorResponse("This player has already been extended this year."));
 
-            var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
+            var playerEntity = await _pRepo.GetPlayerById(body.mflPlayerId);
+            var playerName = playerEntity?.Fullname ?? body.mflPlayerId.ToString();
             var waiver = new WaiverExtension
             {
                 LeagueId = body.leagueId,
@@ -231,8 +248,8 @@ namespace FreeAgencyAuctionAPI
                 PlayerId = body.mflPlayerId
             };
             await _pRepo.AddWaiverExtensionForTeam(waiver);
-            await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, $"{player.first_name} {player.last_name}");
+            await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId, playerName);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, playerName);
             return NoContent();
         }
 

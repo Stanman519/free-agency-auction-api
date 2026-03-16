@@ -15,6 +15,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string email { get; set; }
         public string username { get; set; }
         public string owner_name { get; set; }
+        public string bbidAvailableBalance { get; set; }
         public int leagueId { get; set; } // doesn't come from API, my use only
         public MflAssetsFranchise assets { get; set; }
     }

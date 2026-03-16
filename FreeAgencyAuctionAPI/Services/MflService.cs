@@ -18,7 +18,7 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public interface IMflService
     {
-        Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId);
+        Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId, string playerName = null);
         
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
         Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage);
@@ -45,6 +45,8 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<PlayerEligibility>> GetHoldoutPlayers(int leagueId);
         Task<List<HoldoutDTO>> GenerateAndSaveHoldouts(int leagueId, int year);
         Task<FranchiseTagLeague> GenerateFranchiseTagValues(int leagueId, int year);
+        Task<List<TradeBaitDTO>> GetTradeBaitForLeague(int leagueId);
+        Task<Dictionary<string, List<FutureDraftPickDTO>>> GetFutureDraftPicksForLeague(int leagueId);
     }
 
     public class MflService : IMflService
@@ -95,10 +97,11 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        public async Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId)
+        public async Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId, string playerName = null)
         {
             var botId = Utils.leagueBotDict.TryGetValue(leaugeId, out var x) ? x : string.Empty;
             var strFrId = franchiseId.ToString("D4");
+            var displayName = playerName ?? playerId.ToString();
 
                 try
                 {
@@ -108,8 +111,8 @@ namespace FreeAgencyAuctionAPI.Services
                     {
                         var error = respString.XmlDeserializeFromString<MflXmlError>();
                         _logger.LogInformation(error.ErrorMsg);
-                        _logger.LogError("${playerId} was not added to a team in mfl.", playerId);
-                        await _gm.NotifyMflError(new BotMessage( $"{playerId} was not added to a team in mfl! \n\n{error.ErrorMsg}", botId));
+                        _logger.LogError("${playerName} ({playerId}) was not added to a team in mfl.", displayName, playerId);
+                        await _gm.NotifyMflError(new BotMessage( $"{displayName} ({playerId}) was not added to a team in mfl! \n\n{error.ErrorMsg}", botId));
                     }
                 }
                 catch (Exception e)
@@ -117,7 +120,7 @@ namespace FreeAgencyAuctionAPI.Services
                     Console.WriteLine(e);
                     throw;
                 }
-            
+
         }
 
         public async Task<DashboardTradeLeagueDTO> GetMflLeagueRootAndAssets(int leagueId, int year, int franchiseId)
@@ -392,61 +395,12 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId)
         {
-            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId);
-            var salaryTask = _leagueApi.GetMflSalaryAdjustments(leagueId);
-            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId);
-            await Task.WhenAll(bigLeagueTask, salaryTask, rostersTask);
-
-            var bigLeagueObject = bigLeagueTask.Result.league.franchises.franchise;
-
-            var salaryAdjustments = salaryTask.Result.salaryAdjustments.salaryAdjustment ?? new List<SalaryAdjustment>();
-
-            var rosters = rostersTask.Result.rosters.franchise;
-            var rosteredSalaryTotals = rosters.Select(f =>
-                new
-                {
-                    Id = f.id,
-                    rosterSalarySum = f.player.Sum(p =>
-                    {
-                        if (p.status == "ROSTER")
-                            return double.Parse(string.IsNullOrEmpty(p.salary) ? "0" : p.salary);
-                        return double.Parse(string.IsNullOrEmpty(p.salary) ? "0" : p.salary) * 0.2;
-                    })
-                }
-            ).ToList();
-            var eachTeamCapTotal = bigLeagueObject.Select(f =>
+            var franchises = (await _leagueApi.GetBigLeagueObject(leagueId)).league.franchises.franchise;
+            return franchises.Select(f => new LeagueOwnerEntity
             {
-                var capNumber = string.IsNullOrEmpty(f.salaryCapAmount) ? 500 : double.Parse(f.salaryCapAmount);
-                return new
-                {
-                    Id = f.id,
-                    SalaryCapAmount = capNumber
-                };
+                Mflfranchiseid = int.Parse(f.id),
+                Caproom = (int)Math.Floor(double.Parse(string.IsNullOrEmpty(f.bbidAvailableBalance) ? "0" : f.bbidAvailableBalance))
             }).ToList();
-
-            var reducedSalaryAdjustments = salaryAdjustments
-                .GroupBy(adj => adj.franchise_id, adj => double.TryParse(adj.amount, out var amount) ? amount : 0,
-                    (id, adjustments) => new
-                    {
-                        Id = id,
-                        SalaryAdjustments = adjustments.Sum()
-                    }).ToList();
-
-            var preAdjustmentsCapSpace = eachTeamCapTotal.GroupJoin(rosteredSalaryTotals, tmCap => tmCap.Id,
-                salaryTot => salaryTot.Id,
-                (tm, sal) => new
-                {
-                    tm.Id,
-                    CapSpace = tm.SalaryCapAmount - (sal.FirstOrDefault()?.rosterSalarySum ?? 0)
-                });
-
-            var finalCapSpace = preAdjustmentsCapSpace.GroupJoin(reducedSalaryAdjustments, cap => cap.Id, adj => adj.Id,
-                (cap, adj) => new LeagueOwnerEntity()
-                {
-                    Mflfranchiseid = int.Parse(cap.Id),
-                    Caproom = (int)Math.Floor(cap.CapSpace - (adj.FirstOrDefault()?.SalaryAdjustments ?? 0))
-                }).ToList();
-            return finalCapSpace;
         }
 
         public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId)
@@ -1451,6 +1405,35 @@ namespace FreeAgencyAuctionAPI.Services
             await _pRepo.UpsertLeagueTagInfo(entity);
             return entity;
         }
+
+        public async Task<Dictionary<string, List<FutureDraftPickDTO>>> GetFutureDraftPicksForLeague(int leagueId)
+        {
+            var result = await _leagueApi.GetFutureDraftPicks(leagueId);
+            return (result?.futureDraftPicks?.franchise ?? new List<FutureDraftFranchise>())
+                .ToDictionary(
+                    f => f.id,
+                    f => f.futureDraftPick.Select(p => new FutureDraftPickDTO
+                    {
+                        Year = p.year,
+                        Round = p.round,
+                        OriginalPickFor = p.originalPickFor,
+                        Description = p.description
+                    }).ToList()
+                );
+        }
+
+        public async Task<List<TradeBaitDTO>> GetTradeBaitForLeague(int leagueId)
+        {
+            var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
+            var result = await _leagueApi.GetTradeBait(leagueId, apiKey);
+            return (result?.tradeBaits?.tradeBait ?? new List<TradeBait>())
+                .Select(tb => new TradeBaitDTO
+                {
+                    FranchiseId = tb.franchise_id,
+                    WillGiveUp = tb.willGiveUp,
+                    InExchangeFor = tb.inExchangeFor
+                }).ToList();
+        }
     }
     public class HoldoutPosThreshhold
     {
@@ -1599,6 +1582,7 @@ namespace FreeAgencyAuctionAPI.Services
                 ? (sortedSalaries[mid - 1] + sortedSalaries[mid]) / 2
                 : sortedSalaries[mid];
         }
+
     }
 
     public class PlayerEligibility

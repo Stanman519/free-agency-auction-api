@@ -14,6 +14,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string Team { get; set; }
         public Dictionary<string, decimal> Amount { get; set; }
         public int FranchiseId { get; set; }
+        public int CapRoom { get; set; }
 
         public TeamDeadCapData(int id, string name)
         {

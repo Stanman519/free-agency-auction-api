@@ -67,6 +67,15 @@ namespace FreeAgencyAuctionAPI.Models
     public class OpposingFranchiseWithRoster : OpposingFranchiseDTO
     {
         public List<PlayerDTO> Players { get; set; }
+        public List<FutureDraftPickDTO> DraftPicks { get; set; } = new();
+    }
+
+    public class FutureDraftPickDTO
+    {
+        public string Year { get; set; }
+        public string Round { get; set; }
+        public string OriginalPickFor { get; set; }
+        public string Description { get; set; }
     }
 
     public class TagCandidate

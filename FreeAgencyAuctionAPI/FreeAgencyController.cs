@@ -93,7 +93,10 @@ namespace FreeAgencyAuctionAPI
             //TODO: THIS NEEDS BETTER ERROR HANDLING AND WIN MESSAGES
             OwnerDTO profile = null;
 
-            var mflRosters = await _mfl.GetMflRosters(leagueId);
+            var rostersTask = _mfl.GetMflRosters(leagueId);
+            var picksTask = _mfl.GetFutureDraftPicksForLeague(leagueId);
+            var mflRosters = await rostersTask;
+            var picksByFranchise = await picksTask;
             var dbPlayers = await _pService.GetAllPlayers();
 
             var dbOwners = await _oService.GetAllOwners(leagueId);
@@ -132,7 +135,8 @@ namespace FreeAgencyAuctionAPI
                                 return dbPlayer;
                             }
                             return null;
-                        }).Where(dp => dp != null).OrderBy(p => p.Position).ThenByDescending(p => p.Salary).ToList()
+                        }).Where(dp => dp != null).OrderBy(p => p.Position).ThenByDescending(p => p.Salary).ToList(),
+                        DraftPicks = picksByFranchise.TryGetValue(franchiseId.ToString(), out var picks) ? picks : new List<FutureDraftPickDTO>()
                     };
                 })
                 .ToList();

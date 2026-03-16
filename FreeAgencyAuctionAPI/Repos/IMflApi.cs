@@ -63,5 +63,11 @@ namespace FreeAgencyAuctionAPI.Repos
         
         [Get("{year}/export?TYPE=draftResults&L={leagueId}&APIKEY=&JSON=1")]
         Task<MflDraftResultsRoot> GetDraftResults([Path] int leagueId, [Path] int year);
+
+        [Get("{year}/export?TYPE=futureDraftPicks&L={leagueId}&APIKEY=&JSON=1")]
+        Task<FutureDraftPicksRoot> GetFutureDraftPicks([Path] int leagueId, [Path] int year = Utils.ThisYear);
+
+        [Get("{year}/export?TYPE=tradeBait&L={leagueId}&APIKEY={apiKey}&INCLUDE_DRAFT_PICKS=true&JSON=1")]
+        Task<TradeBaitsParent> GetTradeBait([Path] int leagueId, [Path] string apiKey, [Path] int year = Utils.ThisYear);
     }
 }
