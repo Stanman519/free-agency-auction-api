@@ -1,4 +1,3 @@
-using Azure.Identity;
 using FreeAgencyAuctionAPI.Hub;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
@@ -6,7 +5,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -32,11 +30,6 @@ namespace FreeAgencyAuctionAPI
             var appConfig = new AppConfig();
             Configuration.Bind(appConfig);
             services.Configure<AppConfig>(Configuration);
-            // Add Application Insights services
-            services.AddApplicationInsightsTelemetry(options =>
-            {
-                options.ConnectionString = appConfig.ApplicationInsights.ConnectionString;
-            });
             var streamFactory = new StreamClientFactory(appConfig.StreamClient.StreamKey, appConfig.StreamClient.StreamPassword);
             services.AddCors(c =>
             {
@@ -47,7 +40,9 @@ namespace FreeAgencyAuctionAPI
                             "http://localhost:8080", 
                             "https://localhost:8080",
                             "https://stanfan.net",
-                            "https://www.stanfan.net")
+                            "https://www.stanfan.net",
+                            "https://fanpools.net",
+                            "https://www.fanpools.net")
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials()
@@ -82,7 +77,8 @@ namespace FreeAgencyAuctionAPI
                     }
                 });
             });
-            services.AddSingleton(RestClient.For<IGMBot>("https://capncrunch-api.azurewebsites.net/Bot"));
+            var botApiBaseUrl = Configuration["ServiceUrls:BotApi"] ?? "https://capncrunch-api.azurewebsites.net";
+            services.AddSingleton(RestClient.For<IGMBot>($"{botApiBaseUrl}/Bot"));
             var mflGlobal = RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com");
             mflGlobal.CommishCookie = appConfig.Mfl.CommishCookie;
             services.AddSingleton(mflGlobal);
@@ -109,19 +105,14 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
             services.AddAutoMapper(typeof(Startup));
            
-            services.AddAzureClients(builder =>
-            {
-                // Use the environment credential by default
-                builder.UseCredential(new DefaultAzureCredential());
-                builder.AddQueueServiceClient(appConfig.AzureMessageQueue.AzureStorageConnectionString)
-                  .ConfigureOptions(c => c.MessageEncoding = Azure.Storage.Queues.QueueMessageEncoding.Base64);
-            });
-            services.AddScoped<IQueueService, AzureQueueService>();
+            services.AddSingleton<IQueueService, InMemoryWinQueue>();
+            services.AddSingleton<IWinProcessorService, WinProcessorService>();
+            services.AddHostedService<WinProcessorBackgroundService>();
 
             services.AddDbContext<AuctionContext>(
                 options =>
                 {
-                    options.UseSqlServer(appConfig.SqlServerConnectionString);
+                    options.UseNpgsql(appConfig.SqlServerConnectionString);
                     options.UseLazyLoadingProxies();
                 });
 

@@ -1,5 +1,4 @@
-﻿using Azure;
-using Bogus.DataSets;
+﻿using Bogus.DataSets;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;

@@ -134,7 +134,7 @@ namespace FreeAgencyAuctionAPI
                 entity.ToTable("transaction");
 
                 entity.Property(e => e.Globalid).HasColumnName("globalid");
-                entity.Property(e => e.Timestamp).HasColumnType("datetime").HasColumnName("timestamp");
+                entity.Property(e => e.Timestamp).HasColumnType("timestamp with time zone").HasColumnName("timestamp");
                 entity.Property(e => e.Transactionid).HasColumnName("transactionid");
                 entity.Property(e => e.Leagueid).HasColumnName("leagueid");
                 entity.Property(e => e.Franchiseid).HasColumnName("franchiseid");
@@ -160,7 +160,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Bidlength).HasColumnName("bidlength");
                 entity.Property(e => e.Bidsalary).HasColumnName("bidsalary");
                 entity.Property(e => e.Expires)
-                    .HasColumnType("datetime")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("expires");
                 entity.Property(e => e.Leagueid).HasColumnName("leagueid");
                 entity.Property(e => e.Mflid).HasColumnName("mflid");

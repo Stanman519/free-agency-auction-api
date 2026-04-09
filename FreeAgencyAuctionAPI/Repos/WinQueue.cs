@@ -1,27 +1,28 @@
-﻿using Azure.Storage.Queues;
 using FreeAgencyAuctionAPI.Models;
-using System.Text.Json;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace FreeAgencyAuctionAPI.Repos
 {
     public interface IQueueService
     {
         void SendMessageToQueue(BidDTO bid);
+        ValueTask<BidDTO> ReadAsync(CancellationToken ct);
     }
 
-    public class AzureQueueService : IQueueService
+    public class InMemoryWinQueue : IQueueService
     {
-        private readonly QueueServiceClient _queueServiceClient;
-
-        public AzureQueueService(QueueServiceClient queueServiceClient)
-        {
-            _queueServiceClient = queueServiceClient;
-        }
+        private readonly Channel<BidDTO> _channel = Channel.CreateUnbounded<BidDTO>();
 
         public void SendMessageToQueue(BidDTO bid)
         {
-            _queueServiceClient.GetQueueClient("winmessages")
-                .SendMessage(JsonSerializer.Serialize(bid, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+            _channel.Writer.TryWrite(bid);
+        }
+
+        public ValueTask<BidDTO> ReadAsync(CancellationToken ct)
+        {
+            return _channel.Reader.ReadAsync(ct);
         }
     }
 }

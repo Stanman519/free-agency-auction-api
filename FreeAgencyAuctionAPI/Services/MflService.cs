@@ -826,7 +826,7 @@ namespace FreeAgencyAuctionAPI.Services
                     _logger.LogError("{mflPlayerId}'s taxi rebate salary adjustment was not added in mfl.", req.player.FullName);
                     await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly be taxi cut.", botId));
                 }
-                else await _gm.SendBotNotification(message: new BotMessage($"New taxi cut submitted on stanfan.net\n{req.player.FullName} was cut.", botId));
+                else await _gm.SendBotNotification(message: new BotMessage($"New taxi cut submitted on fanpools.net\n{req.player.FullName} was cut.", botId));
             }
             catch (Exception e)
             {
@@ -880,7 +880,7 @@ namespace FreeAgencyAuctionAPI.Services
                     await _gm.NotifyMflError(new BotMessage($"league: {req.leagueId} player: {req.player.FullName} could not properly apply buyout penalty salary adjustment.", botId));
                 }
                 await _pRepo.AddBuyoutPlayer(req);
-                await _gm.SendBotNotification(message: new BotMessage($"New buyout submitted on stanfan.net\n{req.player.FullName} was cut.", botId));
+                await _gm.SendBotNotification(message: new BotMessage($"New buyout submitted on fanpools.net\n{req.player.FullName} was cut.", botId));
             }
             catch (Exception e)
             {
@@ -928,7 +928,7 @@ namespace FreeAgencyAuctionAPI.Services
                 });
             }
 
-            comment = comment + $" * * * * If you would like to counter with a trade that involves salary cap eating, you'll need to go to stanfan.net";
+            comment = comment + $" * * * * If you would like to counter with a trade that involves salary cap eating, you'll need to go to fanpools.net";
 
             var sendingAssetIds = string.Join(",", req.SendingAssets.Select(a => a.MflId).ToList());
             var receivingAssetIds = string.Join(",", req.ReceivingAssets.Select(a => a.MflId).ToList());
