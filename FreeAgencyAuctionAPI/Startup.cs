@@ -77,7 +77,7 @@ namespace FreeAgencyAuctionAPI
                     }
                 });
             });
-            var botApiBaseUrl = Configuration["ServiceUrls:BotApi"] ?? "https://capncrunch-api.azurewebsites.net";
+            var botApiBaseUrl = "https://capncrunch-api.azurewebsites.net";
             services.AddSingleton(RestClient.For<IGMBot>($"{botApiBaseUrl}/Bot"));
             var mflGlobal = RestClient.For<IGlobalMflApi>("https://api.myfantasyleague.com");
             mflGlobal.CommishCookie = appConfig.Mfl.CommishCookie;
