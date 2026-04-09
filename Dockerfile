@@ -4,7 +4,7 @@ COPY FreeAgencyAuctionAPI/FreeAgencyAuctionAPI.csproj FreeAgencyAuctionAPI/
 RUN dotnet restore FreeAgencyAuctionAPI/FreeAgencyAuctionAPI.csproj
 COPY . .
 WORKDIR /src/FreeAgencyAuctionAPI
-RUN dotnet publish -c Release -o /app/publish
+RUN dotnet publish FreeAgencyAuctionAPI.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
