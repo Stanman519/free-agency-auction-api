@@ -82,32 +82,56 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<OwnerDTO> SynchronizeAuthorizedUser(AuthUser user)
         {
-            // check db first for owner, with this userid, return it or create one if it doesnt exist.
+            // Fast path: authid already linked
             var dto = await _repo.GetOwnerByAuthId(user.Sub);
-            // With addition of games, how do we skip this process?? new screen i guess.
-            if (dto == null || dto.OwnerId < 1) 
+            if (dto != null && dto.OwnerId > 0)
             {
-                var matchingFranchises = new List<FranchisePlusAssets>();
-                /*var leagues = await _repo.GetAllRealLeagueIds();
-                foreach (var league in leagues)
+                dto.StreamToken = await GetStreamToken(dto);
+                return dto;
+            }
+
+            // First Auth0 login for this user — try to match against existing owner rows
+            // by walking MFL franchises across all leagues and matching on email/username/name.
+            var matchingFranchises = new List<FranchisePlusAssets>();
+            var leagueIds = await _repo.GetAllRealLeagueIds();
+            foreach (var leagueId in leagueIds)
+            {
+                try
                 {
-                    var root = await _mfl.GetBigLeagueObject(league);
-                    var franchises = root.league.franchises.franchise;
+                    var root = await _mfl.GetBigLeagueObject(leagueId);
+                    var franchises = root?.league?.franchises?.franchise;
+                    if (franchises == null) continue;
                     var foundFranchise = franchises.FirstOrDefault(franchise =>
-                    {
-                        return franchise.email?.ToLower() == user.Email?.ToLower() ||
-                            franchise.username?.ToLower() == user.Nickname?.ToLower() ||
-                            franchise.username?.ToLower() == user.PreferredUsername?.ToLower() ||
-                            franchise.owner_name?.ToLower() == user.Name?.ToLower();
-                    });
+                        (!string.IsNullOrEmpty(franchise.email) && franchise.email.Equals(user.Email, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(franchise.username) && (
+                            franchise.username.Equals(user.Nickname, StringComparison.OrdinalIgnoreCase) ||
+                            franchise.username.Equals(user.PreferredUsername, StringComparison.OrdinalIgnoreCase))) ||
+                        (!string.IsNullOrEmpty(franchise.owner_name) && franchise.owner_name.Equals(user.Name, StringComparison.OrdinalIgnoreCase))
+                    );
                     if (foundFranchise != null)
                     {
-                        foundFranchise.leagueId = league;
+                        foundFranchise.leagueId = leagueId;
                         matchingFranchises.Add(foundFranchise);
-                    }          
-                }*/
+                    }
+                }
+                catch
+                {
+                    // MFL API hiccup — don't block login on one league
+                }
+            }
+
+            // Try linking to the existing owner row those franchises point at
+            if (matchingFranchises.Count > 0)
+            {
+                dto = await _repo.LinkExistingOwnerByMflFranchises(user, matchingFranchises);
+            }
+
+            // No existing owner found → create a fresh row (+ new leagueowner rows for any matches)
+            if (dto == null || dto.OwnerId < 1)
+            {
                 dto = await _repo.AddOwnerAndRelatedLeagues(user, matchingFranchises);
             }
+
             dto.StreamToken = await GetStreamToken(dto);
             return dto;
         }

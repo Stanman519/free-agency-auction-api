@@ -13,6 +13,7 @@ namespace FreeAgencyAuctionAPI.Repos
     public interface IOwnerRepo
     {
         public Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<FranchisePlusAssets> franchises);
+        public Task<OwnerDTO?> LinkExistingOwnerByMflFranchises(AuthUser user, List<FranchisePlusAssets> franchises);
 
         public Task UpdateCapRoomForAllOwners(List<int> capSpace, int leagueId);
         public Task<List<LeagueOwnerEntity>> GetAllOwners(int leagueId);
@@ -181,11 +182,56 @@ namespace FreeAgencyAuctionAPI.Repos
              }*/
         }
 
+        public async Task<OwnerDTO?> LinkExistingOwnerByMflFranchises(AuthUser user, List<FranchisePlusAssets> franchises)
+        {
+            if (franchises == null || franchises.Count == 0) return null;
+
+            // Build (leagueId, mflFranchiseId) pairs from MFL matches
+            var pairs = franchises
+                .Select(f => new { LeagueId = f.leagueId, FranchiseId = int.TryParse(f.id, out var x) ? x : 0 })
+                .Where(p => p.FranchiseId > 0)
+                .ToList();
+            if (pairs.Count == 0) return null;
+
+            var leagueIds = pairs.Select(p => p.LeagueId).Distinct().ToList();
+            var franchiseIds = pairs.Select(p => p.FranchiseId).Distinct().ToList();
+
+            // Find existing leagueowner rows for those franchises
+            var existingRows = await _db.LeagueOwners
+                .Where(lo => leagueIds.Contains(lo.Leagueid) && franchiseIds.Contains(lo.Mflfranchiseid))
+                .ToListAsync();
+
+            // Keep only exact (league, franchise) matches
+            var matchedRows = existingRows
+                .Where(lo => pairs.Any(p => p.LeagueId == lo.Leagueid && p.FranchiseId == lo.Mflfranchiseid))
+                .ToList();
+            if (matchedRows.Count == 0) return null;
+
+            // Pick the ownerid that appears most often across matches
+            var ownerId = matchedRows
+                .GroupBy(lo => lo.Ownerid)
+                .OrderByDescending(g => g.Count())
+                .First()
+                .Key;
+            if (ownerId < 1) return null;
+
+            var existingOwner = await _db.Owners.FirstOrDefaultAsync(o => o.Ownerid == ownerId);
+            if (existingOwner == null) return null;
+
+            existingOwner.authid = user.Sub;
+            if (!string.IsNullOrEmpty(user.Picture)) existingOwner.Avatar = user.Picture;
+            if (string.IsNullOrWhiteSpace(existingOwner.Displayname))
+                existingOwner.Displayname = user.Name ?? user.Nickname ?? user.Email;
+            await _db.SaveChangesAsync();
+
+            return await GetOwnerByAuthId(user.Sub);
+        }
+
         public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<FranchisePlusAssets> franchises)
         {
-            if (franchises.Count == 0) 
+            if (franchises.Count == 0)
             {
-            
+
             }
             var owner = new OwnerEntity
             {
