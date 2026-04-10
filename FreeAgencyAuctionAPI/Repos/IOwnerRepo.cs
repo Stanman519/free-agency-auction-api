@@ -60,6 +60,7 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 var currentDate = DateTime.Now;
 
+                // Main owner + leagues projection — no Pools/OUPicks subqueries here
                 var ownerDto = await _db.Owners.AsNoTracking()
                     .Where(o => o.authid == sub)
                     .Select(o => new OwnerDTO
@@ -88,33 +89,64 @@ namespace FreeAgencyAuctionAPI.Repos
                                 IsAuctioning = lo.League.Isauctioning,
                                 IsTaxiCutSzn = lo.League.IsTaxiSzn
                             }
-                        }).OrderBy(l => l.League.IsAuctioning ? 0 : 1).ToList(),
-                        Pools = _db.Pools.AsNoTracking()
-                            .Where(p => (p.OpenDate <= currentDate && p.StartDate >= currentDate) || p.OUPicks.Any(pk => pk.UserId == p.PoolUsers.First(u => u.OwnerId == o.Ownerid).Id))
-                            .Select(p => new PoolDTO
-                            {
-                                Id = p.Id,
-                                Name = p.Name,
-                                League = p.League,
-                                OpenDate = p.OpenDate,
-                                PoolOwnerId = p.PoolUsers.FirstOrDefault(pu => pu.OwnerId == o.Ownerid).Id,
-                                StartDate = p.StartDate,
-                                Type = p.Type,
-                                Year = p.Year,
-                                MyOverUnderPicks = p.OUPicks
-                                    .Where(pck => pck.UserId == p.PoolUsers.First(u => u.OwnerId == o.Ownerid).Id)
-                                    .Select(pick => new OverUnderPickDTO
-                                    {
-                                        Id = pick.Id,
-                                        LineId = pick.LineId,
-                                        UserId = pick.UserId,
-                                        IsOver = pick.IsOver,
-                                        LineAdjustment = pick.LineAdjustment,
-                                        PoolId = pick.PoolId
-                                    })
-                            }).ToList()
+                        }).OrderBy(l => l.League.IsAuctioning ? 0 : 1).ToList()
                     })
                     .FirstOrDefaultAsync();
+
+                if (ownerDto == null) return null;
+
+                // Pools as a separate query — isolated so a translation failure can't null out the owner
+                try
+                {
+                    var ownerId = ownerDto.OwnerId;
+                    var myPoolUserIds = await _db.PoolUsers.AsNoTracking()
+                        .Where(pu => pu.OwnerId == ownerId)
+                        .Select(pu => new { pu.Id, pu.PoolId })
+                        .ToListAsync();
+                    var myPoolUserIdSet = myPoolUserIds.Select(x => x.Id).ToHashSet();
+                    var poolsImInByPoolId = myPoolUserIds.ToDictionary(x => x.PoolId, x => x.Id);
+
+                    var activePools = await _db.Pools.AsNoTracking()
+                        .Where(p => (p.OpenDate <= currentDate && p.StartDate >= currentDate) || poolsImInByPoolId.Keys.Contains(p.Id))
+                        .Select(p => new
+                        {
+                            p.Id,
+                            p.Name,
+                            p.League,
+                            p.OpenDate,
+                            p.StartDate,
+                            p.Type,
+                            p.Year,
+                            Picks = p.OUPicks.Where(pk => myPoolUserIdSet.Contains(pk.UserId)).Select(pick => new OverUnderPickDTO
+                            {
+                                Id = pick.Id,
+                                LineId = pick.LineId,
+                                UserId = pick.UserId,
+                                IsOver = pick.IsOver,
+                                LineAdjustment = pick.LineAdjustment,
+                                PoolId = pick.PoolId
+                            }).ToList()
+                        })
+                        .ToListAsync();
+
+                    ownerDto.Pools = activePools.Select(p => new PoolDTO
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        League = p.League,
+                        OpenDate = p.OpenDate,
+                        StartDate = p.StartDate,
+                        Type = p.Type,
+                        Year = p.Year,
+                        PoolOwnerId = poolsImInByPoolId.TryGetValue(p.Id, out var puId) ? puId : 0,
+                        MyOverUnderPicks = p.Picks
+                    }).ToList();
+                }
+                catch (Exception poolEx)
+                {
+                    _logger.LogError(poolEx, "pools fetch failed, continuing without pools");
+                    ownerDto.Pools = new List<PoolDTO>();
+                }
 
                 return ownerDto;
             }
@@ -300,7 +332,11 @@ namespace FreeAgencyAuctionAPI.Repos
                         Name = _.League.Name,
                         MflHash = _.League.Mflhash,
                         CommishCookie = _.League.Commishcookie,
-
+                        FirstYear = _.League.FirstYear,
+                        IsAuctioning = _.League.Isauctioning,
+                        IsFranchiseTagSzn = _.League.IsFranchiseTagSzn,
+                        IsBuyoutSzn = _.League.IsBuyoutSzn,
+                        IsTaxiCutSzn = _.League.IsTaxiSzn
                     }
                 }).ToList()
             };
