@@ -54,7 +54,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.Tricode).HasColumnName("tricode");
                 entity.Property(e => e.City).HasColumnName("city");
                 entity.Property(e => e.Logo).HasColumnName("logo");
-                entity.Property(e => e.SecondaryLogo).HasColumnName("secondaryLogo");
+                entity.Property(e => e.SecondaryLogo).HasColumnName("secondarylogo");
                 entity.Property(e => e.Primary).HasColumnName("primary");
                 entity.Property(e => e.Secondary).HasColumnName("secondary");
                 entity.Property(e => e.Tertiary).HasColumnName("tertiary");
@@ -68,6 +68,7 @@ namespace FreeAgencyAuctionAPI
             {
                 entity.HasKey(e => e.Id).HasName("PK_pick");
                 entity.ToTable("pick");
+                entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.OwnerId).HasColumnName("ownerid");
                 entity.Property(e => e.MatchupId).HasColumnName("matchupid");
                 entity.Property(e => e.Choice).HasColumnName("choice");
@@ -119,8 +120,9 @@ namespace FreeAgencyAuctionAPI
                 entity.HasKey(e => e.Id).HasName("PK_prop");
                 entity.ToTable("prop");
                 entity.Property(e => e.Id).HasColumnName("id");
-                entity.Property(e => e.OptionA).HasColumnName("optionA");
-                entity.Property(e => e.OptionB).HasColumnName("optionB");
+                entity.Property(e => e.Prompt).HasColumnName("prompt");
+                entity.Property(e => e.OptionA).HasColumnName("optiona");
+                entity.Property(e => e.OptionB).HasColumnName("optionb");
                 entity.Property(e => e.Year).HasColumnName("year");
                 entity.Property(e => e.Week).HasColumnName("week");
                 entity.Property(e => e.Pickable).HasColumnName("pickable");
@@ -219,7 +221,7 @@ namespace FreeAgencyAuctionAPI
             {
                 entity.HasKey(e => e.Mflid);
 
-                entity.ToTable("League");
+                entity.ToTable("league");
 
                 entity.Property(e => e.Mflid)
                     .ValueGeneratedNever()
@@ -229,6 +231,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.IsBuyoutSzn).HasColumnName("isbuyoutszn");
                 entity.Property(e => e.IsTaxiSzn).HasColumnName("istaxicutszn");
                 entity.Property(e => e.IsFranchiseTagSzn).HasColumnName("isfranchisetagszn");
+                entity.Property(e => e.Istest).HasColumnName("istest");
                 entity.Property(e => e.FirstYear).HasColumnName("firstyear");
                 entity.Property(e => e.Mflhash).HasColumnName("mflhash");
                 entity.Property(e => e.Name)
@@ -326,6 +329,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.StreamToken)
                     .HasColumnName("streamtoken");
                 entity.Property(e => e.Premium).HasColumnName("premium");
+                entity.Property(e => e.Avatar).HasColumnName("avatar");
             });
 
             modelBuilder.Entity<PlayerEntity>(entity =>
@@ -363,7 +367,7 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("fullname");
                 entity.Property(e => e.Headshot).HasColumnName("headshot");
                 entity.Property(e => e.Height).HasColumnName("height");
-                entity.Property(e => e.IsActive).HasColumnName("isActive");
+                entity.Property(e => e.IsActive).HasColumnName("isactive");
                 entity.Property(e => e.Jersey).HasColumnName("jersey");
                 entity.Property(e => e.Lastname)
                     .HasMaxLength(50)
@@ -400,8 +404,8 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("mflid");
                 entity.Property(e => e.Ownerid).HasColumnName("ownerid");
                 entity.Property(e => e.Suggestion).HasColumnName("suggestion");
-                entity.Property(e => e.YearMax).HasColumnName("yearMax");
-                entity.Property(e => e.YearMin).HasColumnName("yearMin");
+                entity.Property(e => e.YearMax).HasColumnName("yearmax");
+                entity.Property(e => e.YearMin).HasColumnName("yearmin");
             });
             modelBuilder.Entity<FranchiseTagLeague>(entity =>
             {
@@ -456,6 +460,8 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("leagueownerid");
                 entity.Property(e => e.OriginalSalary)
                     .HasColumnName("originalsalary");
+                entity.Property(e => e.BuyoutPenalty)
+                    .HasColumnName("buyoutpenalty");
                 entity.HasOne(e => e.League)
                 .WithMany(l => l.Buyouts)
                 .HasForeignKey(d => d.LeagueId)
@@ -629,17 +635,17 @@ namespace FreeAgencyAuctionAPI
                     .ValueGeneratedOnAdd()
                     .HasColumnName("id");
                 entity.Property(e => e.LeagueId)
-                    .HasColumnName("leagueId");
+                    .HasColumnName("leagueid");
                 entity.Property(e => e.SenderId)
-                    .HasColumnName("senderId");
+                    .HasColumnName("senderid");
                 entity.Property(e => e.ReceiverId)
-                    .HasColumnName("receiverId");
+                    .HasColumnName("receiverid");
                 entity.Property(e => e.Accepted)
                     .HasColumnName("accepted");
                 entity.Property(e => e.Expires)
                     .HasColumnName("expires");
                 entity.Property(e => e.MflTradeId)
-                    .HasColumnName("mflTradeId");
+                    .HasColumnName("mfltradeid");
 
                 
                 entity.HasKey(e => e.Id);
@@ -652,17 +658,17 @@ namespace FreeAgencyAuctionAPI
                     .ValueGeneratedOnAdd()
                     .HasColumnName("id");
                 entity.Property(e => e.LeagueId)
-                    .HasColumnName("leagueId");
+                    .HasColumnName("leagueid");
                 entity.Property(e => e.EaterId)
                     .HasColumnName("eaterid");
                 entity.Property(e => e.ReceiverId)
-                    .HasColumnName("receiverId");
+                    .HasColumnName("receiverid");
                 entity.Property(e => e.Year)
                     .HasColumnName("year");
                 entity.Property(e => e.MflPlayerId)
-                    .HasColumnName("mflPlayerId");
-                entity.Property(e => e.CapAdjustment).HasColumnName("capAdjustment");
-                entity.Property(e => e.TradeId).HasColumnName("tradeId");
+                    .HasColumnName("mflplayerid");
+                entity.Property(e => e.CapAdjustment).HasColumnName("capadjustment");
+                entity.Property(e => e.TradeId).HasColumnName("tradeid");
                 entity.HasOne(e => e.Proposal)
                     .WithMany(l => l.CapEatCandidates)
                     .HasForeignKey(d => d.TradeId)
