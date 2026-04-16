@@ -63,6 +63,7 @@
 
             [AllowAnonymous]
             [HttpGet("ping")]
+            [HttpHead("ping")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
