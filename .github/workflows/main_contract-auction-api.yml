@@ -1,4 +1,4 @@
-name: Build and deploy ASP.Net Core app to Azure Web App - contract-auction-api
+name: Build free-agency-auction-api
 
 on:
   push:
@@ -18,43 +18,15 @@ jobs:
         with:
           dotnet-version: '8.0.x'
           include-prerelease: true
-      - uses: cschleiden/replace-tokens@v1
-        with:
-          files: '**/*.json' # Target all JSON files in the repository
-        env:
-          MFL_API_KEY_15238: ${{ secrets.MFL_API_KEY_15238 }}
-          MFL_API_KEY_26548: ${{ secrets.MFL_API_KEY_26548 }}
-          
+
       - name: Build with dotnet
         run: dotnet build --configuration Release
 
       - name: dotnet publish
         run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
-      - name: Upload artifact for deployment job
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
           path: ${{env.DOTNET_ROOT}}/myapp
-
-  deploy:
-    runs-on: windows-latest
-    needs: build
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: 'contract-auction-api'
-          slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_43A3A11CB193494181D0E51B0B857AD1 }}
-          package: .
