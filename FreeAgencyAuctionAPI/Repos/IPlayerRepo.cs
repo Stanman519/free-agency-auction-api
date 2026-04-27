@@ -84,11 +84,11 @@ namespace FreeAgencyAuctionAPI.Repos
 
         public List<Buyout> GetBuyoutsUsedForTeam(int leagueOwnerId)
         {
-            return _db.Buyouts.Where(b => b.LeagueOwnerId == leagueOwnerId && b.Year == Utils.ThisYear).ToList();
+            return _db.Buyouts.Where(b => b.LeagueOwnerId == leagueOwnerId && b.Year == Utils.CurrentYear).ToList();
         }
         public List<FranchiseTagPlayer> GetTagsUsedForTeam(int leagueownerId)
         {
-            return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == Utils.ThisYear).ToList();
+            return _db.FranchiseTagPlayers.Where(t => t.Leagueownerid == leagueownerId && t.Year == Utils.CurrentYear).ToList();
         }
         public List<FranchiseTagPlayer> GetAllTagsForLeague(int leagueId)
         {

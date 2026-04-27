@@ -131,7 +131,8 @@ namespace FreeAgencyAuctionAPI
                             {
                                 dbPlayer.Salary = int.TryParse(p.Player.salary, out var x) ? x : 0;
                                 dbPlayer.Length = int.TryParse(p.Player.contractYear, out var y) ? y : 0;
-                                dbPlayer.MflFranchiseId = franchiseId; // Update FranchiseId
+                                dbPlayer.MflFranchiseId = franchiseId;
+                                dbPlayer.RosterStatus = p.Player.status;
                                 return dbPlayer;
                             }
                             return null;
@@ -274,6 +275,7 @@ namespace FreeAgencyAuctionAPI
             nomination.Expires = DateTime.UtcNow.AddHours(18);
             var botId = Utils.leagueBotDict.TryGetValue(nomination.LeagueId, out var x) ? x : string.Empty;
             var ret = await _bService.Nominate(nomination);
+            if (ret == null) return BadRequest(new ErrorResponse("Player is already nominated or nomination failed."));
             ret.LotId = nomination.LotId;
             ret.Expires = nomination.Expires;
             ret.LeagueId = nomination.LeagueId;

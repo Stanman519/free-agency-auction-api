@@ -153,6 +153,10 @@ namespace FreeAgencyAuctionAPI.Services
         {
             try
             {
+                var existingBid = await _repo.GetLatestBidForPlayerId((int)nomination.Player.MflId, (int)nomination.LeagueId);
+                if (existingBid != null && existingBid.Expires > DateTime.UtcNow)
+                    return null;
+
                 var submittedBid = await _repo.AddBid(nomination);
                 //var playerEntity = await _playerRepo.GetPlayerById(nomination.Player.MflId);
                 if (submittedBid != null)

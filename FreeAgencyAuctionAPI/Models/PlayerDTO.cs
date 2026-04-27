@@ -18,6 +18,7 @@ namespace FreeAgencyAuctionAPI.Models
         public int? ContractValue { set; get; }
         public int? MflFranchiseId { set; get; }
         public decimal? Adp { get; set; }
+        public string? RosterStatus { get; set; }
     }
     
     public class PlayerBioDTO 

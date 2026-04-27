@@ -98,7 +98,7 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 try
                 {
-                    var root = await _mfl.GetBigLeagueObject(leagueId);
+                    var root = await _mfl.GetBigLeagueObject(leagueId, Utils.CurrentYear);
                     var franchises = root?.league?.franchises?.franchise;
                     if (franchises == null) continue;
                     var foundFranchise = franchises.FirstOrDefault(franchise =>

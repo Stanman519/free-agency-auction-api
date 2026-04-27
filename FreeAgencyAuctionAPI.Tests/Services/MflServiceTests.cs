@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using AutoMapper;
+using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,61 @@ namespace FreeAgencyAuctionAPI.Tests.Services
                 _db,
                 _optionsMock.Object
             );
+        }
+
+        [Fact]
+        public async Task GetSalaryCapRoom_AppliesCorrectWeightsByStatus()
+        {
+            var leagueId = 13894;
+            _leagueApiMock.Setup(x => x.GetBigLeagueObject(leagueId, It.IsAny<int>())).ReturnsAsync(new LeagueRoot
+            {
+                league = new League2
+                {
+                    franchises = new Franchises
+                    {
+                        franchise = new List<FranchisePlusAssets>
+                        {
+                            new FranchisePlusAssets { id = "0001", salaryCapAmount = "500" },
+                        }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>())).ReturnsAsync(new RostersRoot
+            {
+                rosters = new Rosters
+                {
+                    franchise = new List<FranchiseRoster>
+                    {
+                        new FranchiseRoster
+                        {
+                            id = "0001",
+                            player = new List<Player>
+                            {
+                                new Player { status = "ROSTER", salary = "100" },          // 100
+                                new Player { status = "TAXI_SQUAD", salary = "50" },       // 10
+                                new Player { status = "INJURED_RESERVE", salary = "40" },  // 20
+                            }
+                        }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetMflSalaryAdjustments(leagueId, It.IsAny<int>())).ReturnsAsync(new SalaryAdjustmentsRoot
+            {
+                salaryAdjustments = new SalaryAdjustments
+                {
+                    salaryAdjustment = new List<SalaryAdjustment>
+                    {
+                        new SalaryAdjustment { franchise_id = "0001", amount = "5" },
+                    }
+                }
+            });
+
+            var result = await _service.GetSalaryCapRoom(leagueId);
+
+            // 500 - 100 - 10 - 20 - 5 = 365
+            Assert.Single(result);
+            Assert.Equal(1, result[0].Mflfranchiseid);
+            Assert.Equal(365, result[0].Caproom);
         }
 
         [Fact]

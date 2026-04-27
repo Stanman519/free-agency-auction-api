@@ -66,8 +66,8 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
         {
-            var freeAgentMflIdsRootTask =  _mflApi.GetMflFreeAgents(leagueId);
-            var adpPlayerRootTask =  _global.GetMflAdp();
+            var freeAgentMflIdsRootTask =  _mflApi.GetMflFreeAgents(leagueId, Utils.CurrentYear);
+            var adpPlayerRootTask =  _global.GetMflAdp(Utils.CurrentYear);
             await Task.WhenAll(freeAgentMflIdsRootTask, adpPlayerRootTask);
             if (freeAgentMflIdsRootTask.Result.error != null) return new List<PlayerDTO>();
             var adpPlayers = adpPlayerRootTask.Result.adp.player;

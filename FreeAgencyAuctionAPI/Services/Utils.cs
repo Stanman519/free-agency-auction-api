@@ -5,9 +5,6 @@ namespace FreeAgencyAuctionAPI.Services
 {
     public static class Utils
     {
-        // ThisYear must remain a compile-time const for C# default parameter values (IMflApi, IGlobalMflApi interfaces).
-        // Use DateTime.UtcNow.Year for all runtime logic instead.
-        public const int ThisYear = 2026;
         public static int CurrentYear => DateTime.UtcNow.Year;
         public static Dictionary<int, string> Owners = new()
         {

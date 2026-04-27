@@ -11,6 +11,7 @@ namespace FreeAgencyAuctionAPI
         public StreamClient StreamClient { get; set; }
         public ApplicationInsights ApplicationInsights { get; set; }
         public SportsDataConfig SportsDataConfig { get; set; }
+        public string AdminApiKey { get; set; }
     }
     public class SportsDataConfig
     {

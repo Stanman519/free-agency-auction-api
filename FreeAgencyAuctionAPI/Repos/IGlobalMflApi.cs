@@ -15,9 +15,9 @@ namespace FreeAgencyAuctionAPI.Repos
 
 
         [Get("{year}/import?TYPE=fcfsWaiver&L={leagueId}&ADD={playerId}&DROP=&FRANCHISE_ID={franchiseId}")]
-        Task<HttpResponseMessage> AddPlayerToMflTeam([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year = Utils.ThisYear);
+        Task<HttpResponseMessage> AddPlayerToMflTeam([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year);
 
         [Get("{year}/export?TYPE=adp&PERIOD=ALL&FCOUNT=*&IS_PPR=1&IS_KEEPER=&IS_MOCK=-1&CUTOFF=&DETAILS=&JSON=1")]
-        Task<AdpRoot> GetMflAdp([Path] int year = Utils.ThisYear);
+        Task<AdpRoot> GetMflAdp([Path] int year);
     }
 }

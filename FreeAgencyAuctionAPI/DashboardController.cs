@@ -1,4 +1,5 @@
 ﻿using Bogus.DataSets;
+using FreeAgencyAuctionAPI.Filters;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
@@ -28,9 +29,10 @@ namespace FreeAgencyAuctionAPI
         private ILeagueService _leagueService;
         private readonly IMflService _mfl;
         private readonly IPlayerRepo _pRepo;
+        private readonly IOwnerRepo _oRepo;
 
 
-        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, IPlayerRepo prepo, ILogger<DashboardController> logger, AuctionContext db, IGMBot gm)
+        public DashboardController(ILeagueService leagueService, IMflService mfl, IOwnerService ownerServiceLayer, IPlayerRepo prepo, ILogger<DashboardController> logger, AuctionContext db, IGMBot gm, IOwnerRepo oRepo)
         {
             _leagueService = leagueService;
             _mfl = mfl;
@@ -39,6 +41,7 @@ namespace FreeAgencyAuctionAPI
             _logger = logger;
             _db = db;
             _gm = gm;
+            _oRepo = oRepo;
         }
 
         [HttpGet("test-stuff")]
@@ -455,6 +458,8 @@ namespace FreeAgencyAuctionAPI
         // HOLDOUT ENDPOINTS
         
         // 1. Generate holdouts for a league (admin endpoint)
+        [AllowAnonymous]
+        [AdminApiKey]
         [HttpPost("league/{leagueId}/year/{year}/generate-holdouts")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -488,7 +493,7 @@ namespace FreeAgencyAuctionAPI
         {
             try
             {
-                var holdouts = await _pRepo.GetHoldoutsForOwner(leagueOwnerId, Utils.ThisYear);
+                var holdouts = await _pRepo.GetHoldoutsForOwner(leagueOwnerId, Utils.CurrentYear);
                 
                 var holdoutDTOs = holdouts.Select(h => new HoldoutDTO
                 {
@@ -583,6 +588,53 @@ namespace FreeAgencyAuctionAPI
             }
         }
         
+        [HttpPost("admin/leagues/{leagueId}/true-up-salary-caps")]
+        public async Task<IActionResult> TrueUpSalaryCaps([FromRoute] int leagueId)
+        {
+            try
+            {
+                var capSpace = (await _mfl.GetSalaryCapRoom(leagueId))
+                    .OrderBy(c => c.Mflfranchiseid)
+                    .ToList();
+
+                var owners = await _db.LeagueOwners.Where(l => l.Leagueid == leagueId).ToListAsync();
+
+                var updates = new List<object>();
+                foreach (var mflFranchise in capSpace)
+                {
+                    var owner = owners.FirstOrDefault(o => o.Mflfranchiseid == mflFranchise.Mflfranchiseid);
+                    var newCap = mflFranchise.Caproom ?? 0;
+                    var oldCap = owner?.Caproom;
+                    if (owner != null) owner.Caproom = newCap;
+                    updates.Add(new
+                    {
+                        mflFranchiseId = mflFranchise.Mflfranchiseid,
+                        oldCap,
+                        newCap,
+                        matched = owner != null
+                    });
+                }
+
+                var rowsSaved = await _db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    leagueId,
+                    mflFranchisesReturned = capSpace.Count,
+                    ownersInDb = owners.Count,
+                    rowsSaved,
+                    updates
+                });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error truing up salary caps for league {LeagueId}", leagueId);
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+        }
+
+        [AllowAnonymous]
+        [AdminApiKey]
         [HttpPost("admin/leagues/{leagueId}/years/{year}/generate-franchise-tag-values")]
         public async Task<IActionResult> GenerateFranchiseTagValues([FromRoute] int leagueId, [FromRoute] int year)
         {
