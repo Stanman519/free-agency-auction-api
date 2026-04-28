@@ -90,6 +90,24 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetRosters([Path] int leagueId)
         {
+            if (leagueId < 0)
+            {
+                var demoOwners = await _oService.GetAllOwners(leagueId);
+                var demoRosters = demoOwners.Select(o => new OpposingFranchiseWithRoster
+                {
+                    Mflfranchiseid = o.Mflfranchiseid,
+                    CapRoom = o.CapRoom,
+                    YearsLeft = o.YearsLeft,
+                    Leagueownerid = o.Leagueownerid,
+                    TeamName = o.TeamName,
+                    OwnerName = o.OwnerName,
+                    Avatar = o.Avatar,
+                    Players = new List<PlayerDTO>(),
+                    DraftPicks = new List<FutureDraftPickDTO>()
+                }).ToList();
+                return Ok(demoRosters);
+            }
+
             //TODO: THIS NEEDS BETTER ERROR HANDLING AND WIN MESSAGES
             OwnerDTO profile = null;
 
@@ -343,6 +361,9 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetSalaryCap([FromRoute] int leagueId)
         {
+            if (leagueId < 0)
+                return Ok();
+
             var capSpace = await _mfl.GetSalaryCapRoom(leagueId);
             await _oService.UpdateCapSpaceForOwners(capSpace.OrderBy(_ => _.Ownerid).Select(_ => _.Caproom ?? 0)
                 .ToList(), leagueId);

@@ -38,6 +38,7 @@ namespace FreeAgencyAuctionAPI.Services
             if (bid.Expires > DateTime.UtcNow)
             {
                 _logger.LogError("Bid has still not expired. {lastname} - league: {leagueId}", bid.Player.LastName, bid.LeagueId);
+                await TryNotify(gmBot, botId, $"WIN ERROR: bid for {bid.Player.LastName} hasn't expired yet (league {bid.LeagueId})");
                 return;
             }
 
@@ -46,7 +47,19 @@ namespace FreeAgencyAuctionAPI.Services
                 .FirstOrDefaultAsync(b => b.Mflid == bid.Player.MflId && b.Leagueid == bid.LeagueId);
             if (latestBid == null || latestBid.Bidid != bid.BidId)
             {
-                _logger.LogError("Not the latest bid for player: {lastname} - league: {leagueId}", bid.Player.LastName, bid.LeagueId);
+                _logger.LogInformation("Not the latest bid for player: {lastname} - league: {leagueId}", bid.Player.LastName, bid.LeagueId);
+                return;
+            }
+
+            if (bid.LeagueId < 0)
+            {
+                var demoOwner = await db.LeagueOwners.FirstOrDefaultAsync(l => l.Leagueownerid == bid.OwnerId);
+                if (demoOwner != null)
+                {
+                    demoOwner.Caproom = (demoOwner.Caproom ?? 0) - bid.BidSalary;
+                    await db.SaveChangesAsync();
+                }
+                _logger.LogInformation("Demo win: {firstname} {lastname} to {ownername}", bid.Player.FirstName, bid.Player.LastName, bid.Ownername);
                 return;
             }
 
@@ -59,11 +72,18 @@ namespace FreeAgencyAuctionAPI.Services
             if (rosteredPlayerIds.Contains(bid.Player.MflId))
             {
                 _logger.LogError("Player already rostered {lastname} - league: {leagueId}", bid.Player.LastName, bid.LeagueId);
+                await TryNotify(gmBot, botId, $"WIN ERROR: {bid.Player.LastName} already on a roster in MFL (league {bid.LeagueId}) — bid not processed");
                 return;
             }
 
             var leagueOwner = await db.LeagueOwners.FirstOrDefaultAsync(l => l.Leagueownerid == bid.OwnerId);
             var mflOwnerId = leagueOwner?.Mflfranchiseid ?? 0;
+            if (mflOwnerId == 0)
+            {
+                _logger.LogError("Could not find MFL franchise ID for ownerId {ownerId} - league: {leagueId}", bid.OwnerId, bid.LeagueId);
+                await TryNotify(gmBot, botId, $"WIN ERROR: can't find MFL franchise for owner {bid.Ownername} (ownerId {bid.OwnerId}, league {bid.LeagueId}) — {bid.Player.LastName} not added");
+                return;
+            }
 
             try
             {
@@ -73,12 +93,22 @@ namespace FreeAgencyAuctionAPI.Services
             catch (Exception e)
             {
                 _logger.LogError(e, "couldn't add player to MFL team");
+                await TryNotify(gmBot, botId, $"WIN ERROR: failed to add {bid.Player.FirstName} {bid.Player.LastName} to {bid.Ownername}'s MFL roster (league {bid.LeagueId}) — {e.Message}");
                 await Task.Delay(60000);
                 return;
             }
 
-            var contractMsg = $"{bid.Player.FirstName} {bid.Player.LastName} signed ${bid.BidSalary}/{bid.BidLength}yr";
-            await mflService.GiveNewContractToPlayer(bid.LeagueId, bid.Player.MflId, bid.BidSalary, bid.BidLength, contractMsg);
+            try
+            {
+                var contractMsg = $"{bid.Player.FirstName} {bid.Player.LastName} signed ${bid.BidSalary}/{bid.BidLength}yr";
+                await mflService.GiveNewContractToPlayer(bid.LeagueId, bid.Player.MflId, bid.BidSalary, bid.BidLength, contractMsg);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "couldn't write contract for {mflId} in league {leagueId}", bid.Player.MflId, bid.LeagueId);
+                await TryNotify(gmBot, botId, $"WIN ERROR: {bid.Player.FirstName} {bid.Player.LastName} was added to roster but contract write failed (league {bid.LeagueId}) — {e.Message}");
+                return;
+            }
 
             try
             {
@@ -89,15 +119,19 @@ namespace FreeAgencyAuctionAPI.Services
             catch (Exception e)
             {
                 _logger.LogError(e, "error syncing cap room after win for player {mflId}", bid.Player.MflId);
-                try
-                {
-                    await gmBot.NotifyMflError(new BotMessage($"error syncing cap room after win for player {bid.Player.MflId}", botId));
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "GM could not be notified with cap sync failure");
-                }
+                await TryNotify(gmBot, botId, $"WIN ERROR: cap room sync failed after {bid.Player.LastName} win (league {bid.LeagueId}) — {e.Message}");
                 throw;
+            }
+        }
+        private async Task TryNotify(IGMBot gmBot, string botId, string message)
+        {
+            try
+            {
+                await gmBot.NotifyMflError(new BotMessage(message, botId));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GroupMe notification failed: {message}", message);
             }
         }
     }
