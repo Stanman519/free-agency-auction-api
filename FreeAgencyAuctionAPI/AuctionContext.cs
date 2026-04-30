@@ -37,6 +37,8 @@ namespace FreeAgencyAuctionAPI
         public DbSet<Pool> Pools { get; set; }
         public DbSet<PoolUser> PoolUsers { get; set; }
         public DbSet<Holdout> Holdouts { get; set; }
+        public DbSet<HeadlineEntity> Headlines { get; set; }
+        public DbSet<OwnerQuoteEntity> OwnerQuotes { get; set; }
 
         public AuctionContext(DbContextOptions<AuctionContext> options) : base(options)
         {
@@ -718,6 +720,37 @@ namespace FreeAgencyAuctionAPI
                         d.Year
                     })
                     .HasConstraintName("FK_franchisetagplayer_franchisetagleauge");
+            });
+
+            modelBuilder.Entity<HeadlineEntity>(entity =>
+            {
+                entity.HasKey(e => e.Headlineid).HasName("PK_headline");
+                entity.ToTable("headline");
+                entity.Property(e => e.Headlineid).ValueGeneratedOnAdd().HasColumnName("headlineid");
+                entity.Property(e => e.Leagueid).HasColumnName("leagueid");
+                entity.Property(e => e.ReferenceKind).HasMaxLength(16).HasColumnName("referencekind");
+                entity.Property(e => e.ReferenceId).HasColumnName("referenceid");
+                entity.Property(e => e.Text).HasColumnName("text");
+                entity.Property(e => e.Tags).HasColumnName("tags");
+                entity.Property(e => e.IsActive).HasColumnName("isactive");
+                entity.Property(e => e.CreatedAt).HasColumnType("timestamp with time zone").HasColumnName("createdat");
+                entity.Property(e => e.ExpiresAt).HasColumnType("timestamp with time zone").HasColumnName("expiresat");
+                entity.HasIndex(e => new { e.Leagueid, e.IsActive }).HasDatabaseName("ix_headline_league_active");
+            });
+
+            modelBuilder.Entity<OwnerQuoteEntity>(entity =>
+            {
+                entity.HasKey(e => e.Quoteid).HasName("PK_ownerquote");
+                entity.ToTable("ownerquote");
+                entity.Property(e => e.Quoteid).ValueGeneratedOnAdd().HasColumnName("quoteid");
+                entity.Property(e => e.Leagueid).HasColumnName("leagueid");
+                entity.Property(e => e.Ownerid).HasColumnName("ownerid");
+                entity.Property(e => e.PlayerMflId).HasColumnName("playermflid");
+                entity.Property(e => e.Text).HasMaxLength(120).HasColumnName("text");
+                entity.Property(e => e.IsActive).HasColumnName("isactive");
+                entity.Property(e => e.CreatedAt).HasColumnType("timestamp with time zone").HasColumnName("createdat");
+                entity.HasIndex(e => new { e.Leagueid, e.IsActive }).HasDatabaseName("ix_ownerquote_league_active");
+                entity.HasIndex(e => new { e.Leagueid, e.PlayerMflId, e.IsActive }).HasDatabaseName("ix_ownerquote_player_active");
             });
 
             OnModelCreatingPartial(modelBuilder);

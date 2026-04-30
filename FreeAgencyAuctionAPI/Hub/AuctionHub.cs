@@ -20,6 +20,21 @@ namespace FreeAgencyAuctionAPI.Hub
         {
             await Clients.All.SendAsync("FreshBid", freshBid);
         }
+
+        public async Task SendNewHeadline(HeadlineDTO headline)
+        {
+            await Clients.All.SendAsync("NewHeadline", headline);
+        }
+
+        public async Task SendNewQuote(OwnerQuoteDTO quote)
+        {
+            await Clients.All.SendAsync("NewQuote", quote);
+        }
+
+        public async Task SendQuoteRemoved(int leagueId, int quoteId)
+        {
+            await Clients.All.SendAsync("QuoteRemoved", new { leagueId, quoteId });
+        }
         
         
         

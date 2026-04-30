@@ -101,6 +101,9 @@ namespace FreeAgencyAuctionAPI
             services.AddScoped<IPlayerRepo, PlayerRepo>();
             services.AddScoped<IOwnerRepo, OwnerRepo>();
             services.AddScoped<IBidLotRepo, BidLotRepo>();
+            services.AddScoped<IHeadlineRepo, HeadlineRepo>();
+            services.AddScoped<IHeadlineService, HeadlineService>();
+            services.AddScoped<IOwnerQuoteRepo, OwnerQuoteRepo>();
             services.AddScoped<IConfidencePickValidationService, ConfidencePickValidationService>();
             services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
             services.AddAutoMapper(typeof(Startup));

@@ -28,12 +28,14 @@ namespace FreeAgencyAuctionAPI
         private readonly IHubContext<AuctionHub> _auctionHub;
         private readonly IGMBot _bot;
         private readonly IHeadshotLoadingService _headshot;
+        private readonly IHeadlineService _headlineService;
+        private readonly IOwnerQuoteRepo _quoteRepo;
         private readonly ILogger<FreeAgencyController> _logger;
 
 
         public FreeAgencyController(IPlayerService pService, IOwnerService ownerServiceLayer,
             IBidLotService bService, IMflService mfl, IHubContext<AuctionHub> auctionHub, IGMBot bot,
-            IHeadshotLoadingService headshot, ILogger<FreeAgencyController> logger)
+            IHeadshotLoadingService headshot, IHeadlineService headlineService, IOwnerQuoteRepo quoteRepo, ILogger<FreeAgencyController> logger)
         {
             _pService = pService;
             _oService = ownerServiceLayer;
@@ -42,6 +44,8 @@ namespace FreeAgencyAuctionAPI
             _auctionHub = auctionHub;
             _bot = bot;
             _headshot = headshot;
+            _headlineService = headlineService;
+            _quoteRepo = quoteRepo;
             _logger = logger;
         }
 
@@ -268,10 +272,101 @@ namespace FreeAgencyAuctionAPI
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 if (!string.IsNullOrEmpty(botId))
                     await _bot.SendBotNotification(message: new BotMessage($"New Bid (lot {newBid.LotId}):\n{newBid.Ownername}\n{newBid.Player.Position} {newBid.Player.LastName}\n{newBid.BidLength} yr/${newBid.BidSalary}", botId));
+                _ = _headlineService.OnBidPosted(ret);
                 return Ok(ret);
             }
 
             return BadRequest();
+        }
+
+        /// <summary>
+        /// active ticker headlines for league
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("leagues/{leagueId}/headlines")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetHeadlines([Path] int leagueId)
+        {
+            var headlines = await _headlineService.GetActive(leagueId);
+            return Ok(headlines);
+        }
+
+        /// <summary>
+        /// recompute headlines (called by GitHub Actions cron)
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("leagues/{leagueId}/headlines/recompute")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> RecomputeHeadlines([Path] int leagueId)
+        {
+            await _headlineService.RecomputeAllForLeague(leagueId);
+            return Ok();
+        }
+
+        /// <summary>
+        /// active owner quotes for league (interleaved with headlines in ticker)
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("leagues/{leagueId}/quotes")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetQuotes([Path] int leagueId)
+        {
+            var quotes = await _quoteRepo.GetActive(leagueId);
+            return Ok(quotes);
+        }
+
+        /// <summary>
+        /// post / replace owner quote for player on the board
+        /// </summary>
+        [HttpPost("leagues/{leagueId}/players/{playerMflId}/quote")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> PostQuote([Path] int leagueId, [Path] int playerMflId, [FromBody] PostQuoteRequest body)
+        {
+            if (string.IsNullOrWhiteSpace(body?.Text)) return BadRequest(new ErrorResponse("Quote text is empty."));
+            var trimmed = body.Text.Trim();
+            if (trimmed.Length > 120) trimmed = trimmed.Substring(0, 120);
+
+            var quote = await _quoteRepo.Upsert(leagueId, body.OwnerId, playerMflId, trimmed);
+            var ownerName = await _oService.GetAllOwners(leagueId);
+            var name = ownerName.FirstOrDefault(o => o.Leagueownerid == body.OwnerId)?.OwnerName ?? "";
+
+            var dto = new OwnerQuoteDTO
+            {
+                QuoteId = quote.Quoteid,
+                LeagueId = leagueId,
+                OwnerId = body.OwnerId,
+                OwnerName = name,
+                PlayerMflId = playerMflId,
+                Text = trimmed,
+                CreatedAt = quote.CreatedAt,
+            };
+
+            try { await _auctionHub.Clients.All.SendAsync("NewQuote", dto); }
+            catch (Exception e) { _logger.LogError(e, "broadcast NewQuote failed"); }
+
+            return Ok(dto);
+        }
+
+        /// <summary>
+        /// retract owner quote
+        /// </summary>
+        [HttpDelete("leagues/{leagueId}/owners/{ownerId}/players/{playerMflId}/quote")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> DeleteQuote([Path] int leagueId, [Path] int ownerId, [Path] int playerMflId)
+        {
+            var existing = await _quoteRepo.GetActiveByOwnerPlayer(leagueId, ownerId, playerMflId);
+            await _quoteRepo.DeactivateForOwnerPlayer(leagueId, ownerId, playerMflId);
+            if (existing != null)
+            {
+                try { await _auctionHub.Clients.All.SendAsync("QuoteRemoved", new { leagueId, quoteId = existing.Quoteid }); }
+                catch (Exception e) { _logger.LogError(e, "broadcast QuoteRemoved failed"); }
+            }
+            return Ok();
         }
 
         /// <summary>

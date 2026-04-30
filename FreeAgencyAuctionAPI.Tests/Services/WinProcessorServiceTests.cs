@@ -26,6 +26,8 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             sp.Setup(x => x.GetService(typeof(IMflService))).Returns(mflService);
             sp.Setup(x => x.GetService(typeof(IOwnerRepo))).Returns(ownerRepo);
             sp.Setup(x => x.GetService(typeof(IGMBot))).Returns(gmBot);
+            sp.Setup(x => x.GetService(typeof(IHeadlineService))).Returns(new Mock<IHeadlineService>().Object);
+            sp.Setup(x => x.GetService(typeof(IOwnerQuoteRepo))).Returns(new Mock<IOwnerQuoteRepo>().Object);
 
             var scope = new Mock<IServiceScope>();
             scope.Setup(x => x.ServiceProvider).Returns(sp.Object);

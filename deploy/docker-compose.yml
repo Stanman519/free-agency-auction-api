@@ -1,0 +1,28 @@
+services:
+  auction-api:
+    image: ghcr.io/REPLACE_WITH_GH_USER/free-agency-auction-api:latest
+    container_name: auction-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:8080"
+    env_file:
+      - /etc/fantasy-league/auction-api.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  bot-api:
+    image: ghcr.io/REPLACE_WITH_GH_USER/dead-cap-tracker:latest
+    container_name: bot-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:8080"
+    env_file:
+      - /etc/fantasy-league/bot-api.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

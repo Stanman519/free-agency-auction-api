@@ -32,6 +32,8 @@ namespace FreeAgencyAuctionAPI.Services
             var mflService = scope.ServiceProvider.GetRequiredService<IMflService>();
             var ownerRepo = scope.ServiceProvider.GetRequiredService<IOwnerRepo>();
             var gmBot = scope.ServiceProvider.GetRequiredService<IGMBot>();
+            var headlineService = scope.ServiceProvider.GetRequiredService<IHeadlineService>();
+            var quoteRepo = scope.ServiceProvider.GetRequiredService<IOwnerQuoteRepo>();
 
             var botId = Utils.leagueBotDict.TryGetValue(bid.LeagueId, out var x) ? x : string.Empty;
 
@@ -121,6 +123,24 @@ namespace FreeAgencyAuctionAPI.Services
                 _logger.LogError(e, "error syncing cap room after win for player {mflId}", bid.Player.MflId);
                 await TryNotify(gmBot, botId, $"WIN ERROR: cap room sync failed after {bid.Player.LastName} win (league {bid.LeagueId}) — {e.Message}");
                 throw;
+            }
+
+            try
+            {
+                await headlineService.OnWin(bid);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "headline OnWin failed (non-fatal) for player {mflId}", bid.Player.MflId);
+            }
+
+            try
+            {
+                await quoteRepo.DeactivateForPlayer(bid.LeagueId, bid.Player.MflId);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "quote deactivate-on-win failed (non-fatal) for player {mflId}", bid.Player.MflId);
             }
         }
         private async Task TryNotify(IGMBot gmBot, string botId, string message)
