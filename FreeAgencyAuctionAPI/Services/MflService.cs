@@ -74,15 +74,18 @@ namespace FreeAgencyAuctionAPI.Services
             _db = db;
         }
 
+        private string GetApiKey(int leagueId) =>
+            _options?.Value?.Mfl?.MflApiKey?.FirstOrDefault(k => k.id == leagueId)?.key ?? string.Empty;
+
         public async Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId)
         {
-            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflId.ToString(), Utils.CurrentYear);
+            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflId.ToString(), Utils.CurrentYear, GetApiKey(leagueId));
             return playerRes.players.player.FirstOrDefault();
 
         }
         public async Task<List<PlayerDTO>> GetMflPlayersByIds(int leagueId, int year, string mflIds)
         {
-            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflIds, year);
+            var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflIds, year, GetApiKey(leagueId));
 
             return playerRes.players.player.Select(p => new PlayerDTO
             {
@@ -126,9 +129,9 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<DashboardTradeLeagueDTO> GetMflLeagueRootAndAssets(int leagueId, int year, int franchiseId)
         {
             var bigRet = new DashboardTradeLeagueDTO();
-            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year);
-            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, year);
-            var salariesTask = _leagueApi.GetSalaries(leagueId, year);
+            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year, GetApiKey(leagueId));
+            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, year, GetApiKey(leagueId));
+            var salariesTask = _leagueApi.GetSalaries(leagueId, year, GetApiKey(leagueId));
             await Task.WhenAll(bigLeagueTask, assetsTask, salariesTask);
             var myPlayerIds = assetsTask.Result.assets.franchise
                 .FirstOrDefault(f => f.id == franchiseId.ToString("0000"))
@@ -138,7 +141,7 @@ namespace FreeAgencyAuctionAPI.Services
             MflPlayerDetailsRoot myPlayers = new MflPlayerDetailsRoot();
             if (myPlayerIds != null && myPlayerIds.Count > 0) 
             {
-                myPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', myPlayerIds), Utils.CurrentYear);
+                myPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', myPlayerIds), Utils.CurrentYear, GetApiKey(leagueId));
             }
             var mflLeague = bigLeagueTask.Result.league;
             bigRet.Name = mflLeague.name;
@@ -210,10 +213,10 @@ namespace FreeAgencyAuctionAPI.Services
             string lastName, string position, bool hasAction)
         {
             var bioTask =
-                _leagueApi.GetMflPlayerDetails(leagueId, id + ",15237,15281", Utils.CurrentYear); // adding two dummy players so that the response will be array lol
+                _leagueApi.GetMflPlayerDetails(leagueId, id + ",15237,15281", Utils.CurrentYear, GetApiKey(leagueId)); // adding two dummy players so that the response will be array lol
             //Check out other api to add custom json serializer so you dont have to do this.
             var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
-            var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear, position, apiKey);
             var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 1, position, apiKey);
@@ -390,7 +393,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<FranchiseRoster>> GetMflRosters(int leagueId)
         {
-            var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             return rosterRoot.rosters.franchise;
         }
         // Computes cap from rosters + salary adjustments. Don't switch to bbidAvailableBalance —
@@ -402,9 +405,9 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<List<LeagueOwnerEntity>> GetSalaryCapRoom(int leagueId)
         {
             var year = Utils.CurrentYear;
-            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year);
-            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year);
-            var adjustmentsTask = _leagueApi.GetMflSalaryAdjustments(leagueId, year);
+            var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year, GetApiKey(leagueId));
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, GetApiKey(leagueId));
+            var adjustmentsTask = _leagueApi.GetMflSalaryAdjustments(leagueId, year, GetApiKey(leagueId));
             await Task.WhenAll(bigLeagueTask, rostersTask, adjustmentsTask);
 
             var franchises = bigLeagueTask.Result.league.franchises.franchise;
@@ -443,7 +446,7 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<List<MflPlayerDetails>> GetAllMflFreeAgents(int leagueId)
         {
-            var freeAgentIds = (await _leagueApi.GetMflFreeAgents(leagueId, Utils.CurrentYear)).freeAgents.leagueUnit.player.Select(_ => _.id)
+            var freeAgentIds = (await _leagueApi.GetMflFreeAgents(leagueId, Utils.CurrentYear, GetApiKey(leagueId))).freeAgents.leagueUnit.player.Select(_ => _.id)
                 .ToList();
 
             var freeAgents1 = new List<string>();
@@ -462,8 +465,8 @@ namespace FreeAgencyAuctionAPI.Services
             freeAgents2.ForEach(p => queryParam2 = $"{queryParam2}{p},");
 
 
-            var playerDetails1Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam1, Utils.CurrentYear);
-            var playerDetails2Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam2, Utils.CurrentYear);
+            var playerDetails1Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam1, Utils.CurrentYear, GetApiKey(leagueId));
+            var playerDetails2Task = await _leagueApi.GetMflPlayerDetails(leagueId, queryParam2, Utils.CurrentYear, GetApiKey(leagueId));
 
             //await Task.WhenAll(playerDetails1Task, playerDetails2Task);
 
@@ -481,7 +484,7 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<PlayerDTO>> GetTaxiSquadPlayers(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
-            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
             if (myCurrentRoster == null) return new List<PlayerDTO>();
             var myTaxiPlayersNow = myCurrentRoster.Where(p => p.status == "TAXI_SQUAD");
@@ -507,8 +510,8 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task<List<TagCandidate>> GetFranchiseTagCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
-            var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear - 1);
-            var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear - 1, GetApiKey(leagueId));
+            var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
 
 
@@ -534,7 +537,7 @@ namespace FreeAgencyAuctionAPI.Services
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
             MflPlayerDetailsRoot mflDetails = new();
             if (queryIds.Any())
-                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds.Select(id => id.ToString())), Utils.CurrentYear);
+                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds.Select(id => id.ToString())), Utils.CurrentYear, GetApiKey(leagueId));
             if (previousTags.Count == 0 && myExpiringPlayersLastYear.Count() > 0)
             {
                 tagCandidates = myExpiringPlayersLastYear.Join(dbPlayers, mfl => int.Parse(mfl.id), db => db.Mflid, (mfl, db) =>
@@ -580,10 +583,10 @@ namespace FreeAgencyAuctionAPI.Services
             var draftYear = DateTime.UtcNow.Year - 3; //TODO: change this to 4 before releasing
 
             // Get current roster to check current salaries
-            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, DateTime.UtcNow.Year);
+            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, DateTime.UtcNow.Year, GetApiKey(leagueId));
             
             // Get the draft results from the target year
-            var draftResultsTask = _leagueApi.GetDraftResults(leagueId, draftYear);
+            var draftResultsTask = _leagueApi.GetDraftResults(leagueId, draftYear, GetApiKey(leagueId));
             
             // Get accepted holdouts for this league to account for salary changes
             var acceptedHoldoutsTask = _pRepo.GetHoldoutsForLeague(leagueId, Utils.CurrentYear);
@@ -612,7 +615,7 @@ namespace FreeAgencyAuctionAPI.Services
             
             // Get player details from MFL API
             var playerIds = myFirstRoundPicks.Select(p => p.player).ToList();
-            var mflPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', playerIds), Utils.CurrentYear);
+            var mflPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', playerIds), Utils.CurrentYear, GetApiKey(leagueId));
             
             // Create a lookup for accepted holdouts
             var acceptedHoldouts = acceptedHoldoutsTask.Result
@@ -685,7 +688,7 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
             var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwnerId);
-            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var thisRosterRootTask = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             var myCurrentRoster = thisRosterRootTask.error == null ? thisRosterRootTask.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId).player : new List<Player>();
             if (myCurrentRoster == null) return new List<PlayerDTO>();
             var cutCandidates = myCurrentRoster.Where(p => p.status != "TAXI_SQUAD").ToList();
@@ -693,7 +696,7 @@ namespace FreeAgencyAuctionAPI.Services
             var dbPlayers = await _pRepo.GetPlayersByListOfIds(queryIds) ?? new List<PlayerEntity>();
             MflPlayerDetailsRoot mflDetails = new();
             if (queryIds.Any())
-                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds), Utils.CurrentYear);
+                mflDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', queryIds), Utils.CurrentYear, GetApiKey(leagueId));
             var fullCutCandidates = new List<PlayerDTO>();
             if (previousBuyouts.Count == 0)
             {
@@ -724,8 +727,8 @@ namespace FreeAgencyAuctionAPI.Services
             retOwner.TagCandidates = new List<TagCandidate>();
             try
             {
-                var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear - 1);
-                var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+                var lastRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear - 1, GetApiKey(leagueId));
+                var thisRosterRootTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
                 await Task.WhenAll(lastRosterRootTask, thisRosterRootTask);
 
                 var previousBuyouts = _pRepo.GetBuyoutsUsedForTeam(leagueOwner.Leagueownerid);
@@ -1013,9 +1016,9 @@ namespace FreeAgencyAuctionAPI.Services
                     .Where(id => !id.StartsWith("FP_") && !id.StartsWith("DP_"));
 
 
-            var tradePlayersTask =  _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", lookupIds), Utils.CurrentYear);
-            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, now.Year);
-            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear);
+            var tradePlayersTask =  _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", lookupIds), Utils.CurrentYear, GetApiKey(leagueId));
+            var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, now.Year, GetApiKey(leagueId));
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             try
             {
                 await Task.WhenAll(tradePlayersTask, assetsTask, dbCapEatsTask, rostersTask);
@@ -1135,7 +1138,7 @@ namespace FreeAgencyAuctionAPI.Services
             var apiKey = _options.Value.Mfl.MflApiKey.FirstOrDefault(k => k.id == leagueId).key;
             if (apiKey == null) return new List<PlayerEligibility>();
             var scorePlayerTask = _leagueApi.GetMflPositionScoresByYear(leagueId, year, string.Empty, apiKey);
-            var playerTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year);
+            var playerTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, GetApiKey(leagueId));
 
             await Task.WhenAll(scorePlayerTask, playerTask);
             var scoresAndContracts = scorePlayerTask.Result.PlayerScores.PlayerScore
@@ -1146,7 +1149,7 @@ namespace FreeAgencyAuctionAPI.Services
                     fp => fp.Player.id,
                     (s, fp) => new { s, p = fp.Player, FranchiseId = fp.FranchiseId })
                 .ToList();
-            var playerDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", scoresAndContracts.Select(s => s.p.id)), Utils.CurrentYear);
+            var playerDetails = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(",", scoresAndContracts.Select(s => s.p.id)), Utils.CurrentYear, GetApiKey(leagueId));
 
             var allJoined = scoresAndContracts.Join(playerDetails.players.player, s => s.s.Id, pd => pd.id,
                 (sc, pd) => new ScoreContractPlayer { sc = new ScoreAndContract { s = sc.s, p = sc.p, franchiseId = int.TryParse(sc.FranchiseId, out var fid) ? fid : 0 } , pd =  pd }).ToList().OrderByDescending(_ => decimal.TryParse(_.sc.s.Score, out var ts) ? ts : 0);
@@ -1270,7 +1273,7 @@ namespace FreeAgencyAuctionAPI.Services
                 };
 
                 // Get years remaining from MFL roster data
-                var roster = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year);
+                var roster = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, GetApiKey(leagueId));
                 var franchiseRoster = roster.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == player.FranchiseId);
                 if (franchiseRoster != null)
                 {
@@ -1407,7 +1410,7 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<FranchiseTagLeague> GenerateFranchiseTagValues(int leagueId, int year)
         {
-            var salariesRoot = await _leagueApi.GetSalaries(leagueId, year - 1);
+            var salariesRoot = await _leagueApi.GetSalaries(leagueId, year - 1, GetApiKey(leagueId));
             var mflPlayers = salariesRoot.Salaries.LeagueUnit.Player;
             var mflIds = mflPlayers
                 .Select(p => int.TryParse(p.id, out var id) ? id : 0)
@@ -1446,7 +1449,7 @@ namespace FreeAgencyAuctionAPI.Services
 
         public async Task<Dictionary<string, List<FutureDraftPickDTO>>> GetFutureDraftPicksForLeague(int leagueId)
         {
-            var result = await _leagueApi.GetFutureDraftPicks(leagueId, Utils.CurrentYear);
+            var result = await _leagueApi.GetFutureDraftPicks(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             return (result?.futureDraftPicks?.franchise ?? new List<FutureDraftFranchise>())
                 .ToDictionary(
                     f => f.id,

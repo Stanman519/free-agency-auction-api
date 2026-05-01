@@ -4,6 +4,8 @@ using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
+using FreeAgencyAuctionAPI;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -16,11 +18,13 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         private readonly Mock<ISharkApi> _sharkMock = new();
         private readonly Mock<IMflApi> _mflApiMock = new();
         private readonly Mock<IGlobalMflApi> _globalMock = new();
+        private readonly Mock<IOptionsSnapshot<AppConfig>> _optionsMock = new();
         private readonly PlayerService _service;
 
         public PlayerServiceTests()
         {
-            _service = new PlayerService(_repoMock.Object, _mapperMock.Object, _sharkMock.Object, _mflApiMock.Object, _globalMock.Object);
+            _optionsMock.Setup(o => o.Value).Returns(new AppConfig { Mfl = new MflKeys { MflApiKey = new List<MflApiKey>() } });
+            _service = new PlayerService(_repoMock.Object, _mapperMock.Object, _sharkMock.Object, _mflApiMock.Object, _globalMock.Object, _optionsMock.Object);
         }
 
         [Fact]
@@ -38,14 +42,14 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Equal(2, result.Count);
             Assert.Equal(1, result[0].MflId);
             Assert.Equal("Josh", result[0].FirstName);
-            _mflApiMock.Verify(m => m.GetMflFreeAgents(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+            _mflApiMock.Verify(m => m.GetMflFreeAgents(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
             _globalMock.Verify(g => g.GetMflAdp(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAllFreeAgents_RealLeague_CallsMflApi()
         {
-            _mflApiMock.Setup(m => m.GetMflFreeAgents(13894, It.IsAny<int>())).ReturnsAsync(new FreeAgentsRoot
+            _mflApiMock.Setup(m => m.GetMflFreeAgents(13894, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new FreeAgentsRoot
             {
                 error = "some error"
             });
@@ -53,7 +57,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             var result = await _service.GetAllFreeAgents(13894);
 
             Assert.Empty(result);
-            _mflApiMock.Verify(m => m.GetMflFreeAgents(13894, It.IsAny<int>()), Times.Once);
+            _mflApiMock.Verify(m => m.GetMflFreeAgents(13894, It.IsAny<int>(), It.IsAny<string>()), Times.Once);
         }
     }
 }

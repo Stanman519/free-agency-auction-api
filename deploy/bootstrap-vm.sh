@@ -5,8 +5,10 @@
 set -euo pipefail
 
 ### 1. Open firewall (Oracle Ubuntu image ships with restrictive iptables)
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+# IMPORTANT: must insert BEFORE the existing REJECT-all rule (position 5 by default).
+# Inserting at position 6 puts the ACCEPTs *after* the REJECT, where they never fire.
+sudo iptables -I INPUT 5 -p tcp -m state --state NEW --dport 80 -j ACCEPT
+sudo iptables -I INPUT 5 -p tcp -m state --state NEW --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 
 ### 2. Install Docker + nginx

@@ -57,7 +57,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         public async Task GetSalaryCapRoom_AppliesCorrectWeightsByStatus()
         {
             var leagueId = 13894;
-            _leagueApiMock.Setup(x => x.GetBigLeagueObject(leagueId, It.IsAny<int>())).ReturnsAsync(new LeagueRoot
+            _leagueApiMock.Setup(x => x.GetBigLeagueObject(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new LeagueRoot
             {
                 league = new League2
                 {
@@ -70,7 +70,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
                     }
                 }
             });
-            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>())).ReturnsAsync(new RostersRoot
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new RostersRoot
             {
                 rosters = new Rosters
                 {
@@ -89,7 +89,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
                     }
                 }
             });
-            _leagueApiMock.Setup(x => x.GetMflSalaryAdjustments(leagueId, It.IsAny<int>())).ReturnsAsync(new SalaryAdjustmentsRoot
+            _leagueApiMock.Setup(x => x.GetMflSalaryAdjustments(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new SalaryAdjustmentsRoot
             {
                 salaryAdjustments = new SalaryAdjustments
                 {

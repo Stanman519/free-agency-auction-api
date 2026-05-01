@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 namespace FreeAgencyAuctionAPI.Services
@@ -28,15 +29,20 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IMapper _mapper;
         private readonly ISharkApi _sharkApi;
         private readonly IMflApi _mflApi;
+        private readonly IOptionsSnapshot<AppConfig> _options;
 
-        public PlayerService(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi, IMflApi mflApi, IGlobalMflApi global)
+        public PlayerService(IPlayerRepo playerRepo, IMapper mapper, ISharkApi sharkApi, IMflApi mflApi, IGlobalMflApi global, IOptionsSnapshot<AppConfig> options)
         {
             _global = global;
             _repo = playerRepo;
             _mapper = mapper;
             _sharkApi = sharkApi;
             _mflApi = mflApi;
+            _options = options;
         }
+
+        private string GetApiKey(int leagueId) =>
+            _options.Value.Mfl?.MflApiKey?.FirstOrDefault(k => k.id == leagueId)?.key ?? string.Empty;
 
         public async Task<PlayerDTO> GetPlayerById(int id)
         {
@@ -82,7 +88,7 @@ namespace FreeAgencyAuctionAPI.Services
                 }).ToList();
             }
 
-            var freeAgentMflIdsRootTask =  _mflApi.GetMflFreeAgents(leagueId, Utils.CurrentYear);
+            var freeAgentMflIdsRootTask =  _mflApi.GetMflFreeAgents(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             var adpPlayerRootTask =  _global.GetMflAdp(Utils.CurrentYear);
             await Task.WhenAll(freeAgentMflIdsRootTask, adpPlayerRootTask);
             if (freeAgentMflIdsRootTask.Result.error != null) return new List<PlayerDTO>();

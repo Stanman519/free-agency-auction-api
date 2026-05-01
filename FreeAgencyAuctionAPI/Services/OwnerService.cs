@@ -34,8 +34,9 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IUserClient _userClient;
         private readonly IMflApi _mfl;
         private readonly IGMBot _gm;
+        private readonly IOptionsSnapshot<AppConfig> _options;
 
-        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient, IMflApi mfl, IGMBot gm)
+        public OwnerService(IMapper mapper, IOwnerRepo repo, IMessageClient messageClient, IUserClient userClient, IMflApi mfl, IGMBot gm, IOptionsSnapshot<AppConfig> options)
         {
             _mapper = mapper;
             _repo = repo;
@@ -43,7 +44,11 @@ namespace FreeAgencyAuctionAPI.Services
             _userClient = userClient;
             _mfl = mfl;
             _gm = gm;
+            _options = options;
         }
+
+        private string GetApiKey(int leagueId) =>
+            _options.Value.Mfl?.MflApiKey?.FirstOrDefault(k => k.id == leagueId)?.key ?? string.Empty;
         public async Task UpdateCapSpaceForOwners(List<int> capSpace, int leagueId)
         {
             await _repo.UpdateCapRoomForAllOwners(capSpace, leagueId);
@@ -98,7 +103,7 @@ namespace FreeAgencyAuctionAPI.Services
             {
                 try
                 {
-                    var root = await _mfl.GetBigLeagueObject(leagueId, Utils.CurrentYear);
+                    var root = await _mfl.GetBigLeagueObject(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
                     var franchises = root?.league?.franchises?.franchise;
                     if (franchises == null) continue;
                     var foundFranchise = franchises.FirstOrDefault(franchise =>
