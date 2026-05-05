@@ -81,8 +81,17 @@ namespace FreeAgencyAuctionAPI.Services
         public async Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId)
         {
             var playerRes = await _leagueApi.GetMflPlayerDetails(leagueId, mflId.ToString(), Utils.CurrentYear, GetApiKey(leagueId));
-            return playerRes.players.player.FirstOrDefault();
-
+            var player = playerRes.players.player.FirstOrDefault();
+            if (player != null && string.IsNullOrWhiteSpace(player.first_name) && !string.IsNullOrWhiteSpace(player.name))
+            {
+                var nameArr = player.name.Split(",");
+                if (nameArr.Length == 2)
+                {
+                    player.last_name = nameArr[0];
+                    player.first_name = nameArr[1].TrimStart();
+                }
+            }
+            return player;
         }
         public async Task<List<PlayerDTO>> GetMflPlayersByIds(int leagueId, int year, string mflIds)
         {
