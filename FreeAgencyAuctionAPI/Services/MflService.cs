@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -346,27 +347,45 @@ namespace FreeAgencyAuctionAPI.Services
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
             var data = CreateBodyDataForNewContract(mflPlayerId, salary);
             var botMsg = isFranchiseTag ? $"{playerName} got franchise tagged for ${salary}." : $"{playerName} was given a waiver extension of 1 year, $25";
+            HttpResponseMessage resp;
+            string respString;
             try
             {
-                var resp = await _leagueApi.EditPlayerSalary(leagueId, data, Utils.CurrentYear);
-                var respString = await resp.Content.ReadAsStringAsync();
+                resp = await _leagueApi.EditPlayerSalary(leagueId, data, Utils.CurrentYear);
+                respString = await resp.Content.ReadAsStringAsync();
                 _logger.LogInformation("MFL salary import raw response: {respString}", respString);
-                if (!resp.IsSuccessStatusCode || respString.ToUpper().Contains("ERROR"))
-                {
-                    string errorMsg = respString;
-                    try { errorMsg = respString.XmlDeserializeFromString<MflXmlError>().ErrorMsg; } catch { }
-                    _logger.LogError("MFL contract update failed. Status: {status} Body: {body}", resp.StatusCode, respString);
-                    await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId));
-                }
-                else
-                {
-                    await _gm.SendBotNotification(message: new BotMessage(botMsg, botId));
-                }
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "New Contract mfl");
+                _logger.LogError(e, "MFL salary import threw for league {leagueId} player {mflPlayerId}", leagueId, mflPlayerId);
+                await TrySendGm(() => _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract update threw: {e.Message}", botId)), "NotifyMflError(threw)");
                 return;
+            }
+
+            if (!resp.IsSuccessStatusCode || respString.ToUpper().Contains("ERROR"))
+            {
+                string errorMsg = respString;
+                try { errorMsg = respString.XmlDeserializeFromString<MflXmlError>().ErrorMsg; } catch { }
+                _logger.LogError("MFL contract update failed. Status: {status} Body: {body}", resp.StatusCode, respString);
+                await TrySendGm(() => _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId)), "NotifyMflError(badResp)");
+                return;
+            }
+
+            await TrySendGm(
+                () => _gm.SendBotNotification(new BotMessage(botMsg, botId)),
+                "SendBotNotification(contract)",
+                fallback: () => _gm.NotifyMflError(new BotMessage($"announcement failed to post: {botMsg}", botId)));
+        }
+
+        private async Task TrySendGm(Func<Task> send, string label, Func<Task> fallback = null)
+        {
+            try { await send(); }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "GroupMe call failed: {label}", label);
+                if (fallback == null) return;
+                try { await fallback(); }
+                catch (Exception f) { _logger.LogError(f, "GroupMe fallback also failed: {label}", label); }
             }
         }
 

@@ -177,5 +177,35 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
             _gmMock.Verify(x => x.NotifyMflError(It.IsAny<BotMessage>()), Times.Once);
         }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_SendBotNotificationThrows_FallsBackToNotifyMflError()
+        {
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ReturnsAsync(okResponse);
+            _gmMock.Setup(x => x.SendBotNotification(It.IsAny<BotMessage>())).ThrowsAsync(new System.Net.Http.HttpRequestException("bot-api unreachable"));
+            _gmMock.Setup(x => x.NotifyMflError(It.IsAny<BotMessage>())).Returns(Task.CompletedTask);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, isFranchiseTag: true, "Test Player");
+
+            _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Once);
+            _gmMock.Verify(x => x.NotifyMflError(It.Is<BotMessage>(m => m.Message.Contains("announcement failed"))), Times.Once);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_EditPlayerSalaryThrows_NotifiesMflError()
+        {
+            var leagueId = 13894;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ThrowsAsync(new System.Net.Http.HttpRequestException("429 Too Many Requests"));
+            _gmMock.Setup(x => x.NotifyMflError(It.IsAny<BotMessage>())).Returns(Task.CompletedTask);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, isFranchiseTag: true, "Test Player");
+
+            _gmMock.Verify(x => x.NotifyMflError(It.Is<BotMessage>(m => m.Message.Contains("threw"))), Times.Once);
+            _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
+        }
     }
 }
