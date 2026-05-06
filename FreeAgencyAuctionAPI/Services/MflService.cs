@@ -606,88 +606,77 @@ namespace FreeAgencyAuctionAPI.Services
         
         public async Task<List<FifthYearOptionCandidate>> GetFifthYearOptionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
         {
-            // Determine which draft year we're looking for (4 years ago)
-            // For 2026 options (ThisYear + 1), we look at 2022 draft (ThisYear - 3)
-            var draftYear = DateTime.UtcNow.Year - 3; //TODO: change this to 4 before releasing
+            // Rookie deal (4 yrs) just expired; option = +30% 1-yr deal.
+            // For 2026, look at 2022 draft (Year-4) and 2025 rosters (Year-1).
+            var draftYear = Utils.CurrentYear - 4;
+            var lastYear = Utils.CurrentYear - 1;
 
-            // Get current roster to check current salaries
-            var currentRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, DateTime.UtcNow.Year, GetApiKey(leagueId));
-            
-            // Get the draft results from the target year
+            var lastYearRosterTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, lastYear, GetApiKey(leagueId));
             var draftResultsTask = _leagueApi.GetDraftResults(leagueId, draftYear, GetApiKey(leagueId));
-            
-            // Get accepted holdouts for this league to account for salary changes
             var acceptedHoldoutsTask = _pRepo.GetHoldoutsForLeague(leagueId, Utils.CurrentYear);
-            
-            await Task.WhenAll(currentRosterTask, draftResultsTask, acceptedHoldoutsTask);
-            
-            var currentRoster = currentRosterTask.Result.error == null ? 
-                currentRosterTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId)?.player : 
+
+            await Task.WhenAll(lastYearRosterTask, draftResultsTask, acceptedHoldoutsTask);
+
+            var lastYearRoster = lastYearRosterTask.Result.error == null ?
+                lastYearRosterTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == mflFranchiseId)?.player :
                 new List<Player>();
-                
-            if (currentRoster == null || currentRoster.Count == 0) 
+
+            if (lastYearRoster == null || lastYearRoster.Count == 0)
                 return new List<FifthYearOptionCandidate>();
-            
+
             var draftResults = draftResultsTask.Result.draftResults?.draftUnit?.draftPick ?? new List<MflDraftPick>();
-            
-            // Filter for first round picks only (round "01")
             var firstRoundPicks = draftResults.Where(d => d.round == "01").ToList();
-            
-            // Get the picks that are currently on this team's roster
+
+            // Picks from Year-4 draft that this franchise still had on its Year-1 roster
             var myFirstRoundPicks = firstRoundPicks
-                .Where(pick => currentRoster.Any(p => p.id == pick.player))
+                .Where(pick => lastYearRoster.Any(p => p.id == pick.player))
                 .ToList();
-            
+
             if (myFirstRoundPicks.Count == 0)
                 return new List<FifthYearOptionCandidate>();
-            
-            // Get player details from MFL API
+
             var playerIds = myFirstRoundPicks.Select(p => p.player).ToList();
             var mflPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', playerIds), Utils.CurrentYear, GetApiKey(leagueId));
-            
-            // Create a lookup for accepted holdouts
+
             var acceptedHoldouts = acceptedHoldoutsTask.Result
                 .Where(h => h.Status == "Accepted")
                 .ToDictionary(h => h.PlayerId, h => h);
-            
+
             var optionCandidates = new List<FifthYearOptionCandidate>();
-            
+
             foreach (var draftPick in myFirstRoundPicks)
             {
-                var currentPlayerData = currentRoster.FirstOrDefault(p => p.id == draftPick.player);
-                if (currentPlayerData == null) continue;
-                
+                var lastYearPlayerData = lastYearRoster.FirstOrDefault(p => p.id == draftPick.player);
+                if (lastYearPlayerData == null) continue;
+
                 var mflPlayer = mflPlayers.players.player.FirstOrDefault(p => p.id == draftPick.player);
                 if (mflPlayer == null) continue;
-                
-                // Get the original rookie salary based on draft position and position
+
                 var pickNumber = int.TryParse(draftPick.pick, out var pn) ? pn : 0;
                 if (pickNumber == 0) continue;
-                
+
                 var isRB = mflPlayer.position == "RB";
-                var originalSalary = isRB ? 
-                    Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0) : 
+                var originalSalary = isRB ?
+                    Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0) :
                     Utils.draftPicks.GetValueOrDefault(pickNumber, 0);
-                
+
                 if (originalSalary == 0) continue;
-                
-                var currentSalary = int.TryParse(currentPlayerData.salary, out var cs) ? cs : 0;
-                
-                // Check if player had an accepted holdout - if so, use their original salary from before the holdout
-                var salaryToCompare = currentSalary;
+
+                var lastYearSalary = int.TryParse(lastYearPlayerData.salary, out var cs) ? cs : 0;
+
+                // Holdout precedence: if player had accepted holdout, compare against pre-holdout salary,
+                // even if Year-1 roster salary is higher.
+                var salaryToCompare = lastYearSalary;
                 if (acceptedHoldouts.TryGetValue(int.Parse(draftPick.player), out var holdout))
                 {
-                    // Player had an accepted holdout - compare against their pre-holdout salary
                     salaryToCompare = holdout.OriginalSalary;
-                    _logger.LogInformation($"Player {mflPlayer.name} had accepted holdout. Using original salary {holdout.OriginalSalary} instead of current {currentSalary}");
+                    _logger.LogInformation($"Player {mflPlayer.name} had accepted holdout. Using original salary {holdout.OriginalSalary} instead of last-year {lastYearSalary}");
                 }
-                
-                // Only include if salary matches original rookie salary (still on original contract or holdout-adjusted rookie contract)
+
                 if (salaryToCompare == originalSalary)
                 {
-                    // Calculate option salary (30% increase, rounded to whole number)
                     var optionSalary = (int)Math.Round(originalSalary * 1.3);
-                    
+
                     optionCandidates.Add(new FifthYearOptionCandidate
                     {
                         Player = new PlayerDTO
@@ -699,8 +688,8 @@ namespace FreeAgencyAuctionAPI.Services
                             Position = mflPlayer.position,
                             Team = mflPlayer.team,
                             Age = GetAgeInt(mflPlayer.birthdate),
-                            Salary = currentSalary, // Show their actual current salary (may be holdout-adjusted)
-                            Length = int.TryParse(currentPlayerData.contractYear, out var l) ? l : 0
+                            Salary = salaryToCompare,
+                            Length = int.TryParse(lastYearPlayerData.contractYear, out var l) ? l : 0
                         },
                         OriginalRookieSalary = originalSalary,
                         OptionSalary = optionSalary,
@@ -709,7 +698,7 @@ namespace FreeAgencyAuctionAPI.Services
                     });
                 }
             }
-            
+
             return optionCandidates;
         }
 

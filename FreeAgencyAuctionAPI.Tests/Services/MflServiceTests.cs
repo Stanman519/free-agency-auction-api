@@ -207,5 +207,151 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             _gmMock.Verify(x => x.NotifyMflError(It.Is<BotMessage>(m => m.Message.Contains("threw"))), Times.Once);
             _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
         }
+
+        // -------- 5th year option candidate filter tests --------
+
+        private const int FifthYrLeagueId = 13894;
+        private const int FifthYrFranchiseId = 1;
+        private const int FifthYrLeagueOwnerId = 99;
+
+        private void SetupFifthYearMocks(
+            string playerId,
+            string position,
+            string lastYearSalary,
+            string round = "01",
+            string pick = "1",
+            int? franchiseIdInRoster = null,
+            List<Holdout> holdouts = null)
+        {
+            var franchiseId = (franchiseIdInRoster ?? FifthYrFranchiseId).ToString("D4");
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(FifthYrLeagueId, Utils.CurrentYear - 1, It.IsAny<string>()))
+                .ReturnsAsync(new RostersRoot
+                {
+                    rosters = new Rosters
+                    {
+                        franchise = new List<FranchiseRoster>
+                        {
+                            new FranchiseRoster
+                            {
+                                id = franchiseId,
+                                player = new List<Player>
+                                {
+                                    new Player { id = playerId, salary = lastYearSalary, contractYear = "4", status = "ROSTER" }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            _leagueApiMock.Setup(x => x.GetDraftResults(FifthYrLeagueId, Utils.CurrentYear - 4, It.IsAny<string>()))
+                .ReturnsAsync(new MflDraftResultsRoot
+                {
+                    draftResults = new DraftResults
+                    {
+                        draftUnit = new DraftUnit
+                        {
+                            draftPick = new List<MflDraftPick>
+                            {
+                                new MflDraftPick { player = playerId, pick = pick, round = round, franchise = franchiseId }
+                            }
+                        }
+                    }
+                });
+
+            _leagueApiMock.Setup(x => x.GetMflPlayerDetails(FifthYrLeagueId, It.IsAny<string>(), Utils.CurrentYear, It.IsAny<string>()))
+                .ReturnsAsync(new MflPlayerDetailsRoot
+                {
+                    players = new MflPlayerDetailsParent
+                    {
+                        player = new List<MflPlayerDetails>
+                        {
+                            new MflPlayerDetails { id = playerId, position = position, name = "Test Player", first_name = "Test", last_name = "Player", team = "KC" }
+                        }
+                    }
+                });
+
+            _pRepoMock.Setup(x => x.GetHoldoutsForLeague(FifthYrLeagueId, It.IsAny<int>()))
+                .ReturnsAsync(holdouts ?? new List<Holdout>());
+        }
+
+        [Fact]
+        public async Task GetFifthYearOptionCandidates_FirstRoundPickAtRookieSalary_Included()
+        {
+            // Pick 1 → rookie salary 30. 30% increase rounded = 39.
+            SetupFifthYearMocks(playerId: "1001", position: "WR", lastYearSalary: "30", pick: "1");
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Single(result);
+            Assert.Equal(1001, result[0].Player.MflId);
+            Assert.Equal(30, result[0].OriginalRookieSalary);
+            Assert.Equal(39, result[0].OptionSalary);
+            Assert.Equal(Utils.CurrentYear - 4, result[0].DraftYear);
+            Assert.Equal(1, result[0].DraftPick);
+        }
+
+        [Fact]
+        public async Task GetFifthYearOptionCandidates_SecondRoundPick_Excluded()
+        {
+            SetupFifthYearMocks(playerId: "1002", position: "WR", lastYearSalary: "30", round: "02");
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetFifthYearOptionCandidates_PlayerOnDifferentFranchiseLastYear_Excluded()
+        {
+            SetupFifthYearMocks(playerId: "1003", position: "WR", lastYearSalary: "30", franchiseIdInRoster: 2);
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetFifthYearOptionCandidates_SalaryAboveRookie_NoHoldout_Excluded()
+        {
+            // Pick 1 rookie scale = 30. Last year salary 50 means re-signed mid-rookie deal.
+            SetupFifthYearMocks(playerId: "1004", position: "WR", lastYearSalary: "50", pick: "1");
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task GetFifthYearOptionCandidates_HoldoutPrecedence_LastYearSalaryAboveRookieButHoldoutOriginalMatches_Included()
+        {
+            // Pick 1 rookie = 30. Last-year roster shows 36 (post-holdout raise). Holdout's OriginalSalary = 30.
+            // Holdout precedence: comparison runs against pre-holdout original → included.
+            var holdouts = new List<Holdout>
+            {
+                new Holdout { LeagueId = FifthYrLeagueId, Year = Utils.CurrentYear, PlayerId = 1005, OriginalSalary = 30, HoldoutSalary = 36, Status = "Accepted" }
+            };
+            SetupFifthYearMocks(playerId: "1005", position: "WR", lastYearSalary: "36", pick: "1", holdouts: holdouts);
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Single(result);
+            Assert.Equal(30, result[0].OriginalRookieSalary);
+            Assert.Equal(39, result[0].OptionSalary);
+        }
+
+        [Theory]
+        [InlineData(1, 30, 39)]   // 30 * 1.3 = 39
+        [InlineData(5, 22, 29)]   // 22 * 1.3 = 28.6 → 29
+        [InlineData(13, 18, 23)]  // 18 * 1.3 = 23.4 → 23
+        public async Task GetFifthYearOptionCandidates_OptionSalaryRoundsToNearestWhole(int pick, int rookieScale, int expectedOption)
+        {
+            SetupFifthYearMocks(playerId: "2000", position: "WR", lastYearSalary: rookieScale.ToString(), pick: pick.ToString());
+
+            var result = await _service.GetFifthYearOptionCandidates(FifthYrLeagueId, FifthYrLeagueOwnerId, FifthYrFranchiseId);
+
+            Assert.Single(result);
+            Assert.Equal(rookieScale, result[0].OriginalRookieSalary);
+            Assert.Equal(expectedOption, result[0].OptionSalary);
+        }
     }
 }

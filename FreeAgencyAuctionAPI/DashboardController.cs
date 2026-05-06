@@ -256,12 +256,27 @@ namespace FreeAgencyAuctionAPI
         }
 
         [HttpPost("fifth-year-option")]
-        public async Task<IActionResult> SignFifthYearOption([FromBody] FranchiseTagRequestBody body)
+        public async Task<IActionResult> SignFifthYearOption([FromBody] FifthYearOptionRequestBody body)
         {
+            var candidates = await _mfl.GetFifthYearOptionCandidates(body.leagueId, body.leagueOwnerId, body.mflFranchiseId);
+            var match = candidates.FirstOrDefault(c => c.Player.MflId == body.mflPlayerId);
+            if (match == null)
+            {
+                var botId = Utils.leagueBotDict.TryGetValue(body.leagueId, out var x) ? x : string.Empty;
+                await _gm.NotifyMflError(new BotMessage($"5th yr option rejected — player {body.mflPlayerId} not eligible for franchise {body.mflFranchiseId} in league {body.leagueId}", botId));
+                return BadRequest(new { friendlyMessage = "Player is no longer eligible for a 5th year option." });
+            }
+
             var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
-            // No need to add player to team - they're already on the roster
-            // Just update their contract with the new salary (1 year at option salary)
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, $"{player.first_name} {player.last_name}");
+            var fullName = $"{player.first_name} {player.last_name}";
+            await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId, fullName);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, match.OptionSalary, 1,
+                $"{fullName} signed to a 5th year option: 1 yr, ${match.OptionSalary}");
+
+            var capSpace = await _mfl.GetSalaryCapRoom(body.leagueId);
+            var capList = capSpace.OrderBy(c => c.Mflfranchiseid).Select(c => c.Caproom ?? 0).ToList();
+            await _oRepo.UpdateCapRoomForAllOwners(capList, body.leagueId);
+
             return NoContent();
         }
 

@@ -103,6 +103,14 @@ namespace FreeAgencyAuctionAPI.Models
         public int tagSalary { get; set; }
         public int leagueOwnerId { get; set; }
     }
+
+    public class FifthYearOptionRequestBody
+    {
+        public int leagueId { get; set; }
+        public int mflPlayerId { get; set; }
+        public int mflFranchiseId { get; set; }
+        public int leagueOwnerId { get; set; }
+    }
     public class CutRequestBody
     {
         public int leagueId { get; set; }

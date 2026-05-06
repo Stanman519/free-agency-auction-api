@@ -58,7 +58,7 @@ namespace FreeAgencyAuctionAPI.Repos
         {
             try
             {
-                var currentDate = DateTime.Now;
+                var currentDate = DateTime.UtcNow;
 
                 // Main owner + leagues projection — no Pools/OUPicks subqueries here
                 var ownerDto = await _db.Owners.AsNoTracking()
