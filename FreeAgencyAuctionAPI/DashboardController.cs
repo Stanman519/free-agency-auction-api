@@ -212,10 +212,29 @@ namespace FreeAgencyAuctionAPI
             chosenLeagueId = chosenLeague?.League?.LeagueId ?? null;
             if (profile != null && chosenLeagueId != null)
             {
-                var ownerOffseasonData = await _mfl.GetTagAndTaxiInfos((int)chosenLeagueId, chosenLeague);
+                var offseasonTask = _mfl.GetTagAndTaxiInfos((int)chosenLeagueId, chosenLeague);
+                var capSpaceTask = _mfl.GetSalaryCapRoom((int)chosenLeagueId);
+                await Task.WhenAll(offseasonTask, capSpaceTask);
+
+                var ownerOffseasonData = offseasonTask.Result;
                 chosenLeague.TagCandidates = ownerOffseasonData.TagCandidates;
                 chosenLeague.TaxiPlayers = ownerOffseasonData.TaxiPlayers;
                 chosenLeague.CutCandidates = ownerOffseasonData.CutCandidates;
+
+                // refresh stale LeagueOwners.Caproom — see WinProcessor / 5YO endpoint pattern.
+                // Why: dashboard reads capRoom from DB; offseason actions (tags, extensions, salary
+                // adjustments) don't persist a recompute, so values drift between auctions.
+                var capSpace = capSpaceTask.Result;
+                var capList = capSpace.OrderBy(c => c.Mflfranchiseid).Select(c => c.Caproom ?? 0).ToList();
+                await _oRepo.UpdateCapRoomForAllOwners(capList, (int)chosenLeagueId);
+
+                // profile was loaded AsNoTracking before the save — patch in-memory so this
+                // response carries fresh values rather than the stale read.
+                foreach (var lo in profile.Leagues.Where(l => l.League.LeagueId == chosenLeagueId))
+                {
+                    var fresh = capSpace.FirstOrDefault(c => c.Mflfranchiseid == lo.Mflfranchiseid);
+                    if (fresh != null) lo.CapRoom = fresh.Caproom ?? 0;
+                }
             }
 
             try
