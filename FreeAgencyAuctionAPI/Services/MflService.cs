@@ -48,6 +48,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<FranchiseTagLeague> GenerateFranchiseTagValues(int leagueId, int year);
         Task<List<TradeBaitDTO>> GetTradeBaitForLeague(int leagueId);
         Task<Dictionary<string, List<FutureDraftPickDTO>>> GetFutureDraftPicksForLeague(int leagueId);
+        Task<List<RecentMoveDTO>> GetRecentMoves(int leagueId, int limit = 20);
     }
 
     public class MflService : IMflService
@@ -1499,6 +1500,89 @@ namespace FreeAgencyAuctionAPI.Services
                     WillGiveUp = tb.willGiveUp,
                     InExchangeFor = tb.inExchangeFor
                 }).ToList();
+        }
+
+        public async Task<List<RecentMoveDTO>> GetRecentMoves(int leagueId, int limit = 20)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var year = Utils.CurrentYear;
+            var transactionsTask = _leagueApi.GetLastYearWaiverTransactions(leagueId, apiKey, year);
+            var salariesTask = _leagueApi.GetSalaries(leagueId, year, apiKey);
+            await Task.WhenAll(transactionsTask, salariesTask);
+
+            var rawTxns = transactionsTask.Result?.transactions?.transaction ?? new List<MflTransaction>();
+            var moves = ParseRecentMoves(rawTxns)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(limit)
+                .ToList();
+
+            if (!moves.Any()) return moves;
+
+            var ids = moves.Select(m => m.MflPlayerId).Distinct().ToList();
+            var players = (await _pRepo.GetPlayersByListOfIds(ids))?.ToDictionary(p => p.Mflid)
+                          ?? new Dictionary<int, PlayerEntity>();
+
+            var salaryMap = (salariesTask.Result?.Salaries?.LeagueUnit?.Player ?? new List<Player>())
+                .Where(p => int.TryParse(p.id, out _))
+                .GroupBy(p => int.Parse(p.id))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var m in moves)
+            {
+                if (players.TryGetValue(m.MflPlayerId, out var pe))
+                {
+                    m.PlayerName = pe.Fullname ?? $"#{m.MflPlayerId}";
+                    m.Position = pe.Position ?? "";
+                    m.Team = pe.Team ?? "";
+                }
+                else
+                {
+                    m.PlayerName = $"#{m.MflPlayerId}";
+                }
+
+                if (m.Action == "ADD" && salaryMap.TryGetValue(m.MflPlayerId, out var s))
+                {
+                    if (int.TryParse(s.salary, out var sv)) m.Salary = sv;
+                    if (int.TryParse(s.contractYear, out var yv)) m.Years = yv;
+                }
+            }
+
+            return moves;
+        }
+
+        // FREE_AGENT transaction string format: "<dropped_ids>|<added_ids>", each comma-separated.
+        // e.g. "|14840," = added 14840; "14073,|" = dropped 14073; "12,34,|56," = dropped 12 & 34, added 56.
+        // BBID_WAIVER and TRADE intentionally skipped — not used in this feed yet.
+        public static List<RecentMoveDTO> ParseRecentMoves(List<MflTransaction> raw)
+        {
+            var moves = new List<RecentMoveDTO>();
+            if (raw == null) return moves;
+
+            foreach (var t in raw)
+            {
+                if (t == null || t.type != "FREE_AGENT") continue;
+                if (string.IsNullOrEmpty(t.transaction)) continue;
+                if (!long.TryParse(t.timestamp, out var ts)) continue;
+                if (!int.TryParse(t.franchise, out var franchiseId)) continue;
+
+                var when = DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime;
+                var parts = t.transaction.Split('|');
+                var dropped = parts.Length > 0 ? parts[0] : "";
+                var added = parts.Length > 1 ? parts[1] : "";
+
+                foreach (var pid in ParseIds(dropped))
+                    moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
+                foreach (var pid in ParseIds(added))
+                    moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+            }
+            return moves;
+        }
+
+        private static IEnumerable<int> ParseIds(string segment)
+        {
+            if (string.IsNullOrEmpty(segment)) yield break;
+            foreach (var token in segment.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                if (int.TryParse(token, out var id)) yield return id;
         }
     }
     public class HoldoutPosThreshhold

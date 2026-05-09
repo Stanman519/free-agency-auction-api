@@ -165,6 +165,15 @@ namespace FreeAgencyAuctionAPI
             return Ok(deadCapData);
         }
 
+        [HttpGet("leagues/{leagueId}/recent-moves")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRecentMoves([Path] int leagueId)
+        {
+            var moves = await _mfl.GetRecentMoves(leagueId);
+            return Ok(moves);
+        }
+
         [HttpGet("leagues/{leagueId}/trade-bait")]
         [AllowAnonymous]
         [Produces("application/json")]

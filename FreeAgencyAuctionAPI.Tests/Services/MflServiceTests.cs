@@ -396,5 +396,76 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Equal(rookieScale, result[0].OriginalRookieSalary);
             Assert.Equal(expectedOption, result[0].OptionSalary);
         }
+
+        [Fact]
+        public void ParseRecentMoves_AddOnly_EmitsAdd()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "FREE_AGENT", franchise = "0007", timestamp = "1778243059", transaction = "|14840," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("ADD", result[0].Action);
+            Assert.Equal(14840, result[0].MflPlayerId);
+            Assert.Equal(7, result[0].FranchiseId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_DropOnly_EmitsDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002117", transaction = "14073,|" }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("DROP", result[0].Action);
+            Assert.Equal(14073, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_MultipleIdsBothSides_EmitsAll()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "FREE_AGENT", franchise = "0002", timestamp = "1778000000", transaction = "100,200,|300," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Equal(3, result.Count);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 100);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 200);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 300);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_SkipsTradesAndBbidWaivers()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TRADE_PROPOSAL", franchise = "0001", timestamp = "1778090099" },
+                new MflTransaction { type = "BBID_WAIVER", franchise = "0001", timestamp = "1778001000", transaction = "100,|5|200," },
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002000", transaction = "|999," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal(999, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_HandlesNullAndMalformed()
+        {
+            var raw = new List<MflTransaction>
+            {
+                null,
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "abc", transaction = "|1," },
+                new MflTransaction { type = "FREE_AGENT", franchise = "xyz", timestamp = "1778000000", transaction = "|1," },
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778000000", transaction = null },
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778000000", transaction = "|abc,5," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal(5, result[0].MflPlayerId);
+        }
     }
 }
