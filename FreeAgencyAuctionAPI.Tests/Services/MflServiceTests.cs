@@ -109,6 +109,49 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
+        public async Task ProposeMflTrade_OnSuccess_NotifiesGroupMe()
+        {
+            var req = new TradeRequest
+            {
+                LeagueId = 13894,
+                SenderId = 1,
+                ReceiverId = 9,
+                SenderTeamName = "A",
+                ReceiverTeamName = "B",
+                SendingAssets = new List<TradeOfferAsset>(),
+                ReceivingAssets = new List<TradeOfferAsset>(),
+                Expires = 0
+            };
+            _leagueApiMock.Setup(x => x.SendTradeOffer(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>()))
+                .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<ok/>") });
+
+            await _service.ProposeMflTrade(req);
+
+            _gmMock.Verify(x => x.NotifyTradeOffer(It.Is<TradeOfferNotification>(n => n.LeagueId == 13894 && n.OfferedToFranchiseId == 9)), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProposeMflTrade_GroupMeFailure_DoesNotThrow()
+        {
+            var req = new TradeRequest
+            {
+                LeagueId = 13894,
+                SenderId = 1,
+                ReceiverId = 9,
+                SenderTeamName = "A",
+                ReceiverTeamName = "B",
+                SendingAssets = new List<TradeOfferAsset>(),
+                ReceivingAssets = new List<TradeOfferAsset>(),
+                Expires = 0
+            };
+            _leagueApiMock.Setup(x => x.SendTradeOffer(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>()))
+                .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<ok/>") });
+            _gmMock.Setup(x => x.NotifyTradeOffer(It.IsAny<TradeOfferNotification>())).ThrowsAsync(new System.Exception("gm down"));
+
+            await _service.ProposeMflTrade(req); // should not throw
+        }
+
+        [Fact]
         public async Task GiveNewContractToPlayer_FranchiseTag_SendsCorrectBotMessage()
         {
             // Arrange

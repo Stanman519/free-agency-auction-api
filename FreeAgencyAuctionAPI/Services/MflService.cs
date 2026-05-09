@@ -1003,6 +1003,14 @@ namespace FreeAgencyAuctionAPI.Services
                     await _gm.NotifyMflError(new BotMessage($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}", botId));
                     throw new Exception($"league: {req.LeagueId} Trade offer failed by {req.SenderTeamName}: {respString}");
                 }
+                try
+                {
+                    await _gm.NotifyTradeOffer(new TradeOfferNotification { LeagueId = req.LeagueId, OfferedToFranchiseId = req.ReceiverId });
+                }
+                catch (Exception gmEx)
+                {
+                    _logger.LogError(gmEx, $"league: {req.LeagueId} GroupMe notify failed for trade by {req.SenderTeamName}");
+                }
             }
             catch (Exception e)
             {

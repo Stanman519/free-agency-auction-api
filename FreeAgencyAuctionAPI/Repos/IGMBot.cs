@@ -9,6 +9,14 @@ namespace FreeAgencyAuctionAPI.Repos
         Task NotifyMflError([Body] BotMessage message);
         [Post("stanfan-msg")]
         Task SendBotNotification([Body] BotMessage message);
+        [Post("trade-offer-notification")]
+        Task NotifyTradeOffer([Body] TradeOfferNotification body);
+    }
+
+    public class TradeOfferNotification
+    {
+        public int LeagueId { get; set; }
+        public int OfferedToFranchiseId { get; set; }
     }
 
     public class BotMessage
