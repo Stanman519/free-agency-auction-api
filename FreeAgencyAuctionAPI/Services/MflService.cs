@@ -1550,9 +1550,15 @@ namespace FreeAgencyAuctionAPI.Services
             return moves;
         }
 
-        // FREE_AGENT transaction string format: "<dropped_ids>|<added_ids>", each comma-separated.
-        // e.g. "|14840," = added 14840; "14073,|" = dropped 14073; "12,34,|56," = dropped 12 & 34, added 56.
-        // BBID_WAIVER and TRADE intentionally skipped — not used in this feed yet.
+        // Parses MFL transactions into per-player ADD/DROP rows for the Recent Moves feed.
+        // Formats:
+        //   FREE_AGENT:  "<adds>|<drops>"                 e.g. "|14840," = drop 14840; "14073,|" = add 14073
+        //   BBID_WAIVER: "<wonId>,|<bid>|<droppedId>,"    bid ignored
+        //   IR:          activated/deactivated comma-separated id lists
+        //   TAXI:        promoted/demoted comma-separated id lists
+        //   TRADE:       franchise1_gave_up / franchise2_gave_up — numeric tokens are players,
+        //                DP_*/FP_* are picks (skipped). Each player swap → DROP for giver + ADD for receiver.
+        // Filter: by_commish=="1" with more than 3 player ids in the transaction string → skipped (bulk reset noise).
         public static List<RecentMoveDTO> ParseRecentMoves(List<MflTransaction> raw)
         {
             var moves = new List<RecentMoveDTO>();
@@ -1560,20 +1566,76 @@ namespace FreeAgencyAuctionAPI.Services
 
             foreach (var t in raw)
             {
-                if (t == null || t.type != "FREE_AGENT") continue;
-                if (string.IsNullOrEmpty(t.transaction)) continue;
+                if (t == null) continue;
                 if (!long.TryParse(t.timestamp, out var ts)) continue;
-                if (!int.TryParse(t.franchise, out var franchiseId)) continue;
-
                 var when = DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime;
-                var parts = t.transaction.Split('|');
-                var dropped = parts.Length > 0 ? parts[0] : "";
-                var added = parts.Length > 1 ? parts[1] : "";
 
-                foreach (var pid in ParseIds(dropped))
-                    moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
-                foreach (var pid in ParseIds(added))
-                    moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+                switch (t.type)
+                {
+                    case "FREE_AGENT":
+                    {
+                        if (string.IsNullOrEmpty(t.transaction)) break;
+                        if (!int.TryParse(t.franchise, out var franchiseId)) break;
+                        var parts = t.transaction.Split('|');
+                        var added = parts.Length > 0 ? parts[0] : "";
+                        var dropped = parts.Length > 1 ? parts[1] : "";
+                        var addIds = ParseIds(added).ToList();
+                        var dropIds = ParseIds(dropped).ToList();
+                        if (t.by_commish == "1" && (addIds.Count + dropIds.Count) > 3) break;
+                        foreach (var pid in addIds)
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+                        foreach (var pid in dropIds)
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
+                        break;
+                    }
+                    case "BBID_WAIVER":
+                    {
+                        if (string.IsNullOrEmpty(t.transaction)) break;
+                        if (!int.TryParse(t.franchise, out var franchiseId)) break;
+                        var parts = t.transaction.Split('|');
+                        var won = parts.Length > 0 ? parts[0] : "";
+                        var dropped = parts.Length > 2 ? parts[2] : "";
+                        foreach (var pid in ParseIds(won))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+                        foreach (var pid in ParseIds(dropped))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
+                        break;
+                    }
+                    case "IR":
+                    {
+                        if (!int.TryParse(t.franchise, out var franchiseId)) break;
+                        foreach (var pid in ParseIds(t.activated))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+                        foreach (var pid in ParseIds(t.deactivated))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
+                        break;
+                    }
+                    case "TAXI":
+                    {
+                        if (!int.TryParse(t.franchise, out var franchiseId)) break;
+                        foreach (var pid in ParseIds(t.promoted))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "ADD", MflPlayerId = pid });
+                        foreach (var pid in ParseIds(t.demoted))
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = franchiseId, Action = "DROP", MflPlayerId = pid });
+                        break;
+                    }
+                    case "TRADE":
+                    {
+                        if (!int.TryParse(t.franchise, out var f1)) break;
+                        if (!int.TryParse(t.franchise2, out var f2)) break;
+                        foreach (var pid in ParseIds(t.franchise1_gave_up))
+                        {
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = f1, Action = "DROP", MflPlayerId = pid });
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = f2, Action = "ADD", MflPlayerId = pid });
+                        }
+                        foreach (var pid in ParseIds(t.franchise2_gave_up))
+                        {
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = f2, Action = "DROP", MflPlayerId = pid });
+                            moves.Add(new RecentMoveDTO { Timestamp = when, FranchiseId = f1, Action = "ADD", MflPlayerId = pid });
+                        }
+                        break;
+                    }
+                }
             }
             return moves;
         }

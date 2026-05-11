@@ -22,6 +22,8 @@ namespace FreeAgencyAuctionAPI.Models
     {
         public string activated { get; set; }
         public string deactivated { get; set; }
+        public string promoted { get; set; }
+        public string demoted { get; set; }
         public string type { get; set; }
         public string franchise { get; set; }
         public string timestamp { get; set; }
@@ -32,6 +34,7 @@ namespace FreeAgencyAuctionAPI.Models
         public string expires { get; set; }
         public string action { get; set; }
         public string original_timestamp { get; set; }
+        public string by_commish { get; set; }
     }
     public class MflTransactions
     {

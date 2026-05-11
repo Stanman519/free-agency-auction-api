@@ -402,7 +402,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         {
             var raw = new List<MflTransaction>
             {
-                new MflTransaction { type = "FREE_AGENT", franchise = "0007", timestamp = "1778243059", transaction = "|14840," }
+                new MflTransaction { type = "FREE_AGENT", franchise = "0007", timestamp = "1778243059", transaction = "14840,|" }
             };
             var result = MflService.ParseRecentMoves(raw);
             Assert.Single(result);
@@ -416,7 +416,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         {
             var raw = new List<MflTransaction>
             {
-                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002117", transaction = "14073,|" }
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002117", transaction = "|14073," }
             };
             var result = MflService.ParseRecentMoves(raw);
             Assert.Single(result);
@@ -433,23 +433,27 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             };
             var result = MflService.ParseRecentMoves(raw);
             Assert.Equal(3, result.Count);
-            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 100);
-            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 200);
-            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 300);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 100);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 200);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 300);
         }
 
         [Fact]
-        public void ParseRecentMoves_SkipsTradesAndBbidWaivers()
+        public void ParseRecentMoves_SkipsTradeProposalsOnly()
         {
             var raw = new List<MflTransaction>
             {
                 new MflTransaction { type = "TRADE_PROPOSAL", franchise = "0001", timestamp = "1778090099" },
-                new MflTransaction { type = "BBID_WAIVER", franchise = "0001", timestamp = "1778001000", transaction = "100,|5|200," },
-                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002000", transaction = "|999," }
+                new MflTransaction { type = "TRADE_REJECTION", franchise = "0001", timestamp = "1778090099" },
+                new MflTransaction { type = "TRADE_REVOKE", franchise = "0001", timestamp = "1778090099" },
+                new MflTransaction { type = "TRADE_OFFER_EXPIRED", franchise = "0001", timestamp = "1778090099" },
+                new MflTransaction { type = "BBID_WAIVER_REQUEST", franchise = "0001", timestamp = "1778090099", transaction = "|100_1_0000" },
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778002000", transaction = "999,|" }
             };
             var result = MflService.ParseRecentMoves(raw);
             Assert.Single(result);
             Assert.Equal(999, result[0].MflPlayerId);
+            Assert.Equal("ADD", result[0].Action);
         }
 
         [Fact]
@@ -458,14 +462,174 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             var raw = new List<MflTransaction>
             {
                 null,
-                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "abc", transaction = "|1," },
-                new MflTransaction { type = "FREE_AGENT", franchise = "xyz", timestamp = "1778000000", transaction = "|1," },
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "abc", transaction = "1,|" },
+                new MflTransaction { type = "FREE_AGENT", franchise = "xyz", timestamp = "1778000000", transaction = "1,|" },
                 new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778000000", transaction = null },
-                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778000000", transaction = "|abc,5," }
+                new MflTransaction { type = "FREE_AGENT", franchise = "0001", timestamp = "1778000000", transaction = "abc,5,|" }
             };
             var result = MflService.ParseRecentMoves(raw);
             Assert.Single(result);
             Assert.Equal(5, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_BbidWaiver_EmitsAddAndDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "BBID_WAIVER", franchise = "0002", timestamp = "1778000000", transaction = "100,|5|200," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 100);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 200);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_BbidWaiver_NoDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "BBID_WAIVER", franchise = "0002", timestamp = "1778000000", transaction = "100,|5|" }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("ADD", result[0].Action);
+            Assert.Equal(100, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_IR_ActivatedEmitsAdd()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "IR", franchise = "0004", timestamp = "1778000000", activated = "123,", deactivated = "" }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("ADD", result[0].Action);
+            Assert.Equal(123, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_IR_DeactivatedEmitsDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "IR", franchise = "0004", timestamp = "1778000000", activated = "", deactivated = "456," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("DROP", result[0].Action);
+            Assert.Equal(456, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_IR_MultipleIds()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "IR", franchise = "0011", timestamp = "1778000000", activated = "14777,12263,", deactivated = "17243,16222," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Equal(4, result.Count);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 14777);
+            Assert.Contains(result, m => m.Action == "ADD" && m.MflPlayerId == 12263);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 17243);
+            Assert.Contains(result, m => m.Action == "DROP" && m.MflPlayerId == 16222);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_TAXI_PromotedEmitsAdd()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TAXI", franchise = "0008", timestamp = "1778000000", promoted = "17105,", demoted = "" }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("ADD", result[0].Action);
+            Assert.Equal(17105, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_TAXI_DemotedEmitsDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TAXI", franchise = "0012", timestamp = "1778000000", promoted = "", demoted = "17086," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("DROP", result[0].Action);
+            Assert.Equal(17086, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_FilterCommishBulkDrop()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "FREE_AGENT", franchise = "0010", timestamp = "1742232341", by_commish = "1",
+                    transaction = "|14122,14239,15873,14797,12650,15292,15694," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_KeepsCommishSingleAction()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "FREE_AGENT", franchise = "0005", timestamp = "1778410477", by_commish = "1", transaction = "13593,|" }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Single(result);
+            Assert.Equal("ADD", result[0].Action);
+            Assert.Equal(13593, result[0].MflPlayerId);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_Trade_EmitsAddAndDropForBothSides()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TRADE", franchise = "0004", franchise2 = "0009", timestamp = "1764692716",
+                    franchise1_gave_up = "100,", franchise2_gave_up = "200," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Equal(4, result.Count);
+            Assert.Contains(result, m => m.FranchiseId == 4 && m.Action == "DROP" && m.MflPlayerId == 100);
+            Assert.Contains(result, m => m.FranchiseId == 9 && m.Action == "ADD" && m.MflPlayerId == 100);
+            Assert.Contains(result, m => m.FranchiseId == 9 && m.Action == "DROP" && m.MflPlayerId == 200);
+            Assert.Contains(result, m => m.FranchiseId == 4 && m.Action == "ADD" && m.MflPlayerId == 200);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_Trade_SkipsPickOnlyTrade()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TRADE", franchise = "0001", franchise2 = "0003", timestamp = "1748371531",
+                    franchise1_gave_up = "DP_1_8,FP_0004_2026_2,", franchise2_gave_up = "DP_1_5," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void ParseRecentMoves_Trade_MixedPlayerAndPicks()
+        {
+            var raw = new List<MflTransaction>
+            {
+                new MflTransaction { type = "TRADE", franchise = "0010", franchise2 = "0012", timestamp = "1762103124",
+                    franchise1_gave_up = "FP_0010_2026_3,", franchise2_gave_up = "16757," }
+            };
+            var result = MflService.ParseRecentMoves(raw);
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, m => m.FranchiseId == 12 && m.Action == "DROP" && m.MflPlayerId == 16757);
+            Assert.Contains(result, m => m.FranchiseId == 10 && m.Action == "ADD" && m.MflPlayerId == 16757);
         }
     }
 }
