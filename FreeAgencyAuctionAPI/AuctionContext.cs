@@ -235,6 +235,7 @@ namespace FreeAgencyAuctionAPI
                 entity.Property(e => e.IsFranchiseTagSzn).HasColumnName("isfranchisetagszn");
                 entity.Property(e => e.Istest).HasColumnName("istest");
                 entity.Property(e => e.FirstYear).HasColumnName("firstyear");
+                entity.Property(e => e.LastAnnouncedTradeTimestamp).HasColumnName("lastannouncedtradetimestamp");
                 entity.Property(e => e.Mflhash).HasColumnName("mflhash");
                 entity.Property(e => e.Name)
                     .HasMaxLength(80)
@@ -881,6 +882,7 @@ namespace FreeAgencyAuctionAPI
         public bool IsBuyoutSzn { get; set; }
         public bool Istest { get; set; }
         public int FirstYear { get; set; }
+        public long LastAnnouncedTradeTimestamp { get; set; }
         public virtual ICollection<Buyout> Buyouts { get; } = new List<Buyout>();
         public virtual ICollection<BidEntity> Bids { get; } = new List<BidEntity>();
         public virtual ICollection<WaiverExtension> WaiverExtensions { get; } = new List<WaiverExtension>();
