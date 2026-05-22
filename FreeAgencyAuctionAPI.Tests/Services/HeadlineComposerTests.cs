@@ -152,5 +152,48 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Contains("Alice", result.Text);
             Assert.Contains("RB", result.Text);
         }
+
+        [Fact]
+        public void ComposeOwner_MaxCapRoom_ProducesHeadlineWithOwnerAndCap()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 10, OwnerName = "Rich Guy",
+                IsMaxCapRoom = true, CapRoom = 350,
+            });
+            Assert.NotNull(result);
+            Assert.Contains("MaxCapRoom", result!.Tags);
+            Assert.Contains("Rich Guy", result.Text);
+            Assert.Contains("350", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_JustSigned_TakesPriorityOverMaxCapRoom()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 11, OwnerName = "Bob",
+                JustSignedPlayer = "Tyreek Hill", JustSignedSalary = 40, JustSignedYears = 2,
+                IsMaxCapRoom = true, CapRoom = 300,
+            });
+            Assert.NotNull(result);
+            Assert.Contains("JustSigned", result!.Tags);
+            Assert.Contains("MaxCapRoom", result.Tags);
+            Assert.Contains("Tyreek Hill", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_TopNegotiator_ProducesHeadlineWithOwnerAndBidCount()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 12, OwnerName = "Active Andy",
+                IsTopNegotiator = true, TopNegotiatorBidCount = 15,
+            });
+            Assert.NotNull(result);
+            Assert.Contains("MostActive", result!.Tags);
+            Assert.Contains("Active Andy", result.Text);
+            Assert.Contains("15", result.Text);
+        }
     }
 }

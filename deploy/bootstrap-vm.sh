@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# Run once on a fresh Ubuntu 24.04 ARM64 Oracle VM.
+# Run once on a fresh Ubuntu 22.04/24.04 Oracle VM (ARM64 or x86_64).
 # Assumes you SSH'd in as the default 'ubuntu' user.
 
 set -euo pipefail
 
-### 1. Open firewall (Oracle Ubuntu image ships with restrictive iptables)
+### 1. Swapfile (required on E2.1.Micro / 1 GB RAM; harmless on larger shapes)
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+### 2. Open firewall (Oracle Ubuntu image ships with restrictive iptables)
 # IMPORTANT: must insert BEFORE the existing REJECT-all rule (position 5 by default).
 # Inserting at position 6 puts the ACCEPTs *after* the REJECT, where they never fire.
 sudo iptables -I INPUT 5 -p tcp -m state --state NEW --dport 80 -j ACCEPT
 sudo iptables -I INPUT 5 -p tcp -m state --state NEW --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 
-### 2. Install Docker + nginx
+### 3. Install Docker + nginx
 sudo apt-get update
 sudo apt-get install -y \
     ca-certificates curl gnupg \
@@ -20,7 +27,7 @@ sudo apt-get install -y \
 sudo usermod -aG docker "$USER"
 sudo systemctl enable --now docker nginx
 
-### 3. Layout
+### 4. Layout
 sudo mkdir -p /var/www/fantasy-league /etc/fantasy-league
 sudo chown "$USER:$USER" /var/www/fantasy-league
 sudo chmod 700 /etc/fantasy-league

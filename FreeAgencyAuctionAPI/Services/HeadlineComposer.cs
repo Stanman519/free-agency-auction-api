@@ -38,6 +38,9 @@ namespace FreeAgencyAuctionAPI.Services
         public bool IsRoomLeft { get; set; }
         public bool IsFewestNegotiations { get; set; }
         public int BidCount { get; set; }
+        public bool IsMaxCapRoom { get; set; }
+        public bool IsTopNegotiator { get; set; }
+        public int TopNegotiatorBidCount { get; set; }
     }
 
     public class ComposedHeadline
@@ -124,7 +127,9 @@ namespace FreeAgencyAuctionAPI.Services
             if (justSigned) tags.Add("JustSigned");
             if (x.IsBigSpend) tags.Add("BigSpend");
             if (x.IsRoomLeft) tags.Add("RoomLeft");
+            if (x.IsMaxCapRoom) tags.Add("MaxCapRoom");
             if (x.IsFewestNegotiations) tags.Add("FewestNegotiations");
+            if (x.IsTopNegotiator) tags.Add("MostActive");
             if (!string.IsNullOrEmpty(x.DominantPosition)) tags.Add($"Pos:{x.DominantPosition}");
 
             if (tags.Count == 0) return null;
@@ -153,6 +158,18 @@ namespace FreeAgencyAuctionAPI.Services
                 text = Pick(RoomLeftVariants, seed)
                     .Replace("{owner}", x.OwnerName)
                     .Replace("{cap}", x.CapRoom.ToString());
+            }
+            else if (x.IsMaxCapRoom)
+            {
+                text = Pick(MaxCapRoomVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{cap}", x.CapRoom.ToString());
+            }
+            else if (x.IsTopNegotiator)
+            {
+                text = Pick(MostActiveVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{n}", x.TopNegotiatorBidCount.ToString());
             }
             else if (x.IsFewestNegotiations)
             {
@@ -218,6 +235,11 @@ namespace FreeAgencyAuctionAPI.Services
             "{owner} grabs {player}",
             "{player} signs with {owner}",
             "{owner} brings {player} home",
+            "Source: {owner} agreeing to terms with {player}",
+            "Done deal: {owner} lands {player} — ${salary}/{years}yr",
+            "It's official: {player} signs with {owner}",
+            "{player} off the board — {owner} closes the deal",
+            "Confirmed: {owner} secures {player} at ${salary}",
         };
 
         private static readonly string[] WinFlavor_SagaWar =
@@ -254,14 +276,14 @@ namespace FreeAgencyAuctionAPI.Services
 
         private static readonly string[] WarVariants =
         {
-            "{owners} trading bids on {player}",
-            "Bidding war heating up for {player} ({owners})",
-            "{owners} won't let go of {player}",
-            "{player} caught between {owners}",
-            "Tug-of-war on {player}: {owners}",
-            "{owners} duking it out for {player}",
-            "{player} the prize in {owners} standoff",
-            "{handoffs} bids deep on {player} — {owners}",
+            "Bidding war heating up: {owners} battling for {player}",
+            "{player} generating a frenzy — {owners} trading bids",
+            "{owners} keep going back and forth on {player}",
+            "{player} caught in a {handoffs}-bid standoff — {owners}",
+            "No one's blinking: {owners} dueling over {player}",
+            "Tug-of-war: {owners} refuse to let go of {player}",
+            "{player} the most contested name on the board ({owners})",
+            "Back and forth {handoffs} times — {owners} won't quit on {player}",
         };
 
         private static readonly string[] SagaVariants =
@@ -272,23 +294,25 @@ namespace FreeAgencyAuctionAPI.Services
             "{player} the longest standoff at {days} days",
             "{days}-day pursuit of {player} continues",
             "Marathon bid for {player} hits day {days}",
+            "{player} still up for grabs — day {days} and counting",
+            "The {player} saga rolls on: day {days}",
         };
 
         private static readonly string[] WideInterestVariants =
         {
-            "{n} teams chasing {player}",
-            "{player} drawing interest from {n} owners",
-            "{n}-way race for {player}",
-            "{player} the most-wanted FA — {n} bidders",
-            "{n} owners circling {player}",
+            "{n} teams circling {player}",
+            "High demand: {n} owners have bid on {player}",
+            "{player} drawing a crowd — {n} active bidders",
+            "{n}-way race heating up for {player}",
+            "Everyone wants {player} — {n} owners in",
         };
 
         private static readonly string[] DeadlineVariants =
         {
-            "{player}'s clock running out — {minutes} min left, {owner} on top",
-            "{minutes} minutes to land {player}, {owner} leads",
-            "Deadline approaching on {player} — {minutes} min, {owner} top bidder",
-            "{owner} {minutes} minutes from signing {player}",
+            "Final {minutes} minutes: {owner} leads for {player}",
+            "Clock running out on {player} — {owner} on top with {minutes} min left",
+            "Deadline looming: {minutes} min left, {owner} holds the top bid on {player}",
+            "{owner} {minutes} minutes from locking up {player}",
         };
 
         private static readonly string[] CutVariants =
@@ -303,6 +327,9 @@ namespace FreeAgencyAuctionAPI.Services
             "{player} now available — released by {owner}",
             "{owner} waives {player}",
             "{player}'s contract terminated, hits FA",
+            "Breaking: {player} released by {owner}",
+            "Source: {owner} cutting {player} loose",
+            "{player} is now a free agent, per sources",
         };
 
         private static readonly string[] JustSignedVariants =
@@ -312,33 +339,52 @@ namespace FreeAgencyAuctionAPI.Services
             "{player} to {owner}, ${salary}/{years}yr",
             "{owner} adds {player} (${salary}/{years}yr)",
             "{owner} closes {player} for ${salary}/{years}yr",
+            "Done deal: {owner} secures {player} — ${salary}/{years}yr",
+            "Source: {owner} finalizing {years}-yr deal with {player} at ${salary}",
         };
 
         private static readonly string[] BigSpendVariants =
         {
-            "{owner} spending big — ${total} on {pos}",
-            "{owner} top-3 spender so far (${total} on {pos})",
-            "{owner} flexing the wallet, ${total} into {pos}",
-            "{owner} loading up at {pos}, ${total} committed",
-            "{owner} doubling down — ${total} on {pos}",
-            "{owner}'s ${total} {pos} push leads the board",
+            "{owner} going all in — ${total} committed to {pos}",
+            "{owner} top-3 spender at ${total}, targeting {pos}",
+            "{owner} making noise — ${total} into {pos}",
+            "{owner} loading up at {pos}: ${total} and counting",
+            "Big market: {owner} pouring ${total} into {pos}",
+            "{owner}'s ${total} {pos} haul leads the field",
         };
 
         private static readonly string[] RoomLeftVariants =
         {
             "{owner} still has ${cap} to spend",
-            "{owner} sitting on ${cap} cap",
-            "{owner}'s ${cap} stash waiting",
-            "Plenty of room left for {owner} (${cap})",
-            "{owner} quiet — ${cap} unspent",
+            "{owner} sitting on ${cap} cap room",
+            "Patient: {owner} holding ${cap} — hasn't blinked",
+            "Plenty left in the tank for {owner} (${cap})",
+            "{owner} quiet — ${cap} still available",
         };
 
         private static readonly string[] FewestVariants =
         {
-            "{owner} barely engaged — only {n} bids placed",
-            "{owner} the quietest in negotiations ({n} bids)",
-            "{owner} laying low: {n} bids in",
-            "{n} bids and counting for {owner}",
+            "{owner} playing it cool — just {n} bids so far",
+            "{owner} not tipping their hand ({n} bids in)",
+            "Patience game: {owner} staying quiet with {n} bids placed",
+            "{owner} watching the board — {n} bids, no deal yet",
+        };
+
+        private static readonly string[] MaxCapRoomVariants =
+        {
+            "{owner} leads the league with ${cap} to spend",
+            "War chest: {owner} sitting on ${cap} — most in the league",
+            "Still holding: {owner} the biggest buyer in waiting (${cap})",
+            "{owner} hasn't opened the wallet — ${cap} remaining, league-high",
+            "Most room in the league: {owner} with ${cap} to deploy",
+        };
+
+        private static readonly string[] MostActiveVariants =
+        {
+            "{owner} the most active buyer — {n} negotiations in",
+            "Setting the pace: {owner} with {n} bids, most in the league",
+            "{owner} in on everything — {n} players negotiated",
+            "{owner} driving the market — {n} bids and counting",
         };
     }
 }
