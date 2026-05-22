@@ -736,7 +736,7 @@ namespace FreeAgencyAuctionAPI.Services
 
                 var allTags = _pRepo.GetAllTagsForLeague(leagueId);
                 var allTagsForThisFranchise = allTags.Where(t => t.Leagueownerid == leagueOwner.Leagueownerid).ToList();
-                var tagNotUsedYet = allTagsForThisFranchise.FirstOrDefault(t => t.Year == DateTime.Now.Year) == null;
+                var tagNotUsedYet = allTagsForThisFranchise.FirstOrDefault(t => t.Year == DateTime.UtcNow.Year) == null;
                 
 
                 var myCurrentRoster = thisRosterRootTask.Result.error == null ? thisRosterRootTask.Result.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == leagueOwner.Mflfranchiseid).player : new List<Player>();
@@ -937,7 +937,7 @@ namespace FreeAgencyAuctionAPI.Services
             var hasReceiverEats = req.ReceivingAssets.SelectMany(a => a.CapEats).Any();
 
             var botId = Utils.leagueBotDict.TryGetValue(req.LeagueId, out var x) ? x : string.Empty;
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var comment = $"THIS TRADE INCLUDES SALARY CAP EATING. - - - "; 
               
             if (hasSenderEats) {
@@ -1143,7 +1143,7 @@ namespace FreeAgencyAuctionAPI.Services
             // get all scores from mfl with YTD as W
             // get players from mfl 
             // get contracts from mfl
-            var year = DateTime.Now.Month < 8 ? Utils.CurrentYear - 1 : Utils.CurrentYear;
+            var year = DateTime.UtcNow.Month < 8 ? Utils.CurrentYear - 1 : Utils.CurrentYear;
             var apiKey = _options.Value.Mfl.MflApiKey.FirstOrDefault(k => k.id == leagueId).key;
             if (apiKey == null) return new List<PlayerEligibility>();
             var scorePlayerTask = _leagueApi.GetMflPositionScoresByYear(leagueId, year, string.Empty, apiKey);

@@ -131,7 +131,7 @@ namespace FreeAgencyAuctionAPI
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetWaiverExtensionCandidates([Path] int leagueId, [Path] int leagueOwnerId, [Path] int mflFranchiseId)
         {
-            var alreadyUsedExtension = await _db.WaiverExtensions.FirstOrDefaultAsync(w => w.Year == DateTime.Now.Year && leagueId == w.LeagueId && leagueOwnerId == w.LeagueOwnerId);
+            var alreadyUsedExtension = await _db.WaiverExtensions.FirstOrDefaultAsync(w => w.Year == DateTime.UtcNow.Year && leagueId == w.LeagueId && leagueOwnerId == w.LeagueOwnerId);
             if (alreadyUsedExtension != null) return Ok(new List<PlayerDTO>());
             var candidates = await _mfl.GetWaiverExtensionCandidates(leagueId, leagueOwnerId, mflFranchiseId);
             return Ok(candidates);

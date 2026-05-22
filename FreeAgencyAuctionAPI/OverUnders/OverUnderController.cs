@@ -166,7 +166,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
         public async Task<IActionResult> GetAllUsersAndPicksForPool([Path] int poolId)
         {
             var pool = await _db.Pools.FirstOrDefaultAsync(p => p.Id == poolId);
-            if (pool.StartDate < DateTime.Now)
+            if (pool.StartDate < DateTime.UtcNow)
             {
                 // give all the picks of all the owners
                 var usersAndPicks = await _db.PoolUsers.Where(p => p.PoolId == poolId).Select(u => new PoolUserDTO
