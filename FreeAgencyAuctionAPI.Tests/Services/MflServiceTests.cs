@@ -18,7 +18,6 @@ namespace FreeAgencyAuctionAPI.Tests.Services
     {
         private readonly Mock<IGlobalMflApi> _globalApiMock;
         private readonly Mock<IMflApi> _leagueApiMock;
-        private readonly Mock<IBingImageApi> _bingApiMock;
         private readonly Mock<ILogger<MflService>> _loggerMock;
         private readonly Mock<IGMBot> _gmMock;
         private readonly Mock<IPlayerRepo> _pRepoMock;
@@ -31,7 +30,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         {
             _globalApiMock = new Mock<IGlobalMflApi>();
             _leagueApiMock = new Mock<IMflApi>();
-            _bingApiMock = new Mock<IBingImageApi>();
+
             _loggerMock = new Mock<ILogger<MflService>>();
             _gmMock = new Mock<IGMBot>();
             _pRepoMock = new Mock<IPlayerRepo>();
@@ -43,7 +42,6 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             _service = new MflService(
                 _globalApiMock.Object,
                 _leagueApiMock.Object,
-                _bingApiMock.Object,
                 _loggerMock.Object,
                 _gmMock.Object,
                 _pRepoMock.Object,

@@ -78,7 +78,7 @@ namespace FreeAgencyAuctionAPI.Services
             }
 
             var owners = await _db.LeagueOwners.Where(lo => lo.Leagueid == leagueId).ToListAsync();
-            var yearStart = new DateTime(Utils.CurrentYear, 1, 1);
+            var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var allBids = await _db.Bids.Where(b => b.Leagueid == leagueId && b.Expires >= yearStart).ToListAsync();
             var ctx = await BuildOwnerContext(leagueId, owners, allBids);
 
@@ -100,7 +100,7 @@ namespace FreeAgencyAuctionAPI.Services
                 var owner = await _db.LeagueOwners.FirstOrDefaultAsync(lo => lo.Leagueownerid == win.OwnerId);
                 if (owner != null)
                 {
-                    var yearStart = new DateTime(Utils.CurrentYear, 1, 1);
+                    var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 var allBids = await _db.Bids.Where(b => b.Leagueid == win.LeagueId && b.Expires >= yearStart).ToListAsync();
                     var ctx = await BuildOwnerContext(win.LeagueId, new List<LeagueOwnerEntity> { owner }, allBids);
                     await ComposeAndUpsertOwner(win.LeagueId, owner, ctx, win);
@@ -239,8 +239,9 @@ namespace FreeAgencyAuctionAPI.Services
 
         private async Task<PlayerHeadlineInput?> BuildPlayerInput(int leagueId, int mflId, BidDTO? win)
         {
+            var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var bids = await _db.Bids
-                .Where(b => b.Leagueid == leagueId && b.Mflid == mflId)
+                .Where(b => b.Leagueid == leagueId && b.Mflid == mflId && b.Expires >= yearStart)
                 .OrderBy(b => b.Bidid)
                 .Select(b => new
                 {

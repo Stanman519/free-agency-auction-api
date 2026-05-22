@@ -36,7 +36,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<List<FifthYearOptionCandidate>> GetFifthYearOptionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId);
         Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
-            string lastName, string position, bool hasAction);
+            string lastName, string position);
         Task<MflPlayerDetails> GetMflPlayerById(int leagueId, int mflId);
         int? GetAgeInt(string birthdate);
         Task<LeagueOwnerDTO> GetTagAndTaxiInfos(int defaultLeagueId, LeagueOwnerDTO leagueOwner);
@@ -55,7 +55,6 @@ namespace FreeAgencyAuctionAPI.Services
     {
         private readonly IGlobalMflApi _globalApi;
         private readonly IMflApi _leagueApi;
-        private readonly IBingImageApi _bingApi;
         private readonly ILogger<MflService> _logger;
         private readonly IGMBot _gm;
         private readonly IPlayerRepo _pRepo;
@@ -63,11 +62,10 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IOptionsSnapshot<AppConfig> _options;
         private readonly AuctionContext _db;
 
-        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, IBingImageApi bingApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IMapper mapper, AuctionContext db, IOptionsSnapshot<AppConfig> options)
+        public MflService(IGlobalMflApi globalApi, IMflApi leagueApi, ILogger<MflService> logger, IGMBot gm, IPlayerRepo pRepo, IMapper mapper, AuctionContext db, IOptionsSnapshot<AppConfig> options)
         {
             _globalApi = globalApi;
             _leagueApi = leagueApi;
-            _bingApi = bingApi;
             _logger = logger;
             _gm = gm;
             _pRepo = pRepo;
@@ -221,26 +219,17 @@ namespace FreeAgencyAuctionAPI.Services
         }
 
         public async Task<PlayerBioDTO> GetMflPlayerBioDetails(int leagueId, int lastYear, string id, string firstName,
-            string lastName, string position, bool hasAction)
+            string lastName, string position)
         {
             var bioTask =
                 _leagueApi.GetMflPlayerDetails(leagueId, id + ",15237,15281", Utils.CurrentYear, GetApiKey(leagueId)); // adding two dummy players so that the response will be array lol
-            //Check out other api to add custom json serializer so you dont have to do this.
-            var actionShotTask = _bingApi.GetActionShotForPlayer(firstName, lastName);
             var salaryTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, GetApiKey(leagueId));
             var apiKey = _options.Value.Mfl.MflApiKey.First(k => k.id == leagueId).key;
             var scoringTaskYrNeg1 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear, position, apiKey);
             var scoringTaskYrNeg2 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 1, position, apiKey);
             var scoringTaskYrNeg3 = _leagueApi.GetMflPositionScoresByYear(leagueId, lastYear - 2, position, apiKey);
 
-            var taskList = new List<Task>
-            {
-                bioTask, salaryTask, scoringTaskYrNeg1, scoringTaskYrNeg2,
-                scoringTaskYrNeg3
-            };
-            if (!hasAction) taskList.Add(actionShotTask);
-
-            await Task.WhenAll(taskList);
+            await Task.WhenAll(bioTask, salaryTask, scoringTaskYrNeg1, scoringTaskYrNeg2, scoringTaskYrNeg3);
             var lastSeasonTeam =
                 salaryTask.Result.rosters.franchise.FirstOrDefault(tm => tm.player.Exists(_ => _.id == id));
             var lastSeasonSalary = 0;
@@ -282,12 +271,6 @@ namespace FreeAgencyAuctionAPI.Services
                     };
                 }).ToList()
             };
-            if (!hasAction)
-            {
-                playerBio.ActionShot = actionShotTask.Result.Value.FirstOrDefault()?.ContentUrl;
-                Console.WriteLine("azure call for bing");
-                await _pRepo.SavePlayerActionShot(playerBio.MflId, playerBio.ActionShot);
-            }
             return playerBio;
         }
         public async Task<List<PlayerDTO>> GetWaiverExtensionCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)

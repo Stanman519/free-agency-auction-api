@@ -200,9 +200,9 @@ namespace FreeAgencyAuctionAPI
         [Produces("application/json", Type = typeof(PlayerDTO))]
         [ProducesResponseType(typeof(List<PlayerDTO>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int leagueId, [FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position, [Query("hasAction")] bool hasAction)
+        public async Task<IActionResult> GetMflBioAndScoreInfo([FromRoute] int leagueId, [FromRoute] int lastYear, [FromRoute] string id, [FromRoute] string firstName, [FromRoute] string lastName, [FromRoute] string position)
         {
-            var ret = await _mfl.GetMflPlayerBioDetails(leagueId, lastYear, id, firstName, lastName, position, hasAction);
+            var ret = await _mfl.GetMflPlayerBioDetails(leagueId, lastYear, id, firstName, lastName, position);
             if (ret != null) return Ok(ret);
             return BadRequest();
         }

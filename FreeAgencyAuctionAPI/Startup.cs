@@ -85,10 +85,7 @@ namespace FreeAgencyAuctionAPI
             leagueMfl.cookie = appConfig.Mfl.CommishCookie;
             services.AddSingleton(leagueMfl);
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
-            var bing = RestClient.For<IBingImageApi>("https://api.bing.microsoft.com/v7.0");
             services.AddSingleton(RestClient.For<ISportsDataApi>("https://api.sportsdata.io/v3"));
-            bing.BingKey = appConfig.BingImageApi.BingSubscriptionKey;
-            services.AddSingleton(bing);
             services.AddSingleton(_ => streamFactory.GetMessageClient());
             services.AddSingleton(_ => streamFactory.GetUserClient());
             services.AddScoped<IPlayerService, PlayerService>();
