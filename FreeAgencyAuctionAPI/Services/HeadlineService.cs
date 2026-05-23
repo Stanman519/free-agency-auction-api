@@ -258,30 +258,17 @@ namespace FreeAgencyAuctionAPI.Services
             var player = await _db.Players.FirstOrDefaultAsync(p => p.Mflid == mflId);
             if (player == null) return null;
 
-            int handoffs = 0;
-            int? lastOwner = null;
-            foreach (var b in bids)
-            {
-                if (lastOwner != null && lastOwner != b.Ownerid) handoffs++;
-                lastOwner = b.Ownerid;
-            }
-
             var sagaDays = (int)Math.Floor((DateTime.UtcNow - bids.First().Expires.AddHours(-18)).TotalDays);
             if (sagaDays < 0) sagaDays = 0;
-
-            var oneDayAgo = DateTime.UtcNow.AddDays(-1);
-            var distinctRecent = bids.Where(b => b.Expires >= oneDayAgo).Select(b => b.Ownerid).Distinct().Count();
 
             var top = bids.Last();
             var deadlineMin = (int)(top.Expires - DateTime.UtcNow).TotalMinutes;
 
-            var warOpponents = bids
-                .OrderByDescending(b => b.Bidid)
-                .Select(b => b.OwnerName)
-                .Where(n => !string.IsNullOrEmpty(n))
-                .Distinct()
-                .Take(3)
-                .ToList();
+            var analysis = BidAnalyzer.Analyze(
+                bids.Select(b => new BidAnalyzer.BidRow(b.Bidid, b.Ownerid, b.Bidsalary, b.OwnerName)));
+            var handoffs = analysis.HandoffCount;
+            var distinctSerious = analysis.SeriousBidderCount;
+            var warOpponents = analysis.WarOpponentLastNames;
 
             int topMoneyRank = 0;
             if (win != null && !string.IsNullOrEmpty(player.Position))
@@ -307,7 +294,7 @@ namespace FreeAgencyAuctionAPI.Services
                 Win = win != null,
                 HandoffCount = handoffs,
                 SagaDays = sagaDays,
-                DistinctBidders = distinctRecent,
+                DistinctBidders = distinctSerious,
                 DeadlineMinutes = win != null ? -1 : Math.Max(deadlineMin, 0),
                 TopMoneyRank = topMoneyRank,
                 WarOpponents = warOpponents,
@@ -420,6 +407,72 @@ namespace FreeAgencyAuctionAPI.Services
             CreatedAt = e.CreatedAt,
             ExpiresAt = e.ExpiresAt,
         };
+
+        public static class BidAnalyzer
+        {
+            public record BidRow(int BidId, int OwnerId, int BidSalary, string? OwnerName);
+
+            public class Result
+            {
+                public int HandoffCount { get; init; }
+                public int SeriousBidderCount { get; init; }
+                public List<string> WarOpponentLastNames { get; init; } = new();
+            }
+
+            public static Result Analyze(IEnumerable<BidRow> bidsEnum)
+            {
+                var bids = bidsEnum.OrderBy(b => b.BidId).ToList();
+                if (bids.Count == 0) return new Result();
+
+                var topBid = bids[bids.Count - 1].BidSalary;
+                var threshold = Math.Max(0.6 * topBid, topBid - 10);
+
+                var latestPerOwner = bids
+                    .GroupBy(b => b.OwnerId)
+                    .ToDictionary(g => g.Key, g => g.Last());
+
+                var seriousOwnerIds = latestPerOwner
+                    .Where(kv => kv.Value.BidSalary >= threshold)
+                    .Select(kv => kv.Key)
+                    .ToHashSet();
+
+                int handoffs = 0;
+                int? lastOwner = null;
+                foreach (var b in bids)
+                {
+                    if (lastOwner != null && lastOwner != b.OwnerId
+                        && seriousOwnerIds.Contains(b.OwnerId)
+                        && seriousOwnerIds.Contains(lastOwner.Value))
+                    {
+                        handoffs++;
+                    }
+                    lastOwner = b.OwnerId;
+                }
+
+                var warOpponents = bids
+                    .OrderByDescending(b => b.BidId)
+                    .Where(b => seriousOwnerIds.Contains(b.OwnerId) && !string.IsNullOrEmpty(b.OwnerName))
+                    .Select(b => LastTokenOf(b.OwnerName!))
+                    .Distinct()
+                    .Take(3)
+                    .ToList();
+
+                return new Result
+                {
+                    HandoffCount = handoffs,
+                    SeriousBidderCount = seriousOwnerIds.Count,
+                    WarOpponentLastNames = warOpponents,
+                };
+            }
+
+            public static string LastTokenOf(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return name ?? "";
+                var trimmed = name.Trim();
+                var idx = trimmed.LastIndexOf(' ');
+                return idx < 0 ? trimmed : trimmed.Substring(idx + 1);
+            }
+        }
 
         private class OwnerContext
         {
