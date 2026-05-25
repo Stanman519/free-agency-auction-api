@@ -73,8 +73,7 @@ namespace FreeAgencyAuctionAPI.Services
                 .ToList() ?? new();
             if (rosteredPlayerIds.Contains(bid.Player.MflId))
             {
-                _logger.LogError("Player already rostered {lastname} - league: {leagueId}", bid.Player.LastName, bid.LeagueId);
-                await TryNotify(gmBot, botId, $"WIN ERROR: {bid.Player.LastName} already on a roster in MFL (league {bid.LeagueId}) — bid not processed");
+                _logger.LogInformation("Player already rostered {lastname} - league: {leagueId} (concurrent win, ignoring)", bid.Player.LastName, bid.LeagueId);
                 return;
             }
 

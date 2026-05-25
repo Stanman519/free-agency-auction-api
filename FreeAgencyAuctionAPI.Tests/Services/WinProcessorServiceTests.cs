@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Repos;
@@ -112,6 +113,41 @@ namespace FreeAgencyAuctionAPI.Tests.Services
 
             var updatedOwner = await db.LeagueOwners.FirstAsync(o => o.Leagueownerid == 10);
             Assert.Equal(200, updatedOwner.Caproom);
+        }
+
+        [Fact]
+        public async Task ProcessWin_AlreadyRostered_DoesNotNotifyGroupMe()
+        {
+            var db = BuildDb("WinProc_AlreadyRostered");
+            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 10, Leagueid = 13894, Mflfranchiseid = 1, Caproom = 200 });
+            db.Bids.Add(new BidEntity { Bidid = 1, Mflid = 99, Leagueid = 13894, Ownerid = 10, Bidsalary = 25, Bidlength = 2, Expires = DateTime.UtcNow.AddSeconds(-1) });
+            await db.SaveChangesAsync();
+
+            var mflMock = new Mock<IMflService>();
+            mflMock.Setup(m => m.GetMflRosters(13894)).ReturnsAsync(new List<FranchiseRoster>
+            {
+                new FranchiseRoster { id = "0001", player = new List<Player> { new Player { id = "99" } } }
+            });
+
+            var gmBotMock = new Mock<IGMBot>();
+            var factory = BuildScopeFactory(db, mflMock.Object, new Mock<IOwnerRepo>().Object, gmBotMock.Object);
+            var service = new WinProcessorService(factory, new Mock<ILogger<WinProcessorService>>().Object);
+
+            var bidDto = new BidDTO
+            {
+                BidId = 1,
+                BidSalary = 25,
+                BidLength = 2,
+                OwnerId = 10,
+                LeagueId = 13894,
+                Expires = DateTime.UtcNow.AddSeconds(-1),
+                Player = new PlayerDTO { MflId = 99, FirstName = "Jackson", LastName = "Jackson" }
+            };
+
+            await service.ProcessWin(bidDto);
+
+            gmBotMock.Verify(g => g.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
+            mflMock.Verify(m => m.AddPlayerToTeam(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
     }
 }
