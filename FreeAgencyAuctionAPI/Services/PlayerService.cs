@@ -18,8 +18,7 @@ namespace FreeAgencyAuctionAPI.Services
         //public Task<PlayerDTO> NominatePlayer(PlayerDTO player);
         Task<List<PlayerDTO>> GetAllPlayers();
         public Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId);
-        //Task LoadAllFreeAgentsIntoDb(List<PlayerEntity> players);
-        //Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);
+        Task<int> RefreshLastSeasonPoints();
         Task<int> GetSuggestedSalary(PlayerTipRequestDTO tip);
     }
     public class PlayerService : IPlayerService
@@ -70,6 +69,15 @@ namespace FreeAgencyAuctionAPI.Services
             var freeAgents = await _repo.GetAllPlayers(); 
             return _mapper.Map<List<PlayerDTO>>(freeAgents);
         }
+        public async Task<int> RefreshLastSeasonPoints()
+        {
+            const int leagueId = 13894;
+            var scoreYear = DateTime.Now.Year - 1;
+            var result = await _mflApi.GetAllPlayerScoresYtd(leagueId, Utils.CurrentYear, scoreYear, GetApiKey(leagueId));
+            var scores = result?.PlayerScores?.PlayerScore ?? new List<PlayerScore>();
+            return await _repo.RefreshLastSeasonPoints(scores);
+        }
+
         public async Task<List<PlayerDTO>> GetAllFreeAgents(int leagueId)
         {
             if (leagueId < 0)
@@ -105,9 +113,9 @@ namespace FreeAgencyAuctionAPI.Services
                 MflId = f.Mflid,
                 Headshot = f.Headshot,
                 Age = f.Age,
-                FirstName = f.Firstname, 
-                LastName = f.Lastname
-                
+                FirstName = f.Firstname,
+                LastName = f.Lastname,
+                LastSeasonPts = f.Lastseasonpts
             });
             var addedADP = unsorted.GroupJoin(adpPlayers, dto => dto.MflId, adp => int.TryParse(adp.id, out var p) ? p : -1, (dto, adp) => {
                 var tempAdp = adp.SingleOrDefault()?.rank;

@@ -24,7 +24,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<IEnumerable<PlayerEntity>> GetPlayersByListOfIds(IEnumerable<int> mflIds);
         Task<FranchiseTagLeague> GetLeagueTagInfo(int leagueId, int year);
         Task<PlayerEntity> SavePlayerActionShot(string mflId, string actionShot);
-        /*        Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList);*/
+        Task<int> RefreshLastSeasonPoints(List<PlayerScore> scores);
         Task AddTipToDb(string tipMflId, int tipOwnerId, int salary);
         Task<IEnumerable<PlayerEntity>> GetPlayersByMflIds(IEnumerable<int> freeAgentMflIds);
         Task AddBuyoutPlayer(CutRequestBody body);
@@ -274,32 +274,21 @@ namespace FreeAgencyAuctionAPI.Repos
             await _db.SaveChangesAsync();
         }
 
-        /*        public async Task UpdateTeamsAndHeadshotsInDb(List<PlayerEntity> teamChangeList)
-                {
-                    try
-                    {
-                        // get player
-                        // if player has a headshot leave it.
-                        // change team
-                        //save it 
-
-                        var dbPlayers = await _db.Players.Where(p => teamChangeList.Select(tm => tm.mflid).Contains(p.mflid)).ToListAsync();
-                        dbPlayers.ForEach(p =>
-                        {
-                            var updatePlayer = teamChangeList.FirstOrDefault(tm => tm.mflid == p.mflid);
-                            if (string.IsNullOrEmpty(p.headshot) && !string.IsNullOrEmpty(updatePlayer?.headshot ?? ""))
-                                p.headshot = updatePlayer?.headshot;
-                            p.team = updatePlayer?.team;
-                        });
-                        await _db.SaveChangesAsync();
-
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError(e.Message);
-                        throw;
-                    }
-                }*/
+        public async Task<int> RefreshLastSeasonPoints(List<PlayerScore> scores)
+        {
+            var scoreByMflId = scores
+                .Where(s => int.TryParse(s.Id, out _))
+                .GroupBy(s => int.Parse(s.Id))
+                .ToDictionary(g => g.Key, g => decimal.TryParse(g.First().Score, out var v) ? v : 0m);
+            var ids = scoreByMflId.Keys.ToList();
+            var dbPlayers = await _db.Players.Where(p => ids.Contains(p.Mflid)).ToListAsync();
+            foreach (var p in dbPlayers)
+            {
+                p.Lastseasonpts = scoreByMflId.TryGetValue(p.Mflid, out var pts) ? pts : 0m;
+            }
+            await _db.SaveChangesAsync();
+            return dbPlayers.Count;
+        }
 
         /*public async Task AddFreshPlayerInventory(List<PlayerEntity> players)
         {

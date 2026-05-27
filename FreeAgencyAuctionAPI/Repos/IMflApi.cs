@@ -39,6 +39,9 @@ namespace FreeAgencyAuctionAPI.Repos
 
         [Get("{year}/export?TYPE=playerScores&L={leagueId}&APIKEY={apiKey}&W=YTD&YEAR={year}&PLAYERS=&POSITION={position}&STATUS=&RULES=1&COUNT=&JSON=1")]
         Task<MflPositionRanks> GetMflPositionScoresByYear([Path] int leagueId, [Path] int year, [Path] string position, [Path] string apiKey);
+
+        [Get("{year}/export?TYPE=playerScores&L={leagueId}&APIKEY={apiKey}&W=YTD&YEAR={scoreYear}&PLAYERS=&POSITION=&STATUS=&RULES=&COUNT=&JSON=1")]
+        Task<MflPositionRanks> GetAllPlayerScoresYtd([Path] int leagueId, [Path] int year, [Path] int scoreYear, [Path] string apiKey);
         
         [Get("{year}/import?TYPE=taxi_squad&L={leagueId}&PROMOTE=&DEMOTE=&DROP={playerId}&FRANCHISE_ID={franchiseId}")]
         Task<HttpResponseMessage> DropPlayerFromTaxi([Path] int leagueId, [Path] int playerId, [Path] string franchiseId, [Path] int year);

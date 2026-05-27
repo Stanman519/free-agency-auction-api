@@ -12,6 +12,8 @@ namespace FreeAgencyAuctionAPI.Repos
     {
         Task<List<HeadlineEntity>> GetActive(int leagueId);
         Task<HeadlineEntity?> GetActiveByRef(int leagueId, string refKind, int refId);
+        Task<HeadlineEntity?> GetMostRecentAnyByRef(int leagueId, string refKind, int refId);
+        Task<bool> HasEverEmittedTag(int leagueId, string refKind, int refId, string tag);
         Task<HeadlineEntity> Upsert(int leagueId, string refKind, int refId, string text, string tags, DateTime? expiresAt);
         Task<int> DeleteExpired(int leagueId);
     }
@@ -39,6 +41,19 @@ namespace FreeAgencyAuctionAPI.Repos
                 h.ReferenceKind == refKind &&
                 h.ReferenceId == refId &&
                 h.IsActive);
+
+        public Task<HeadlineEntity?> GetMostRecentAnyByRef(int leagueId, string refKind, int refId) =>
+            _db.Headlines
+                .Where(h => h.Leagueid == leagueId && h.ReferenceKind == refKind && h.ReferenceId == refId)
+                .OrderByDescending(h => h.CreatedAt)
+                .FirstOrDefaultAsync();
+
+        public Task<bool> HasEverEmittedTag(int leagueId, string refKind, int refId, string tag) =>
+            _db.Headlines.AnyAsync(h =>
+                h.Leagueid == leagueId &&
+                h.ReferenceKind == refKind &&
+                h.ReferenceId == refId &&
+                (h.Tags == tag || h.Tags.StartsWith(tag + ",") || h.Tags.EndsWith("," + tag) || h.Tags.Contains("," + tag + ",")));
 
         public async Task<HeadlineEntity> Upsert(int leagueId, string refKind, int refId, string text, string tags, DateTime? expiresAt)
         {

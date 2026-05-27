@@ -71,7 +71,7 @@ namespace FreeAgencyAuctionAPI
             var freeAgents = await _pService.GetAllFreeAgents(leagueId);
 
             var lots = lotsQuery.OrderBy(_ => _.LotId).ToList();
-            var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId)).OrderBy(item => item.Adp.HasValue ? 0 : 1).ThenBy(p => p.Adp);
+            var filterOutAuctionPlayers = freeAgents.Where(f => !lots.Select(l => l.Bid?.Player?.MflId).Contains(f.MflId)).OrderByDescending(p => p.LastSeasonPts ?? 0);
 
 
 
@@ -506,6 +506,15 @@ namespace FreeAgencyAuctionAPI
         {
             await _oService.CreateTestLeague();
             return Ok();
+        }
+
+        [AllowAnonymous]
+        [HttpPost("admin/refresh-player-metadata")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> RefreshPlayerMetadata()
+        {
+            var updated = await _pService.RefreshLastSeasonPoints();
+            return Ok(new { updated });
         }
 
         /*[HttpGet("inventory")]

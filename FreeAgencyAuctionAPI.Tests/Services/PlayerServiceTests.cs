@@ -47,6 +47,36 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
+        public async Task RefreshLastSeasonPoints_FetchesScoresAndDelegatesToRepo()
+        {
+            var scores = new List<PlayerScore>
+            {
+                new PlayerScore { Id = "13130", Score = "422.60", Week = "YTD" },
+                new PlayerScore { Id = "14802", Score = "387.80", Week = "YTD" }
+            };
+            _mflApiMock.Setup(m => m.GetAllPlayerScoresYtd(13894, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new MflPositionRanks { PlayerScores = new PlayerScores { PlayerScore = scores } });
+            _repoMock.Setup(r => r.RefreshLastSeasonPoints(It.IsAny<List<PlayerScore>>())).ReturnsAsync(2);
+
+            var updated = await _service.RefreshLastSeasonPoints();
+
+            Assert.Equal(2, updated);
+            _repoMock.Verify(r => r.RefreshLastSeasonPoints(It.Is<List<PlayerScore>>(s => s.Count == 2)), Times.Once);
+        }
+
+        [Fact]
+        public async Task RefreshLastSeasonPoints_NullPayload_PassesEmptyList()
+        {
+            _mflApiMock.Setup(m => m.GetAllPlayerScoresYtd(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync((MflPositionRanks)null);
+            _repoMock.Setup(r => r.RefreshLastSeasonPoints(It.IsAny<List<PlayerScore>>())).ReturnsAsync(0);
+
+            await _service.RefreshLastSeasonPoints();
+
+            _repoMock.Verify(r => r.RefreshLastSeasonPoints(It.Is<List<PlayerScore>>(s => s.Count == 0)), Times.Once);
+        }
+
+        [Fact]
         public async Task GetAllFreeAgents_RealLeague_CallsMflApi()
         {
             _mflApiMock.Setup(m => m.GetMflFreeAgents(13894, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new FreeAgentsRoot

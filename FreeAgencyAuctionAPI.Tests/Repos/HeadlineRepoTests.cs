@@ -82,6 +82,38 @@ namespace FreeAgencyAuctionAPI.Tests.Repos
         }
 
         [Fact]
+        public async Task HasEverEmittedTag_FindsTagInActiveAndInactiveRows()
+        {
+            using var db = NewDb();
+            var repo = new HeadlineRepo(db, NullLogger<HeadlineRepo>.Instance);
+
+            await repo.Upsert(13894, HeadlineRefKind.Player, 100, "cut text", "Cut", DateTime.UtcNow.AddHours(-1));
+            // Upsert again on a different player to make sure it doesn't bleed.
+            await repo.Upsert(13894, HeadlineRefKind.Player, 200, "war text", "BiddingWar,WideInterest", null);
+            await repo.DeleteExpired(13894); // inactivate the cut row
+
+            Assert.True(await repo.HasEverEmittedTag(13894, HeadlineRefKind.Player, 100, "Cut"));
+            Assert.False(await repo.HasEverEmittedTag(13894, HeadlineRefKind.Player, 200, "Cut"));
+            Assert.True(await repo.HasEverEmittedTag(13894, HeadlineRefKind.Player, 200, "BiddingWar"));
+            Assert.True(await repo.HasEverEmittedTag(13894, HeadlineRefKind.Player, 200, "WideInterest"));
+        }
+
+        [Fact]
+        public async Task GetMostRecentAnyByRef_ReturnsLatestEvenIfInactive()
+        {
+            using var db = NewDb();
+            var repo = new HeadlineRepo(db, NullLogger<HeadlineRepo>.Instance);
+
+            await repo.Upsert(13894, HeadlineRefKind.Owner, 5, "first", "MaxCapRoom", null);
+            await Task.Delay(10);
+            await repo.Upsert(13894, HeadlineRefKind.Owner, 5, "second", "MostActive", null);
+
+            var recent = await repo.GetMostRecentAnyByRef(13894, HeadlineRefKind.Owner, 5);
+            Assert.NotNull(recent);
+            Assert.Equal("second", recent!.Text);
+        }
+
+        [Fact]
         public async Task GetActive_SortsByCreatedAtDesc()
         {
             using var db = NewDb();

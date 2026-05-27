@@ -19,8 +19,10 @@ namespace FreeAgencyAuctionAPI.Services
         public int DeadlineMinutes { get; set; } = -1;
         public int TopMoneyRank { get; set; } = 0;
         public List<string> WarOpponents { get; set; } = new();
+        public string BidderSetKey { get; set; } = ""; // stable representation of current serious bidder set
         public bool Cut { get; set; }
         public string CutBy { get; set; } = "";
+        public int CutSalary { get; set; }
     }
 
     public class OwnerHeadlineInput
@@ -36,11 +38,17 @@ namespace FreeAgencyAuctionAPI.Services
         public int TotalSpend { get; set; }
         public string? DominantPosition { get; set; }
         public bool IsRoomLeft { get; set; }
-        public bool IsFewestNegotiations { get; set; }
         public int BidCount { get; set; }
         public bool IsMaxCapRoom { get; set; }
         public bool IsTopNegotiator { get; set; }
         public int TopNegotiatorBidCount { get; set; }
+        public string? PositionRunPosition { get; set; }
+        public string? BigContractPlayer { get; set; }
+        public int BigContractSalary { get; set; }
+        public int BigContractYears { get; set; }
+        public bool IsDrySpell { get; set; }
+        public int DrySpellDays { get; set; }
+        public string? PositionalLeaderPosition { get; set; }
     }
 
     public class ComposedHeadline
@@ -55,9 +63,11 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var tags = new List<string>();
             if (x.Win) tags.Add("Win");
-            if (x.HandoffCount >= 4) tags.Add("BiddingWar");
+            // BiddingWar / WideInterest also require player to be a non-scrub ($5+ headline salary).
+            var notable = x.Salary >= 5 || x.Win;
+            if (x.HandoffCount >= 4 && notable) tags.Add("BiddingWar");
             if (x.SagaDays >= 2) tags.Add("SagaLength");
-            if (x.DistinctBidders >= 3) tags.Add("WideInterest");
+            if (x.DistinctBidders >= 4 && notable) tags.Add("WideInterest");
             if (x.DeadlineMinutes >= 0 && x.DeadlineMinutes < 120 && !x.Win) tags.Add("DeadlinePressure");
             if (x.TopMoneyRank > 0 && x.TopMoneyRank <= 3 && x.Win) tags.Add("TopMoney");
 
@@ -117,6 +127,14 @@ namespace FreeAgencyAuctionAPI.Services
                 return null;
             }
 
+            // Embed bidder-set hash in the primary tag for bidder-set-driven stories so the cooldown
+            // comparison only matches when the same bidder lineup is still in play.
+            if (!x.Win && (tags[0] == "BiddingWar" || tags[0] == "WideInterest"))
+            {
+                var hash = (uint)StableHash($"bidders:{x.BidderSetKey}");
+                tags[0] = $"{tags[0]}:h{hash:X4}";
+            }
+
             return new ComposedHeadline { Text = text, Tags = string.Join(',', tags) };
         }
 
@@ -124,11 +142,19 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var tags = new List<string>();
             var justSigned = !string.IsNullOrEmpty(x.JustSignedPlayer);
+            var hasBigContract = !string.IsNullOrEmpty(x.BigContractPlayer);
+            var hasPositionRun = !string.IsNullOrEmpty(x.PositionRunPosition);
+            var hasPositionalLeader = !string.IsNullOrEmpty(x.PositionalLeaderPosition);
+
+            // Order matters — first tag is the primary "category" used for cooldown matching.
             if (justSigned) tags.Add("JustSigned");
+            if (hasBigContract) tags.Add($"BigContract:{x.BigContractPlayer}");
+            if (hasPositionRun) tags.Add($"PositionRun:{x.PositionRunPosition}");
+            if (hasPositionalLeader) tags.Add($"PositionalLeader:{x.PositionalLeaderPosition}");
+            if (x.IsDrySpell) tags.Add("DrySpell");
             if (x.IsBigSpend) tags.Add("BigSpend");
             if (x.IsRoomLeft) tags.Add("RoomLeft");
             if (x.IsMaxCapRoom) tags.Add("MaxCapRoom");
-            if (x.IsFewestNegotiations) tags.Add("FewestNegotiations");
             if (x.IsTopNegotiator) tags.Add("MostActive");
             if (!string.IsNullOrEmpty(x.DominantPosition)) tags.Add($"Pos:{x.DominantPosition}");
 
@@ -145,6 +171,34 @@ namespace FreeAgencyAuctionAPI.Services
                     .Replace("{salary}", x.JustSignedSalary.ToString())
                     .Replace("{years}", x.JustSignedYears.ToString());
                 if (x.IsRoomLeft) text += $", still ${x.CapRoom} to spend";
+            }
+            else if (hasBigContract)
+            {
+                text = Pick(BigContractVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{player}", x.BigContractPlayer ?? "")
+                    .Replace("{salary}", x.BigContractSalary.ToString())
+                    .Replace("{years}", x.BigContractYears.ToString());
+            }
+            else if (hasPositionRun)
+            {
+                text = Pick(PositionRunVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{pos}", x.PositionRunPosition ?? "");
+            }
+            else if (hasPositionalLeader)
+            {
+                text = Pick(PositionalLeaderVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{pos}", x.PositionalLeaderPosition ?? "")
+                    .Replace("{total}", x.TotalSpend.ToString());
+            }
+            else if (x.IsDrySpell)
+            {
+                text = Pick(DrySpellVariants, seed)
+                    .Replace("{owner}", x.OwnerName)
+                    .Replace("{cap}", x.CapRoom.ToString())
+                    .Replace("{days}", x.DrySpellDays.ToString());
             }
             else if (x.IsBigSpend)
             {
@@ -170,12 +224,6 @@ namespace FreeAgencyAuctionAPI.Services
                 text = Pick(MostActiveVariants, seed)
                     .Replace("{owner}", x.OwnerName)
                     .Replace("{n}", x.TopNegotiatorBidCount.ToString());
-            }
-            else if (x.IsFewestNegotiations)
-            {
-                text = Pick(FewestVariants, seed)
-                    .Replace("{owner}", x.OwnerName)
-                    .Replace("{n}", x.BidCount.ToString());
             }
             else
             {
@@ -418,19 +466,6 @@ namespace FreeAgencyAuctionAPI.Services
             "${cap} still in {owner}'s war chest",
         };
 
-        private static readonly string[] FewestVariants =
-        {
-            "{owner} playing it cool — just {n} offers so far",
-            "{owner} not tipping their hand ({n} offers in)",
-            "Patience game: {owner} staying quiet with {n} offers extended",
-            "{owner} watching the market — {n} offers, no deal yet",
-            "{owner} laying low with only {n} offers on the table",
-            "Quiet start for {owner}: just {n} offers out",
-            "{owner} taking it slow — {n} offers in",
-            "{owner} holding back — only {n} negotiations open",
-            "{owner} content to watch — {n} offers so far",
-        };
-
         private static readonly string[] MaxCapRoomVariants =
         {
             "{owner} leads the league with ${cap} to spend",
@@ -443,6 +478,46 @@ namespace FreeAgencyAuctionAPI.Services
             "All eyes on {owner} — ${cap} to spend, most of any team",
             "{owner} loaded for a late strike with ${cap}",
             "${cap} and ready to pounce: {owner}",
+        };
+
+        private static readonly string[] BigContractVariants =
+        {
+            "Blockbuster: {owner} hands {player} ${salary}/{years}yr — league's biggest deal",
+            "{owner} drops a bag on {player}: ${salary} over {years} years, top of the market",
+            "Record territory — {owner} pays {player} ${salary}/{years}yr",
+            "{owner} swings big — {player} signed at ${salary}/{years}yr, league high",
+            "Top-of-market move: {owner} inks {player} to ${salary}/{years}yr",
+            "{owner} sets the bar: {player} for ${salary} over {years} years",
+        };
+
+        private static readonly string[] PositionRunVariants =
+        {
+            "Stocking up at {pos}: {owner} adds another",
+            "{owner} cornering the {pos} market — multiple signings in 24h",
+            "Position run: {owner} loading up at {pos}",
+            "{owner} doubles down at {pos}",
+            "{owner} going all-in at {pos}",
+            "Run on {pos} for {owner} — two in a day",
+        };
+
+        private static readonly string[] PositionalLeaderVariants =
+        {
+            "{owner} owns the {pos} market — ${total} committed",
+            "Top dog at {pos}: {owner} with ${total}",
+            "{owner} the {pos} kingpin — ${total} on the books",
+            "Heaviest {pos} room in the league belongs to {owner} (${total})",
+            "{owner} leads the {pos} market by a clear margin (${total})",
+            "Nobody close at {pos}: {owner} at ${total}",
+        };
+
+        private static readonly string[] DrySpellVariants =
+        {
+            "{owner} cold streak: ${cap} on the table, no signings in {days} days",
+            "Quiet wallet alert — {owner} sitting on ${cap}, hasn't signed in {days} days",
+            "{days} days, zero signings: {owner} still holding ${cap}",
+            "{owner} on ice — ${cap} unspent, {days} days dry",
+            "Waiting game stretches on: {owner} at ${cap}, {days} days since last move",
+            "{owner} drought enters day {days} — ${cap} still available",
         };
 
         private static readonly string[] MostActiveVariants =

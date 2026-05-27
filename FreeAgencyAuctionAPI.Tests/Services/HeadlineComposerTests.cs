@@ -52,7 +52,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             var input = new PlayerHeadlineInput
             {
                 RefId = 300, PlayerName = "Saquon", TopBidderName = "Owner B",
-                Win = false, HandoffCount = 5,
+                Win = false, HandoffCount = 5, Salary = 25,
                 WarOpponents = new List<string> { "Owner A", "Owner B" },
             };
             var result = HeadlineComposer.ComposePlayer(input);
@@ -130,7 +130,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             {
                 RefId = 777, PlayerName = "Player X", TopBidderName = "Owner A",
                 Cut = true, CutBy = "Owner B",
-                HandoffCount = 5,
+                HandoffCount = 5, Salary = 25,
                 WarOpponents = new List<string> { "Owner A", "Owner B" },
             };
             var result = HeadlineComposer.ComposePlayer(input);
@@ -194,6 +194,152 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Contains("MostActive", result!.Tags);
             Assert.Contains("Active Andy", result.Text);
             Assert.Contains("15", result.Text);
+        }
+
+        [Fact]
+        public void ComposePlayer_LowSalaryBiddingWar_DoesNotTag()
+        {
+            // BiddingWar requires salary >= $5 — scrub-level players don't get headlines.
+            var input = new PlayerHeadlineInput
+            {
+                RefId = 1, PlayerName = "Scrub", TopBidderName = "Owner",
+                HandoffCount = 6, DistinctBidders = 5, Salary = 2,
+                WarOpponents = new List<string> { "A", "B" },
+            };
+            var result = HeadlineComposer.ComposePlayer(input);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ComposePlayer_WideInterestRequiresFourBidders()
+        {
+            var threeBidders = HeadlineComposer.ComposePlayer(new PlayerHeadlineInput
+            {
+                RefId = 1, PlayerName = "P", TopBidderName = "O", Salary = 20,
+                DistinctBidders = 3,
+            });
+            Assert.Null(threeBidders);
+
+            var fourBidders = HeadlineComposer.ComposePlayer(new PlayerHeadlineInput
+            {
+                RefId = 1, PlayerName = "P", TopBidderName = "O", Salary = 20,
+                DistinctBidders = 4,
+            });
+            Assert.NotNull(fourBidders);
+            Assert.Contains("WideInterest", fourBidders!.Tags);
+        }
+
+        [Fact]
+        public void ComposePlayer_BidderSetHashAppendedToWideInterestPrimaryTag()
+        {
+            var input1 = new PlayerHeadlineInput
+            {
+                RefId = 10, PlayerName = "P", TopBidderName = "O", Salary = 20,
+                DistinctBidders = 4, BidderSetKey = "1|2|3|4",
+            };
+            var input2 = new PlayerHeadlineInput
+            {
+                RefId = 10, PlayerName = "P", TopBidderName = "O", Salary = 20,
+                DistinctBidders = 4, BidderSetKey = "5|6|7|8",
+            };
+            var r1 = HeadlineComposer.ComposePlayer(input1);
+            var r2 = HeadlineComposer.ComposePlayer(input2);
+            Assert.NotNull(r1); Assert.NotNull(r2);
+            Assert.StartsWith("WideInterest:h", r1!.Tags);
+            Assert.StartsWith("WideInterest:h", r2!.Tags);
+            Assert.NotEqual(r1.Tags, r2.Tags);
+        }
+
+        [Fact]
+        public void ComposePlayer_WinPathDoesNotHashBidderSet()
+        {
+            var result = HeadlineComposer.ComposePlayer(new PlayerHeadlineInput
+            {
+                RefId = 10, PlayerName = "P", TopBidderName = "O", Salary = 30, Years = 3,
+                Win = true, DistinctBidders = 5, BidderSetKey = "1|2|3|4|5",
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("Win", result!.Tags);
+            Assert.DoesNotContain(":h", result.Tags);
+        }
+
+        [Fact]
+        public void ComposeOwner_FewestNegotiationsRemoved()
+        {
+            // FewestNegotiations is no longer a recognized signal.
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Quiet",
+                BidCount = 1,
+            });
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ComposeOwner_BigContract_PrimaryTagIncludesPlayerId()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Spender",
+                BigContractPlayer = "Tyreek Hill", BigContractSalary = 90, BigContractYears = 4,
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("BigContract:Tyreek Hill", result!.Tags);
+            Assert.Contains("Tyreek Hill", result.Text);
+            Assert.Contains("90", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_PositionRun_PrimaryTagIncludesPos()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Stocker",
+                PositionRunPosition = "WR",
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("PositionRun:WR", result!.Tags);
+            Assert.Contains("WR", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_PositionalLeader_PrimaryTagIncludesPos()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Top",
+                PositionalLeaderPosition = "TE", TotalSpend = 120,
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("PositionalLeader:TE", result!.Tags);
+            Assert.Contains("TE", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_DrySpell_ProducesHeadline()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Cold",
+                IsDrySpell = true, CapRoom = 180, DrySpellDays = 4,
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("DrySpell", result!.Tags);
+            Assert.Contains("180", result.Text);
+            Assert.Contains("4", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_JustSignedPreemptsBigContract()
+        {
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Bob",
+                JustSignedPlayer = "X", JustSignedSalary = 10, JustSignedYears = 2,
+                BigContractPlayer = "Y", BigContractSalary = 90, BigContractYears = 4,
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("JustSigned", result!.Tags);
         }
     }
 }
