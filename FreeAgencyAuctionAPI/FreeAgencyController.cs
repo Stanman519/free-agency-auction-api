@@ -271,7 +271,7 @@ namespace FreeAgencyAuctionAPI
             {
                 await _auctionHub.Clients.All.SendAsync("FreshBid", ret);
                 if (!string.IsNullOrEmpty(botId))
-                    await _bot.SendBotNotification(message: new BotMessage($"New Bid (lot {newBid.LotId}):\n{newBid.Ownername}\n{newBid.Player.Position} {newBid.Player.LastName}\n{newBid.BidLength} yr/${newBid.BidSalary}", botId));
+                    await _bot.SendBotNotification(message: new BotMessage($"Bid #{newBid.LotId}: {newBid.Player.Position} {newBid.Player.LastName}|{newBid.Ownername} ${newBid.BidSalary}/{newBid.BidLength}yr", botId));
                 _ = _headlineService.OnBidPosted(ret);
                 return Ok(ret);
             }
@@ -413,7 +413,7 @@ namespace FreeAgencyAuctionAPI
                 _logger.LogError("nomination signalR message failed. bid: {bid}", ret.BidId);
             }
             if (!string.IsNullOrEmpty(botId))
-                await _bot.SendBotNotification(message: new BotMessage($"New Nomination (lot {nomination.LotId}):\n{nomination.Ownername}\n{nomination.Player.Position} {nomination.Player.LastName}\n{nomination.BidLength} yr/${nomination.BidSalary}", botId));
+                await _bot.SendBotNotification(message: new BotMessage($"Nom #{nomination.LotId}: {nomination.Player.Position} {nomination.Player.LastName}|{nomination.Ownername} ${nomination.BidSalary}/{nomination.BidLength}yr", botId));
             return Ok(ret);
 
 
