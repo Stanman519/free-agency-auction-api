@@ -1,0 +1,17 @@
+# Micro #2 — BOT host.
+# Copy this file onto the bot Micro AS:  /var/www/fantasy-league/docker-compose.yml
+# (the deploy workflow runs `docker compose ... bot-api` from that folder)
+services:
+  bot-api:
+    image: ghcr.io/REPLACE_WITH_GH_USER/dead-cap-tracker:latest
+    container_name: bot-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:8080"
+    env_file:
+      - /etc/fantasy-league/bot-api.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

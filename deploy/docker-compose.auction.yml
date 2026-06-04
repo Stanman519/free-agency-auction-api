@@ -1,0 +1,17 @@
+# Micro #1 — AUCTION host.
+# Copy this file onto the auction Micro AS:  /var/www/fantasy-league/docker-compose.yml
+# (the deploy workflow runs `docker compose ... auction-api` from that folder)
+services:
+  auction-api:
+    image: ghcr.io/REPLACE_WITH_GH_USER/free-agency-auction-api:latest
+    container_name: auction-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:8080"
+    env_file:
+      - /etc/fantasy-league/auction-api.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
