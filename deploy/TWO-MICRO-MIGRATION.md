@@ -81,6 +81,9 @@ sudo rm -f /etc/nginx/sites-enabled/default
 
 # env file (FILL IN real secrets first!) — auction-api.env on #1, bot-api.env on #2
 sudo mv /tmp/auction-api.env /etc/fantasy-league/auction-api.env   # (bot: bot-api.env)
+# IMPORTANT: docker compose + the GH deploy run as the `ubuntu` user, so it must own this dir
+sudo chown -R ubuntu:ubuntu /etc/fantasy-league
+sudo chmod 700 /etc/fantasy-league
 sudo chmod 600 /etc/fantasy-league/*.env
 
 # edit docker-compose.yml: replace REPLACE_WITH_GH_USER with your GitHub username

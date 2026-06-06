@@ -27,6 +27,7 @@ namespace FreeAgencyAuctionAPI.Services
         private readonly IHeadlineRepo _repo;
         private readonly IHubContext<AuctionHub> _hub;
         private readonly IMflApi _mflApi;
+        private readonly IMflService _mflService;
         private readonly IOptions<AppConfig> _options;
         private readonly ILogger<HeadlineService> _logger;
         private static readonly ConcurrentDictionary<(int leagueId, int mflId), DateTime> _bidThrottle = new();
@@ -36,14 +37,37 @@ namespace FreeAgencyAuctionAPI.Services
         private static readonly HashSet<string> SkillPositions = new() { "QB", "RB", "WR", "TE" };
         private const int CutMinSalary = 5;
 
-        public HeadlineService(AuctionContext db, IHeadlineRepo repo, IHubContext<AuctionHub> hub, IMflApi mflApi, IOptions<AppConfig> options, ILogger<HeadlineService> logger)
+        public HeadlineService(AuctionContext db, IHeadlineRepo repo, IHubContext<AuctionHub> hub, IMflApi mflApi, IMflService mflService, IOptions<AppConfig> options, ILogger<HeadlineService> logger)
         {
             _db = db;
             _repo = repo;
             _hub = hub;
             _mflApi = mflApi;
+            _mflService = mflService;
             _options = options;
             _logger = logger;
+        }
+
+        // League-wide salary snapshot from canonical MFL rosters. Always pass ALL league owners so
+        // spend/positional rankings reflect the whole league (not just the auction or one team).
+        private async Task<LeagueSalaryStats> BuildLeagueStats(int leagueId, List<LeagueOwnerEntity> allOwners)
+        {
+            var rosters = await _mflService.GetMflRosters(leagueId) ?? new List<FranchiseRoster>();
+            var ownerIdByFranchiseId = new Dictionary<int, int>();
+            foreach (var o in allOwners) ownerIdByFranchiseId[o.Mflfranchiseid] = o.Leagueownerid;
+
+            var rosterMflIds = rosters
+                .Where(f => f?.player != null)
+                .SelectMany(f => f.player)
+                .Select(p => int.TryParse(p.id, out var id) ? id : -1)
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+            var positionByMflId = await _db.Players
+                .Where(p => rosterMflIds.Contains(p.Mflid))
+                .ToDictionaryAsync(p => p.Mflid, p => p.Position ?? "");
+
+            return LeagueSalaryStats.Build(rosters, positionByMflId, ownerIdByFranchiseId);
         }
 
         public async Task<List<HeadlineDTO>> GetActive(int leagueId)
@@ -83,7 +107,8 @@ namespace FreeAgencyAuctionAPI.Services
             var owners = await _db.LeagueOwners.Where(lo => lo.Leagueid == leagueId).ToListAsync();
             var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var allBids = await _db.Bids.Where(b => b.Leagueid == leagueId && b.Expires >= yearStart).ToListAsync();
-            var ctx = await BuildOwnerContext(leagueId, owners, allBids);
+            var stats = await BuildLeagueStats(leagueId, owners);
+            var ctx = await BuildOwnerContext(leagueId, owners, allBids, stats);
 
             foreach (var owner in owners)
             {
@@ -98,14 +123,18 @@ namespace FreeAgencyAuctionAPI.Services
 
             try
             {
-                await ComposeAndUpsertPlayer(win.LeagueId, win.Player.MflId, win, eventDriven: true);
+                var allOwners = await _db.LeagueOwners.Where(lo => lo.Leagueid == win.LeagueId).ToListAsync();
+                var stats = await BuildLeagueStats(win.LeagueId, allOwners);
 
-                var owner = await _db.LeagueOwners.FirstOrDefaultAsync(lo => lo.Leagueownerid == win.OwnerId);
+                await ComposeAndUpsertPlayer(win.LeagueId, win.Player.MflId, win, stats, eventDriven: true);
+
+                var owner = allOwners.FirstOrDefault(lo => lo.Leagueownerid == win.OwnerId);
                 if (owner != null)
                 {
                     var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                var allBids = await _db.Bids.Where(b => b.Leagueid == win.LeagueId && b.Expires >= yearStart).ToListAsync();
-                    var ctx = await BuildOwnerContext(win.LeagueId, new List<LeagueOwnerEntity> { owner }, allBids);
+                    var allBids = await _db.Bids.Where(b => b.Leagueid == win.LeagueId && b.Expires >= yearStart).ToListAsync();
+                    // Pass ALL owners so league-relative stats (max cap room, positional leader) are correct.
+                    var ctx = await BuildOwnerContext(win.LeagueId, allOwners, allBids, stats);
                     await ComposeAndUpsertOwner(win.LeagueId, owner, ctx, win, eventDriven: true);
                 }
             }
@@ -208,9 +237,9 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        private async Task ComposeAndUpsertPlayer(int leagueId, int mflId, BidDTO? win, bool eventDriven = false)
+        private async Task ComposeAndUpsertPlayer(int leagueId, int mflId, BidDTO? win, LeagueSalaryStats? stats = null, bool eventDriven = false)
         {
-            var input = await BuildPlayerInput(leagueId, mflId, win);
+            var input = await BuildPlayerInput(leagueId, mflId, win, stats);
             if (input == null) return;
             var composed = HeadlineComposer.ComposePlayer(input);
             if (composed == null) return;
@@ -270,7 +299,7 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
-        private async Task<PlayerHeadlineInput?> BuildPlayerInput(int leagueId, int mflId, BidDTO? win)
+        private async Task<PlayerHeadlineInput?> BuildPlayerInput(int leagueId, int mflId, BidDTO? win, LeagueSalaryStats? stats)
         {
             var yearStart = new DateTime(Utils.CurrentYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var bids = await _db.Bids
@@ -304,20 +333,15 @@ namespace FreeAgencyAuctionAPI.Services
             var warOpponents = analysis.WarOpponentLastNames;
             var bidderSetKey = analysis.BidderSetKey;
 
+            // TopMoney: rank the winning salary against EVERY rostered salary at the position
+            // league-wide (canonical MFL data). Only a genuine starter-tier salary — rank within the
+            // number of teams (one "WR1" per team) — earns the headline.
             int topMoneyRank = 0;
-            if (win != null && !string.IsNullOrEmpty(player.Position))
+            if (win != null && stats != null && !string.IsNullOrEmpty(player.Position)
+                && stats.SalariesByPosition.TryGetValue(player.Position, out var posSalaries))
             {
-                // The just-signed contract is already in Contracts by the time OnWin fires (WinProcessor
-                // calls GiveNewContractToPlayer before OnWin). Exclude this player's row so the rank
-                // reflects "how many other contracts beat this salary" — avoids "top-1" off-by-one bugs.
-                var posRoster = await _db.Contracts
-                    .Where(c => c.Leagueid == leagueId && c.Player.Position == player.Position && c.Mflid != win.Player.MflId)
-                    .OrderByDescending(c => c.Salary)
-                    .Take(5)
-                    .Select(c => c.Salary)
-                    .ToListAsync();
-                var rank = posRoster.Count(s => s > win.BidSalary) + 1;
-                if (rank <= 3) topMoneyRank = rank;
+                var rank = LeagueSalaryStats.LeagueRankOf(posSalaries, win.BidSalary);
+                if (rank <= Math.Max(stats.TeamCount, 1)) topMoneyRank = rank;
             }
 
             return new PlayerHeadlineInput
@@ -339,45 +363,47 @@ namespace FreeAgencyAuctionAPI.Services
             };
         }
 
-        private async Task<OwnerContext> BuildOwnerContext(int leagueId, List<LeagueOwnerEntity> owners, List<BidEntity> allBids)
+        private async Task<OwnerContext> BuildOwnerContext(int leagueId, List<LeagueOwnerEntity> owners, List<BidEntity> allBids, LeagueSalaryStats stats)
         {
-            var lots = await _db.Lots.Where(l => l.Leagueid == leagueId && l.Bidid != null).Select(l => l.Bidid).ToListAsync();
-            var winningBidIds = new HashSet<int>(lots.Where(b => b.HasValue).Select(b => b.Value));
+            var now = DateTime.UtcNow;
 
-            var contracts = await _db.Contracts
-                .Where(c => c.Leagueid == leagueId)
-                .Select(c => new
+            // Won lots are the canonical auction-signing record (the Contracts table is unpopulated).
+            // A lot whose leading bid has already expired has been won.
+            var wonLots = await _db.Lots
+                .Where(l => l.Leagueid == leagueId && l.Bidid != null && l.Bid!.Expires < now)
+                .Select(l => new
                 {
-                    c.Id,
-                    c.Ownerid,
-                    c.Salary,
-                    c.Length,
-                    c.Bidid,
-                    c.Mflid,
-                    Position = c.Player.Position,
-                    PlayerFirst = c.Player.Firstname,
-                    PlayerLast = c.Player.Lastname,
-                    SignedAt = c.Bid != null ? (DateTime?)c.Bid.Expires : null,
+                    l.Bid!.Ownerid,
+                    l.Bid.Bidsalary,
+                    l.Bid.Bidlength,
+                    l.Bid.Mflid,
+                    l.Bid.Expires,
                 })
                 .ToListAsync();
 
-            var spendByOwner = contracts
-                .GroupBy(c => c.Ownerid)
-                .ToDictionary(g => g.Key, g => g.Sum(c => c.Salary));
+            // Names + positions for won-lot players (PositionRun / BigContract text).
+            var wonMflIds = wonLots.Select(w => w.Mflid).Distinct().ToList();
+            var wonPlayers = await _db.Players
+                .Where(p => wonMflIds.Contains(p.Mflid))
+                .Select(p => new { p.Mflid, p.Position, p.Firstname, p.Lastname })
+                .ToListAsync();
+            var posByMflId = wonPlayers.ToDictionary(p => p.Mflid, p => p.Position ?? "");
+            var nameByMflId = wonPlayers.ToDictionary(p => p.Mflid, p => $"{p.Firstname} {p.Lastname}".Trim());
 
+            // Full-league spend / dominant position — from canonical MFL rosters (whole league).
+            var spendByOwner = stats.SpendByOwner;
             var dominantPosByOwner = new Dictionary<int, string?>();
-            foreach (var g in contracts.GroupBy(c => c.Ownerid))
+            foreach (var kv in stats.SpendByOwnerByPos)
             {
-                var byPos = g.GroupBy(c => c.Position ?? "").ToDictionary(p => p.Key, p => p.Sum(x => x.Salary));
-                var totalSpend = byPos.Values.Sum();
-                if (totalSpend == 0) { dominantPosByOwner[g.Key] = null; continue; }
-                var top = byPos.OrderByDescending(p => p.Value).First();
-                dominantPosByOwner[g.Key] = (top.Value * 1.0 / totalSpend) > 0.5 ? top.Key : null;
+                var totalSpend = kv.Value.Values.Sum();
+                if (totalSpend == 0) { dominantPosByOwner[kv.Key] = null; continue; }
+                var top = kv.Value.OrderByDescending(p => p.Value).First();
+                dominantPosByOwner[kv.Key] = (top.Value * 1.0 / totalSpend) > 0.5 ? top.Key : null;
             }
 
             var bidsByOwner = allBids.GroupBy(b => b.Ownerid).ToDictionary(g => g.Key, g => g.Select(b => b.Mflid).Distinct().Count());
 
-            var top3Spenders = spendByOwner.OrderByDescending(kv => kv.Value).Take(3).Select(kv => kv.Key).ToHashSet();
+            var top3Spenders = spendByOwner.Where(kv => kv.Value > 0).OrderByDescending(kv => kv.Value).Take(3).Select(kv => kv.Key).ToHashSet();
 
             var avgCap = owners.Any(o => o.Caproom.HasValue) ? owners.Average(o => o.Caproom ?? 0) : 0;
 
@@ -398,13 +424,11 @@ namespace FreeAgencyAuctionAPI.Services
                 }
             }
 
-            // PositionRun: owner signed >=2 at same position in last 24h.
-            var now = DateTime.UtcNow;
+            // PositionRun: owner won >=2 at same position in last 24h.
             var positionRunByOwner = new Dictionary<int, string>();
-            foreach (var g in contracts.Where(c => c.SignedAt.HasValue && (now - c.SignedAt.Value).TotalHours <= 24)
-                                       .GroupBy(c => c.Ownerid))
+            foreach (var g in wonLots.Where(c => (now - c.Expires).TotalHours <= 24).GroupBy(c => c.Ownerid))
             {
-                var topPos = g.GroupBy(c => c.Position ?? "")
+                var topPos = g.GroupBy(c => posByMflId.GetValueOrDefault(c.Mflid, ""))
                               .Where(p => !string.IsNullOrEmpty(p.Key))
                               .Select(p => new { Pos = p.Key, Count = p.Count() })
                               .OrderByDescending(p => p.Count)
@@ -412,44 +436,39 @@ namespace FreeAgencyAuctionAPI.Services
                 if (topPos != null && topPos.Count >= 2) positionRunByOwner[g.Key] = topPos.Pos;
             }
 
-            // BigContract: top-3 contracts league-wide by total value (salary * years), within last 7 days.
+            // BigContract: an owner's win in the last 7 days whose value (salary*years) is top-3 league-wide.
             var bigContractByOwner = new Dictionary<int, (string player, int salary, int years)>();
-            var recentContracts = contracts
-                .Where(c => c.SignedAt.HasValue && (now - c.SignedAt.Value).TotalDays <= 7)
-                .ToList();
-            var top3ByValue = contracts
-                .Select(c => new { c.Ownerid, c.Salary, c.Length, Value = c.Salary * Math.Max(c.Length, 1), c.PlayerFirst, c.PlayerLast, c.SignedAt })
-                .OrderByDescending(c => c.Value)
-                .Take(3)
-                .Where(c => c.SignedAt.HasValue && (now - c.SignedAt.Value).TotalDays <= 7)
-                .ToList();
-            foreach (var c in top3ByValue)
+            foreach (var w in wonLots.Where(c => (now - c.Expires).TotalDays <= 7)
+                                     .OrderByDescending(c => c.Bidsalary * Math.Max(c.Bidlength, 1)))
             {
-                bigContractByOwner[c.Ownerid] = ($"{c.PlayerFirst} {c.PlayerLast}".Trim(), c.Salary, c.Length);
+                if (bigContractByOwner.ContainsKey(w.Ownerid)) continue; // keep each owner's biggest
+                var value = w.Bidsalary * Math.Max(w.Bidlength, 1);
+                if (value <= 0) continue;
+                if (stats.LeagueContractValues.Count(v => v.Value > value) >= 3) continue; // not top-3 league-wide
+                bigContractByOwner[w.Ownerid] = (nameByMflId.GetValueOrDefault(w.Mflid, ""), w.Bidsalary, w.Bidlength);
             }
 
-            // DrySpell: cap room >= $50, no signings in last 3 days (or never signed).
-            var lastSignedByOwner = contracts
-                .Where(c => c.SignedAt.HasValue)
+            // DrySpell timing: most recent auction win per owner.
+            var lastSignedByOwner = wonLots
                 .GroupBy(c => c.Ownerid)
-                .ToDictionary(g => g.Key, g => g.Max(c => c.SignedAt!.Value));
+                .ToDictionary(g => g.Key, g => g.Max(c => c.Expires));
 
-            // PositionalLeader: per position, owner #1 in spend with >=25% gap over #2.
+            // PositionalLeader: per position, owner #1 in league-wide spend with >=25% gap over #2.
             var positionalLeader = new Dictionary<int, string>();
-            var allPositions = contracts.Select(c => c.Position).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+            var allPositions = stats.SpendByOwnerByPos.SelectMany(o => o.Value.Keys).Distinct().ToList();
             foreach (var pos in allPositions)
             {
-                var spendAtPos = contracts.Where(c => c.Position == pos)
-                                          .GroupBy(c => c.Ownerid)
-                                          .Select(g => new { Owner = g.Key, Spend = g.Sum(c => c.Salary) })
-                                          .OrderByDescending(x => x.Spend)
-                                          .ToList();
+                var spendAtPos = stats.SpendByOwnerByPos
+                    .Where(o => o.Value.ContainsKey(pos))
+                    .Select(o => new { Owner = o.Key, Spend = o.Value[pos] })
+                    .OrderByDescending(x => x.Spend)
+                    .ToList();
                 if (spendAtPos.Count == 0) continue;
                 var leader = spendAtPos[0];
                 var runnerUp = spendAtPos.Count > 1 ? spendAtPos[1].Spend : 0;
                 if (leader.Spend >= 30 && (runnerUp == 0 || (leader.Spend - runnerUp) >= leader.Spend * 0.25))
                 {
-                    positionalLeader[leader.Owner] = pos!;
+                    positionalLeader[leader.Owner] = pos;
                 }
             }
 
@@ -487,9 +506,13 @@ namespace FreeAgencyAuctionAPI.Services
             ctx.BigContractByOwner.TryGetValue(owner.Leagueownerid, out var bigContract);
             ctx.PositionalLeaderByOwner.TryGetValue(owner.Leagueownerid, out var positionalLeaderPos);
             var hasLastSigned = ctx.LastSignedByOwner.TryGetValue(owner.Leagueownerid, out var lastSignedAt);
-            // DrySpell: >= $50 cap room AND no signing in 3 days (or never signed but has cap room).
-            var daysSinceLastSign = hasLastSigned ? (int)Math.Floor((ctx.Now - lastSignedAt).TotalDays) : 99;
-            var isDrySpell = capRoom >= 50 && daysSinceLastSign >= 3;
+            var daysSinceLastSign = hasLastSigned ? (int)Math.Floor((ctx.Now - lastSignedAt).TotalDays) : 0;
+            // DrySpell never co-fires with JustSigned. Owners who've signed need a real 3-day gap;
+            // never-signed owners get a "quiet start" line (no bogus day count). Both gated on $50 room.
+            bool isDrySpell;
+            if (justSignedWin != null) isDrySpell = false;
+            else if (hasLastSigned) isDrySpell = capRoom >= 50 && daysSinceLastSign >= 3;
+            else isDrySpell = capRoom >= 50;
 
             return new OwnerHeadlineInput
             {
@@ -513,7 +536,8 @@ namespace FreeAgencyAuctionAPI.Services
                 BigContractSalary = bigContract.salary,
                 BigContractYears = bigContract.years,
                 IsDrySpell = isDrySpell,
-                DrySpellDays = daysSinceLastSign >= 99 ? 0 : daysSinceLastSign,
+                DrySpellDays = daysSinceLastSign,
+                HasSignedThisAuction = hasLastSigned,
                 PositionalLeaderPosition = positionalLeaderPos,
             };
         }

@@ -48,6 +48,7 @@ namespace FreeAgencyAuctionAPI.Services
         public int BigContractYears { get; set; }
         public bool IsDrySpell { get; set; }
         public int DrySpellDays { get; set; }
+        public bool HasSignedThisAuction { get; set; }
         public string? PositionalLeaderPosition { get; set; }
     }
 
@@ -69,7 +70,9 @@ namespace FreeAgencyAuctionAPI.Services
             if (x.SagaDays >= 2) tags.Add("SagaLength");
             if (x.DistinctBidders >= 4 && notable) tags.Add("WideInterest");
             if (x.DeadlineMinutes >= 0 && x.DeadlineMinutes < 120 && !x.Win) tags.Add("DeadlinePressure");
-            if (x.TopMoneyRank > 0 && x.TopMoneyRank <= 3 && x.Win) tags.Add("TopMoney");
+            // Eligibility (starter-tier rank) is decided upstream in HeadlineService — a non-zero
+            // rank here means it already qualified, so just gate on Win.
+            if (x.TopMoneyRank > 0 && x.Win) tags.Add("TopMoney");
 
             if (x.Cut && tags.Count == 0) tags.Add("Cut");
             if (tags.Count == 0) return null;
@@ -195,7 +198,10 @@ namespace FreeAgencyAuctionAPI.Services
             }
             else if (x.IsDrySpell)
             {
-                text = Pick(DrySpellVariants, seed)
+                // Owners who've actually signed get a day-count drought; never-signed owners get a
+                // "quiet start" line with no (bogus) day counter.
+                var dryVariants = x.HasSignedThisAuction ? DrySpellVariants : QuietStartVariants;
+                text = Pick(dryVariants, seed)
                     .Replace("{owner}", x.OwnerName)
                     .Replace("{cap}", x.CapRoom.ToString())
                     .Replace("{days}", x.DrySpellDays.ToString());
@@ -246,8 +252,21 @@ namespace FreeAgencyAuctionAPI.Services
             if (hasWar)
                 return Pick(WinFlavor_War, seed).Replace("{handoffs}", x.HandoffCount.ToString());
             if (hasTop)
-                return Pick(WinFlavor_Top, seed).Replace("{rank}", x.TopMoneyRank.ToString()).Replace("{pos}", x.Position);
+                return Pick(WinFlavor_Top, seed).Replace("{ordinal}", Ordinal(x.TopMoneyRank)).Replace("{pos}", x.Position);
             return $" — ${x.Salary}/{x.Years}yr";
+        }
+
+        // 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 11 -> "11th", etc.
+        private static string Ordinal(int n)
+        {
+            if (n % 100 is >= 11 and <= 13) return $"{n}th";
+            return (n % 10) switch
+            {
+                1 => $"{n}st",
+                2 => $"{n}nd",
+                3 => $"{n}rd",
+                _ => $"{n}th",
+            };
         }
 
         private static string FormatList(List<string> names)
@@ -330,13 +349,14 @@ namespace FreeAgencyAuctionAPI.Services
             " in a true bidding war",
         };
 
+        // Only emitted when the salary genuinely lands in the position's starter tier (rank <= team
+        // count). {ordinal} is the player's true league rank at the position; "{pos}1" = starter-tier.
         private static readonly string[] WinFlavor_Top =
         {
-            " — top-{rank} {pos} money",
-            ", paying top-{rank} {pos} dollar",
-            " at top-{rank} {pos} salary",
-            ", now a top-{rank} {pos} deal",
-            " — top-{rank} contract at the position",
+            " — {pos}1 money, {ordinal}-priciest {pos} in the league",
+            " — now the {ordinal}-priciest {pos} in the league",
+            ", landing {pos}1 money — {ordinal}-highest at the position",
+            " — {pos}1 territory, {ordinal} among {pos}s leaguewide",
         };
 
         private static readonly string[] WarVariants =
@@ -518,6 +538,15 @@ namespace FreeAgencyAuctionAPI.Services
             "{owner} on ice — ${cap} unspent, {days} days dry",
             "Waiting game stretches on: {owner} at ${cap}, {days} days since last move",
             "{owner} drought enters day {days} — ${cap} still available",
+        };
+
+        private static readonly string[] QuietStartVariants =
+        {
+            "{owner} yet to make a move — ${cap} to spend",
+            "Still on the sideline: {owner} sitting on ${cap}",
+            "{owner} hasn't opened the wallet — ${cap} available",
+            "Quiet so far: {owner} holding all ${cap}",
+            "{owner} waiting in the weeds with ${cap} unspent",
         };
 
         private static readonly string[] MostActiveVariants =

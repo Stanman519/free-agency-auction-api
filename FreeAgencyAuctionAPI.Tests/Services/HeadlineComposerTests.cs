@@ -316,17 +316,65 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
-        public void ComposeOwner_DrySpell_ProducesHeadline()
+        public void ComposeOwner_DrySpell_HasSigned_ShowsDayCount()
         {
             var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
             {
                 RefId = 1, OwnerName = "Cold",
-                IsDrySpell = true, CapRoom = 180, DrySpellDays = 4,
+                IsDrySpell = true, CapRoom = 180, DrySpellDays = 4, HasSignedThisAuction = true,
             });
             Assert.NotNull(result);
             Assert.StartsWith("DrySpell", result!.Tags);
             Assert.Contains("180", result.Text);
             Assert.Contains("4", result.Text);
+        }
+
+        [Fact]
+        public void ComposeOwner_DrySpell_NeverSigned_QuietStartNoDayCount()
+        {
+            // Never-signed owner: "quiet start" wording, no bogus "day 0".
+            var result = HeadlineComposer.ComposeOwner(new OwnerHeadlineInput
+            {
+                RefId = 1, OwnerName = "Quiet",
+                IsDrySpell = true, CapRoom = 93, DrySpellDays = 0, HasSignedThisAuction = false,
+            });
+            Assert.NotNull(result);
+            Assert.StartsWith("DrySpell", result!.Tags);
+            Assert.Contains("93", result.Text);
+            Assert.DoesNotContain("day 0", result.Text);
+            Assert.DoesNotContain("0 days", result.Text);
+        }
+
+        [Fact]
+        public void ComposePlayer_TopMoney_UsesTierAndOrdinalWording()
+        {
+            // Rank 3 at WR -> "WR1 money" tier label + "3rd" ordinal, no legacy "top-3 WR money".
+            var input = new PlayerHeadlineInput
+            {
+                RefId = 1, PlayerName = "Star WR", TopBidderName = "Owner A", Position = "WR",
+                Salary = 60, Years = 3, Win = true, TopMoneyRank = 3,
+            };
+            var result = HeadlineComposer.ComposePlayer(input);
+            Assert.NotNull(result);
+            Assert.Contains("TopMoney", result!.Tags);
+            Assert.Contains("3rd", result.Text);          // true league rank as an ordinal
+            Assert.Contains("WR", result.Text);           // position tier referenced
+            Assert.DoesNotContain("top-3", result.Text);  // legacy "top-N pos money" wording gone
+        }
+
+        [Fact]
+        public void ComposePlayer_TopMoney_RankBeyondThreeStillTags()
+        {
+            // Rank 8 (still a starter-tier qualifier decided upstream) must NOT be dropped.
+            var input = new PlayerHeadlineInput
+            {
+                RefId = 2, PlayerName = "RB Guy", TopBidderName = "Owner B", Position = "RB",
+                Salary = 30, Years = 2, Win = true, TopMoneyRank = 8,
+            };
+            var result = HeadlineComposer.ComposePlayer(input);
+            Assert.NotNull(result);
+            Assert.Contains("TopMoney", result!.Tags);
+            Assert.Contains("8th", result.Text);
         }
 
         [Fact]

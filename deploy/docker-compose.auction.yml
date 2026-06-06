@@ -3,7 +3,7 @@
 # (the deploy workflow runs `docker compose ... auction-api` from that folder)
 services:
   auction-api:
-    image: ghcr.io/REPLACE_WITH_GH_USER/free-agency-auction-api:latest
+    image: ghcr.io/stanman519/free-agency-auction-api:latest
     container_name: auction-api
     restart: unless-stopped
     ports:
