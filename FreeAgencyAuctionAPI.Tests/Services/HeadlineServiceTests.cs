@@ -123,22 +123,48 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.DoesNotContain("DrySpell", owner.Tags);
         }
 
-        [Fact]
-        public async Task RecomputeAll_NeverSignedOwner_QuietStartWithoutDayZero()
+        // Adds an owner who won `mflId` `daysAgo` days ago (won lot = a leading bid that has expired).
+        private static void AddSignedOwner(AuctionContext db, int ownerId, int franchiseId, int mflId, int salary, int years, double daysAgo, string pos = "WR", int cap = 110)
         {
+            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = ownerId, Leagueid = LeagueId, Ownerid = ownerId, Mflfranchiseid = franchiseId, Caproom = cap, Teamname = "T" + ownerId });
+            db.Players.Add(new PlayerEntity { Mflid = mflId, Firstname = "P", Lastname = mflId.ToString(), Position = pos });
+            var bid = new BidEntity { Bidid = mflId, Mflid = mflId, Leagueid = LeagueId, Ownerid = ownerId, Bidsalary = salary, Bidlength = years, Expires = DateTime.UtcNow.AddDays(-daysAgo) };
+            db.Bids.Add(bid);
+            db.Lots.Add(new LotEntity { Lotid = mflId, Bidid = mflId, Leagueid = LeagueId, Bid = bid });
+        }
+
+        private static HeadlineService RecomputeService(AuctionContext db) => NewService(db, new Mock<IMflService>());
+
+        [Fact]
+        public async Task RecomputeAll_NoAuctionActivity_ProducesNoOwnerHeadlines()
+        {
+            // The exact pre-auction flood the user hit: auction on, zero bids -> no headlines.
             using var db = NewDb();
             db.Leagues.Add(new LeagueEntity { Mflid = LeagueId, Name = "L", Isauctioning = true });
-            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 10, Leagueid = LeagueId, Ownerid = 5, Mflfranchiseid = 1, Caproom = 93, Teamname = "Quiet" });
+            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 50, Leagueid = LeagueId, Ownerid = 50, Mflfranchiseid = 1, Caproom = 93, Teamname = "Quiet" });
             await db.SaveChangesAsync();
-
-            var mfl = new Mock<IMflService>();
-            mfl.Setup(m => m.GetMflRosters(LeagueId)).ReturnsAsync(new List<FranchiseRoster>());
-            var svc = NewService(db, mfl);
+            var svc = RecomputeService(db);
 
             await svc.RecomputeAllForLeague(LeagueId);
 
-            var headlines = await svc.GetActive(LeagueId);
-            var owner = headlines.Single(h => h.ReferenceKind == HeadlineRefKind.Owner && h.ReferenceId == 10);
+            Assert.Empty(await svc.GetActive(LeagueId));
+        }
+
+        [Fact]
+        public async Task RecomputeAll_MarketActive_NeverSignedOwner_QuietStartWithoutDayZero()
+        {
+            using var db = NewDb();
+            db.Leagues.Add(new LeagueEntity { Mflid = LeagueId, Name = "L", Isauctioning = true });
+            AddSignedOwner(db, 10, 1, 101, 10, 1, 0.1); // three owners have signed -> market is active
+            AddSignedOwner(db, 20, 2, 102, 10, 1, 0.1);
+            AddSignedOwner(db, 30, 3, 103, 10, 1, 0.1);
+            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 50, Leagueid = LeagueId, Ownerid = 50, Mflfranchiseid = 9, Caproom = 93, Teamname = "Quiet" });
+            await db.SaveChangesAsync();
+            var svc = RecomputeService(db);
+
+            await svc.RecomputeAllForLeague(LeagueId);
+
+            var owner = (await svc.GetActive(LeagueId)).Single(h => h.ReferenceKind == HeadlineRefKind.Owner && h.ReferenceId == 50);
             Assert.StartsWith("DrySpell", owner.Tags);
             Assert.Contains("93", owner.Text);
             Assert.DoesNotContain("day 0", owner.Text);
@@ -150,29 +176,15 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         {
             using var db = NewDb();
             db.Leagues.Add(new LeagueEntity { Mflid = LeagueId, Name = "L", Isauctioning = true });
-            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 10, Leagueid = LeagueId, Ownerid = 5, Mflfranchiseid = 1, Caproom = 100, Teamname = "Cold" });
-            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 20, Leagueid = LeagueId, Ownerid = 6, Mflfranchiseid = 2, Caproom = 150, Teamname = "Rich" });
-            db.Players.Add(new PlayerEntity { Mflid = 77, Firstname = "Old", Lastname = "Signing", Position = "WR" });
-
-            // Owner 10's only signing was 4 days ago (won lot = leading bid already expired).
-            var bid = new BidEntity { Bidid = 1, Mflid = 77, Leagueid = LeagueId, Ownerid = 10, Bidsalary = 20, Bidlength = 2, Expires = DateTime.UtcNow.AddDays(-4) };
-            db.Bids.Add(bid);
-            db.Lots.Add(new LotEntity { Lotid = 1, Bidid = 1, Leagueid = LeagueId, Bid = bid });
+            AddSignedOwner(db, 10, 1, 77, 20, 2, 4.0, cap: 100); // gap of 4 days, small $40 deal
+            AddSignedOwner(db, 20, 2, 78, 10, 1, 0.1);           // two recent signers make the market active
+            AddSignedOwner(db, 30, 3, 79, 10, 1, 0.1);
             await db.SaveChangesAsync();
-
-            // Three league contracts worth more than owner 10's $20x2=40, so it is NOT a BigContract
-            // (which would otherwise preempt DrySpell). Mapped to franchise 2 so owner 10 has no spend.
-            var mfl = new Mock<IMflService>();
-            mfl.Setup(m => m.GetMflRosters(LeagueId)).ReturnsAsync(new List<FranchiseRoster>
-            {
-                Fr("0002", ("300", "30", "3"), ("301", "30", "3"), ("302", "30", "3")),
-            });
-            var svc = NewService(db, mfl);
+            var svc = RecomputeService(db);
 
             await svc.RecomputeAllForLeague(LeagueId);
 
-            var headlines = await svc.GetActive(LeagueId);
-            var owner = headlines.Single(h => h.ReferenceKind == HeadlineRefKind.Owner && h.ReferenceId == 10);
+            var owner = (await svc.GetActive(LeagueId)).Single(h => h.ReferenceKind == HeadlineRefKind.Owner && h.ReferenceId == 10);
             Assert.StartsWith("DrySpell", owner.Tags);
             Assert.Contains("4", owner.Text);   // real day count from the won-lot timestamp
             Assert.Contains("100", owner.Text);

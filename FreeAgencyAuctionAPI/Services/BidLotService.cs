@@ -24,6 +24,7 @@ namespace FreeAgencyAuctionAPI.Services
         public Task PostNewBidChangesToGroup(int leagueId);
         // Task SendWinningMessage(BidDTO bid);
         Task<BidDTO> GetCurrentBidInLotId(int leagueId);
+        Task<List<BidDTO>> ExtendActiveBidExpirations(int leagueId, int hours);
     }
 
     public class BidLotService : IBidLotService
@@ -205,5 +206,8 @@ namespace FreeAgencyAuctionAPI.Services
         {
             return (latestBid.BidLength * 5) + latestBid.BidSalary < (bid.BidLength * 5) + bid.BidSalary;
         }
+
+        public Task<List<BidDTO>> ExtendActiveBidExpirations(int leagueId, int hours) =>
+            _repo.ExtendActiveBidExpirations(leagueId, hours);
     }
 }

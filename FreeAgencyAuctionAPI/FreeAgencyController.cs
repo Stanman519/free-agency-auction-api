@@ -517,6 +517,18 @@ namespace FreeAgencyAuctionAPI
             return Ok(new { updated });
         }
 
+        [HttpPost("admin/leagues/{leagueId}/extend-bids")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ExtendActiveBids([Path] int leagueId, [Query] int hours = 2)
+        {
+            if (hours < 1 || hours > 48) return BadRequest(new { error = "hours must be between 1 and 48" });
+            var updatedBids = await _bService.ExtendActiveBidExpirations(leagueId, hours);
+            foreach (var bid in updatedBids)
+                await _auctionHub.Clients.All.SendAsync("FreshBid", bid);
+            return Ok(new { count = updatedBids.Count });
+        }
+
         /*[HttpGet("inventory")]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status200OK)]

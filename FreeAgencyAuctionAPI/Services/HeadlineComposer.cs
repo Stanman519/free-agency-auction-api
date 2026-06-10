@@ -461,14 +461,14 @@ namespace FreeAgencyAuctionAPI.Services
         {
             "{owner} going all in — ${total} committed to {pos}",
             "{owner} top-3 spender at ${total}, leaning {pos}",
-            "{owner} aggressive in the {pos} market — ${total} spent",
+            "{owner} spending aggressively — ${total} into {pos}",
             "{owner} loading up at {pos}: ${total} and counting",
             "Big market: {owner} pouring ${total} into {pos}",
-            "{owner}'s ${total} {pos} haul leads the field",
+            "{owner}'s ${total} haul at {pos} leads the field",
             "{owner} the top buyer at {pos} (${total})",
             "{owner} reshaping the roster — ${total} into {pos}",
             "Sources: {owner} prioritizing {pos}, ${total} committed",
-            "{owner} dominating the {pos} market with ${total}",
+            "{owner} dominating {pos} with ${total}",
             "All-in at {pos}: {owner} up to ${total}",
         };
 

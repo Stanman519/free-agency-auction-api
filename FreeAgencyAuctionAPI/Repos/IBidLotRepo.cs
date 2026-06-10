@@ -21,6 +21,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<BidEntity> GetLatestBidForPlayerId(int mflId, int leagueId);
         Task<BidDTO> GetCurrentBidForLotId(int lotId);
         Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId);
+        Task<List<BidDTO>> ExtendActiveBidExpirations(int leagueId, int hours);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -227,6 +228,33 @@ namespace FreeAgencyAuctionAPI.Repos
                 Console.WriteLine(e);
                 throw;
             }
+        }
+        public async Task<List<BidDTO>> ExtendActiveBidExpirations(int leagueId, int hours)
+        {
+            var now = DateTime.UtcNow;
+            var activeBids = await _db.Bids
+                .Where(b => b.Leagueid == leagueId && b.Expires > now)
+                .ToListAsync();
+
+            foreach (var bid in activeBids)
+                bid.Expires = bid.Expires.AddHours(hours);
+
+            await _db.SaveChangesAsync();
+
+            var activeBidIds = activeBids.Select(b => b.Bidid).ToHashSet();
+            var lots = await _db.Lots
+                .Where(l => l.Leagueid == leagueId && l.Bidid.HasValue && activeBidIds.Contains(l.Bidid.Value))
+                .ToListAsync();
+
+            return lots
+                .Where(l => l.Bid != null)
+                .Select(l =>
+                {
+                    var dto = _mapper.Map<BidDTO>(l.Bid);
+                    dto.LotId = l.Lotid;
+                    return dto;
+                })
+                .ToList();
         }
     //}
 }
