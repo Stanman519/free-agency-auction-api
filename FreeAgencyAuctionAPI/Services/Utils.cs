@@ -22,8 +22,8 @@ namespace FreeAgencyAuctionAPI.Services
             {12,"dkirsch16"}
         };
         public static Dictionary<int, string> leagueBotDict = new Dictionary<int, string>{
-            { 13894, "REDACTED_GROUPME_BOT" },
-            { 26548, "REDACTED_GROUPME_BOT"}
+            { 13894, Environment.GetEnvironmentVariable("GroupMe__BotId__13894") ?? "" },
+            { 26548, Environment.GetEnvironmentVariable("GroupMe__BotId__26548") ?? "" }
         };
 
         public static Dictionary<string, PositionAgeCliff> AgeCliffs = new()
