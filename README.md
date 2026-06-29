@@ -1,6 +1,6 @@
 # Free Agency Auction API
 
-Backend for **FanPools**, a dynasty fantasy-football platform running two [MyFantasyLeague](https://www.myfantasyleague.com/) (MFL) leagues (~50 owners). This is the core service: it powers a real-time free-agent auction, enforces a salary-cap / contract rulebook, and keeps everything in sync with MFL.
+Backend for **FanPools**, a dynasty fantasy-football platform running two [MyFantasyLeague](https://www.myfantasyleague.com/) (MFL) leagues (~25 owners). This is the core service: it powers a real-time free-agent auction, enforces a salary-cap / contract rulebook, and keeps everything in sync with MFL.
 
 ## Highlights
 
