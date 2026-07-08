@@ -105,8 +105,10 @@ namespace FreeAgencyAuctionAPI
                         BidSalary = EstimateSalary(i),
                         BidLength = 1 + (i % 4),
                         Player = player,
-                        // Stagger expiries so timers tick down at different moments.
-                        Expires = now.AddSeconds(25 + i * 12 + rng.Next(0, 8)),
+                        // The real auction runs over days and a bid resets the clock to
+                        // ~10h. Spread expiries from ~6h to ~3 days out so nothing hits
+                        // zero (which does nothing visible) while someone browses the demo.
+                        Expires = now.AddHours(6 + i * 9 + rng.Next(0, 4)),
                     }
                 });
             }
@@ -145,20 +147,48 @@ namespace FreeAgencyAuctionAPI
             var owners = await _oService.GetAllOwners(LeagueId);
             var pool = (await _pService.GetAllFreeAgents(LeagueId)).ToList();
 
-            var perTeam = owners.Count > 0 ? Math.Max(1, pool.Count / owners.Count) : 0;
-            var idx = 0;
+            // Draw each franchise a believable position mix (not a same-position slice of
+            // the pool). Position buckets are best-first queues, so no player lands twice.
+            Queue<PlayerDTO> Bucket(params string[] pos) => new Queue<PlayerDTO>(
+                pool.Where(p => pos.Contains((p.Position ?? string.Empty).ToUpperInvariant()))
+                    .OrderByDescending(p => p.LastSeasonPts ?? 0));
+            var qbs = Bucket("QB");
+            var rbs = Bucket("RB", "FB", "HB");
+            var wrs = Bucket("WR");
+            var tes = Bucket("TE");
+
+            var rng = new Random(32); // stable-ish across reloads
 
             var rosters = owners.Select(o =>
             {
                 var players = new List<PlayerDTO>();
-                for (var k = 0; k < perTeam && idx < pool.Count; k++, idx++)
+
+                // salaries[k] = contract for the k-th best player drawn at this slot.
+                void Draw(Queue<PlayerDTO> q, int count, int[] salaries, string status)
                 {
-                    var p = pool[idx];
-                    p.Salary = EstimateContractSalary(k);
-                    p.Length = 1 + (k % 4);
-                    p.MflFranchiseId = o.Mflfranchiseid;
-                    players.Add(p);
+                    for (var k = 0; k < count && q.Count > 0; k++)
+                    {
+                        var p = q.Dequeue();
+                        p.MflFranchiseId = o.Mflfranchiseid;
+                        p.Salary = salaries[Math.Min(k, salaries.Length - 1)];
+                        p.Length = 1 + rng.Next(0, 4);
+                        p.RosterStatus = status;
+                        players.Add(p);
+                    }
                 }
+
+                // Active roster — a real dynasty mix of QB/RB/WR/TE.
+                Draw(qbs, 2, new[] { 45, 18 }, "ROSTER");
+                Draw(rbs, 6, new[] { 34, 22, 14, 8, 5, 3 }, "ROSTER");
+                Draw(wrs, 7, new[] { 40, 28, 20, 13, 9, 5, 4 }, "ROSTER");
+                Draw(tes, 3, new[] { 23, 12, 6 }, "ROSTER");
+                // A couple banged-up starters on IR (50% cap hit).
+                Draw(rbs, 1, new[] { 16 }, "INJURED_RESERVE");
+                Draw(wrs, 1, new[] { 11 }, "INJURED_RESERVE");
+                // Rookies stashed on the taxi squad (20% cap hit).
+                Draw(rbs, 2, new[] { 14, 8 }, "TAXI_SQUAD");
+                Draw(wrs, 2, new[] { 12, 6 }, "TAXI_SQUAD");
+                Draw(tes, 1, new[] { 7 }, "TAXI_SQUAD");
 
                 return new OpposingFranchiseWithRoster
                 {
@@ -169,7 +199,10 @@ namespace FreeAgencyAuctionAPI
                     TeamName = string.IsNullOrWhiteSpace(o.TeamName) ? o.OwnerName : o.TeamName,
                     OwnerName = o.OwnerName,
                     Avatar = o.Avatar,
-                    Players = players.OrderBy(x => x.Position).ThenByDescending(x => x.Salary).ToList(),
+                    Players = players
+                        .OrderBy(x => PositionOrder(x.Position))
+                        .ThenByDescending(x => x.Salary)
+                        .ToList(),
                     DraftPicks = new List<FutureDraftPickDTO>()
                 };
             }).ToList();
@@ -180,8 +213,15 @@ namespace FreeAgencyAuctionAPI
         /// <summary>Rough descending salary curve so top lots cost more. Demo-only cosmetic.</summary>
         private static int EstimateSalary(int rank) => Math.Max(3, 58 - rank * 7);
 
-        /// <summary>Descending per-roster contract salary, demo-only cosmetic.</summary>
-        private static int EstimateContractSalary(int slot) => Math.Max(1, 45 - slot * 3);
+        /// <summary>Groups a roster QB → RB → WR → TE for display ordering.</summary>
+        private static int PositionOrder(string position) => (position ?? string.Empty).ToUpperInvariant() switch
+        {
+            "QB" => 0,
+            "RB" or "FB" or "HB" => 1,
+            "WR" => 2,
+            "TE" => 3,
+            _ => 4
+        };
 
         private OwnerDTO BuildDemoProfile(List<OpposingFranchiseDTO> owners, LeagueDTO league)
         {
