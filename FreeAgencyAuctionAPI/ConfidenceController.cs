@@ -49,6 +49,11 @@
                 _adminAuthService = adminAuthService;
             }
 
+            // Anonymous (public demo) callers may only read the demo pool, which lives
+            // under year -1. Authenticated users can read any year.
+            private bool AnonymousMayNotRead(int year) =>
+                year != -1 && !(User.Identity?.IsAuthenticated ?? false);
+
             // Helper method to decode user parameter
             private string DecodeUserParam(string user)
             {
@@ -84,12 +89,14 @@
             }
 
 
+            [AllowAnonymous]
             [HttpGet("matchups")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCurrentMatchupsForm([FromQuery] int year = 0, [FromQuery] string user = "")
             {
+                if (AnonymousMayNotRead(year)) return Unauthorized(new ErrorResponse("Login required."));
                 if (year == 0) year = DateTime.UtcNow.Year;
                 // Decode user parameter
                 user = DecodeUserParam(user);
@@ -387,12 +394,14 @@
                 }
             }
 
+            [AllowAnonymous]
             [HttpGet("year/{year}/week/{week}/coummunity-stats")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCommunityStats(int year, int week)
             {
+                if (AnonymousMayNotRead(year)) return Unauthorized(new ErrorResponse("Login required."));
                 var allPicksThisWeek = _db.NflPicks.Where(p => p.NflTeamMatchup.Week == week && p.NflTeamMatchup.Year == year).ToList().GroupBy(p => p.MatchupId);
                 var isStillPickable = false;
 
@@ -769,12 +778,14 @@
             {
                 return BadRequest(new ErrorResponse("beep boop test."));
             }
+            [AllowAnonymous]
             [HttpGet("results")]
             [Produces("application/json")]
             [ProducesResponseType(StatusCodes.Status200OK)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> GetCurrentPoolResults([Query] int year = 2023)
             {
+                if (AnonymousMayNotRead(year)) return Unauthorized(new ErrorResponse("Login required."));
                 var extraPts = _db.ExtraPicks.Where(_ => _.Prop.Year == year).GroupBy(_ => _.OwnerId).ToList();
                 var results = _db.NflPicks.Where(_ => _.NflTeamMatchup.Year == year)
                     .GroupBy(_ => _.OwnerId)

@@ -6,6 +6,16 @@ namespace FreeAgencyAuctionAPI.Services
     public static class Utils
     {
         public static int CurrentYear => DateTime.UtcNow.Year;
+
+        /// <summary>The public read-only demo league (Neon). See DemoController.</summary>
+        public const int DemoLeagueId = -32;
+
+        /// <summary>
+        /// Demo leagues use negative ids. Existing read paths already branch on
+        /// <c>leagueId &lt; 0</c>; this is the single source of truth for that check,
+        /// and the boundary the write-guard enforces (no mutation may target a demo league).
+        /// </summary>
+        public static bool IsDemoLeague(int leagueId) => leagueId < 0;
         public static Dictionary<int, string> Owners = new()
         {
             {1, "Ryan"},
