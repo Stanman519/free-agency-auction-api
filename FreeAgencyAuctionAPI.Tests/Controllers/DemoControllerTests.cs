@@ -106,6 +106,8 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
                 Assert.Equal(DemoLeague, l.LeagueId);
                 Assert.Equal(DemoLeague, l.Bid.LeagueId);
                 Assert.True(l.Bid.Expires > DateTime.UtcNow, "lot timer must be in the future");
+                // A real nomination/bid caps the clock at 18h; demo must never exceed it.
+                Assert.True(l.Bid.Expires < DateTime.UtcNow.AddHours(18), "lot timer must be under 18h");
                 Assert.NotNull(l.Bid.Player);
             });
 
@@ -115,6 +117,33 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
             // Free agents on the board are excluded from the free-agent pool.
             var lottedIds = activeLots.Select(l => l.Bid.Player.MflId).ToHashSet();
             Assert.DoesNotContain(data.freeAgents, p => lottedIds.Contains(p.MflId));
+        }
+
+        [Fact]
+        public async Task AuctionBundle_BoardHasPositionVariety_NotAllQbs()
+        {
+            var db = BuildDb(nameof(AuctionBundle_BoardHasPositionVariety_NotAllQbs));
+            var ownerSvc = new Mock<IOwnerService>();
+            ownerSvc.Setup(s => s.GetAllOwners(DemoLeague)).ReturnsAsync(DemoOwners());
+
+            // A points-sorted pool where the top scorers are all QBs (the real-world case).
+            var mixed = new List<PlayerDTO>();
+            var id = 1;
+            foreach (var (pos, n, basePts) in new[] { ("QB", 10, 400m), ("WR", 20, 200m), ("RB", 20, 180m), ("TE", 10, 120m) })
+                for (var k = 0; k < n; k++)
+                    mixed.Add(new PlayerDTO { MflId = id++, FirstName = $"{pos}{k}", LastName = "Demo", Position = pos, LastSeasonPts = basePts - k });
+
+            var playerSvc = new Mock<IPlayerService>();
+            playerSvc.Setup(s => s.GetAllFreeAgents(DemoLeague)).ReturnsAsync(mixed);
+
+            var controller = BuildController(db, ownerSvc, playerSvc);
+
+            var result = Assert.IsType<OkObjectResult>(await controller.AuctionBundle());
+            var data = Assert.IsType<LoadData>(result.Value);
+
+            var positions = data.lots.Where(l => l.Bid?.Player != null)
+                .Select(l => l.Bid.Player.Position).Distinct().ToList();
+            Assert.True(positions.Count >= 3, $"board should span positions, saw: {string.Join(",", positions)}");
         }
 
         [Fact]
@@ -139,6 +168,32 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
                 Assert.True(p.Salary > 0);
                 Assert.True(p.Length >= 1);
             }));
+        }
+
+        [Fact]
+        public async Task Rosters_GivesUniqueFranchiseIds_WhenOwnersCollide()
+        {
+            var db = BuildDb(nameof(Rosters_GivesUniqueFranchiseIds_WhenOwnersCollide));
+            // Demo owners with duplicate (0) and colliding franchise ids — the real defect.
+            var owners = new List<OpposingFranchiseDTO>
+            {
+                new() { Leagueownerid = 88, Mflfranchiseid = 0, OwnerName = "A" },
+                new() { Leagueownerid = 49, Mflfranchiseid = 0, OwnerName = "B" },
+                new() { Leagueownerid = 50, Mflfranchiseid = 5, OwnerName = "C" },
+                new() { Leagueownerid = 51, Mflfranchiseid = 5, OwnerName = "D" },
+            };
+            var ownerSvc = new Mock<IOwnerService>();
+            ownerSvc.Setup(s => s.GetAllOwners(DemoLeague)).ReturnsAsync(owners);
+            var playerSvc = new Mock<IPlayerService>();
+            playerSvc.Setup(s => s.GetAllFreeAgents(DemoLeague)).ReturnsAsync(DemoFreeAgents(40));
+
+            var controller = BuildController(db, ownerSvc, playerSvc);
+
+            var result = Assert.IsType<OkObjectResult>(await controller.Rosters());
+            var rosters = Assert.IsType<List<OpposingFranchiseWithRoster>>(result.Value);
+
+            var ids = rosters.Select(r => r.Mflfranchiseid).ToList();
+            Assert.Equal(ids.Count, ids.Distinct().Count()); // all unique → no React key collision
         }
     }
 }

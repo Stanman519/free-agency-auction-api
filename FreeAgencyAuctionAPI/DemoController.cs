@@ -58,6 +58,7 @@ namespace FreeAgencyAuctionAPI
 
             var owners = await _oService.GetAllOwners(LeagueId);
             if (owners.Count == 0) return NotFound(new ErrorResponse("Demo league has no owners."));
+            NormalizeOwners(owners);
 
             return Ok(BuildDemoProfile(owners, league));
         }
@@ -75,20 +76,35 @@ namespace FreeAgencyAuctionAPI
         {
             var league = await GetDemoLeagueDto();
             var owners = await _oService.GetAllOwners(LeagueId);
+            NormalizeOwners(owners);
             var freeAgents = await _pService.GetAllFreeAgents(LeagueId);
 
             var pool = freeAgents
                 .OrderByDescending(p => p.LastSeasonPts ?? 0)
                 .ToList();
 
+            // The board should show a variety of positions, not the top-8 scorers (which
+            // are all QBs). Draw best-first from each position bucket and round-robin them.
+            Queue<PlayerDTO> Bucket(params string[] pos) => new Queue<PlayerDTO>(
+                pool.Where(p => pos.Contains((p.Position ?? string.Empty).ToUpperInvariant())));
+            var byPos = new[] { Bucket("WR"), Bucket("RB", "FB", "HB"), Bucket("QB"), Bucket("TE") };
+
             var now = DateTime.UtcNow;
             var rng = new Random();
             var activeCount = Math.Min(8, pool.Count);
 
             var lots = new List<LotDTO>();
-            for (var i = 0; i < activeCount; i++)
+            for (int i = 0, cursor = 0; i < activeCount; i++)
             {
-                var player = pool[i];
+                // Advance to the next non-empty position bucket for variety.
+                PlayerDTO player = null;
+                for (var tries = 0; tries < byPos.Length && player == null; tries++, cursor++)
+                {
+                    var q = byPos[cursor % byPos.Length];
+                    if (q.Count > 0) player = q.Dequeue();
+                }
+                if (player == null) break; // pool exhausted
+
                 var owner = owners.Count > 0 ? owners[i % owners.Count] : null;
                 lots.Add(new LotDTO
                 {
@@ -105,10 +121,10 @@ namespace FreeAgencyAuctionAPI
                         BidSalary = EstimateSalary(i),
                         BidLength = 1 + (i % 4),
                         Player = player,
-                        // The real auction runs over days and a bid resets the clock to
-                        // ~10h. Spread expiries from ~6h to ~3 days out so nothing hits
-                        // zero (which does nothing visible) while someone browses the demo.
-                        Expires = now.AddHours(6 + i * 9 + rng.Next(0, 4)),
+                        // A real nomination starts an 18h clock; a bid resets it to 18h. So
+                        // keep every demo lot under 18h out (staggered ~1h–17h) — the timer
+                        // UI is sized for hours, and nothing races to zero while browsing.
+                        Expires = now.AddMinutes(60 + i * 130 + rng.Next(0, 40)),
                     }
                 });
             }
@@ -145,6 +161,7 @@ namespace FreeAgencyAuctionAPI
         public async Task<IActionResult> Rosters()
         {
             var owners = await _oService.GetAllOwners(LeagueId);
+            NormalizeOwners(owners);
             var pool = (await _pService.GetAllFreeAgents(LeagueId)).ToList();
 
             // Draw each franchise a believable position mix (not a same-position slice of
@@ -212,6 +229,29 @@ namespace FreeAgencyAuctionAPI
 
         /// <summary>Rough descending salary curve so top lots cost more. Demo-only cosmetic.</summary>
         private static int EstimateSalary(int rank) => Math.Max(3, 58 - rank * 7);
+
+        /// <summary>
+        /// The demo league's owners have colliding/unset MFL franchise ids, which breaks
+        /// the roster picker (React key collisions) and the "my team" match. Sort by the
+        /// always-unique league-owner id and hand each franchise a unique id (keeping a
+        /// real one when it's positive and unique, else falling back to the owner id).
+        /// Deterministic, so bootstrap and rosters agree on which franchise is "me".
+        /// </summary>
+        private static void NormalizeOwners(List<OpposingFranchiseDTO> owners)
+        {
+            owners.Sort((a, b) => a.Leagueownerid.CompareTo(b.Leagueownerid));
+            var used = new HashSet<int>();
+            foreach (var o in owners)
+            {
+                var id = o.Mflfranchiseid;
+                if (id <= 0 || !used.Add(id))
+                {
+                    id = o.Leagueownerid;
+                    while (!used.Add(id)) id++;
+                }
+                o.Mflfranchiseid = id;
+            }
+        }
 
         /// <summary>Groups a roster QB → RB → WR → TE for display ordering.</summary>
         private static int PositionOrder(string position) => (position ?? string.Empty).ToUpperInvariant() switch
