@@ -96,6 +96,14 @@ namespace FreeAgencyAuctionAPI.OverUnders
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> UpsertTeamWinTotals([Path] int poolId, [Path] int ownerId, [FromBody] IEnumerable<OverUnderPickDTO> picks)
         {
+            // Picks are only writable while the pool is still open. The UI hides the
+            // submit button once a season starts, but nothing stopped a direct request
+            // from rewriting a closed season's picks.
+            var pool = await _db.Pools.FirstOrDefaultAsync(p => p.Id == poolId);
+            if (pool == null) return NotFound($"pool {poolId} not found");
+            if (pool.StartDate <= DateTime.UtcNow)
+                return BadRequest("picks are closed for this pool");
+
             List<OverUnderPick> newDbPicks = new List<OverUnderPick>();
             picks.ToList().ForEach(p => p.PoolId = poolId);
 
@@ -166,6 +174,7 @@ namespace FreeAgencyAuctionAPI.OverUnders
         public async Task<IActionResult> GetAllUsersAndPicksForPool([Path] int poolId)
         {
             var pool = await _db.Pools.FirstOrDefaultAsync(p => p.Id == poolId);
+            if (pool == null) return NotFound($"pool {poolId} not found");
             if (pool.StartDate < DateTime.UtcNow)
             {
                 // give all the picks of all the owners
