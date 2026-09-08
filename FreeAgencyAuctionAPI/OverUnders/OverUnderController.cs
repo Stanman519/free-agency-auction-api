@@ -2,6 +2,7 @@
 using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.Models.Confidence;
 using FreeAgencyAuctionAPI.Repos;
+using FreeAgencyAuctionAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,15 +25,23 @@ namespace FreeAgencyAuctionAPI.OverUnders
         private readonly ILogger<OverUnderController> _logger;
         private readonly ISportsDataApi _sportsDataApi;
         private readonly IOptionsSnapshot<AppConfig> _options;
+        private readonly IAdminAuthorizationService _adminAuthService;
         private readonly int DEFAULT_POOL_ID_TEMP = 1;
 
-        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger, ISportsDataApi sportsDateApi, IOptionsSnapshot<AppConfig> options)
+        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger, ISportsDataApi sportsDateApi, IOptionsSnapshot<AppConfig> options, IAdminAuthorizationService adminAuthService)
         {
             _mapper = mapper;
             _db = db;
             _logger = logger;
             _sportsDataApi = sportsDateApi;
             _options = options;
+            _adminAuthService = adminAuthService;
+        }
+
+        // Mirrors ConfidenceController.DecodeUserParam.
+        private static string DecodeUserParam(string user)
+        {
+            return string.IsNullOrEmpty(user) ? user : System.Net.WebUtility.UrlDecode(user);
         }
 
         [HttpGet("pools/{poolId}/year/{year}/leagues/{league}/owners/{ownerId}/team-win-totals")]
@@ -224,6 +233,67 @@ namespace FreeAgencyAuctionAPI.OverUnders
             var franchiseOvers = await _db.OverUnderPicks.Where(s => s.PoolId == poolId).ToListAsync();
             var retOvers = _mapper.Map<List<OverUnderPickDTO>>(franchiseOvers);
             return Ok(retOvers);
+        }
+
+        [HttpGet("pools/{poolId}/admin/unpaid")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetUnpaidPoolUsers([Path] int poolId, [FromQuery] string user = "")
+        {
+            user = DecodeUserParam(user);
+            var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+            if (!authResult.IsAuthenticated)
+                return Unauthorized(new ErrorResponse("Authentication required."));
+            if (!authResult.IsAuthorized)
+                return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponse("Admin privileges required for this action."));
+
+            var unpaid = await _db.PoolUsers
+                .Where(p => p.PoolId == poolId && !p.IsPaid)
+                .Select(u => new PoolUserDTO
+                {
+                    Id = u.Id,
+                    IsPaid = u.IsPaid,
+                    Owner = new OwnerDTO
+                    {
+                        DisplayName = u.Owner.Displayname,
+                        Avatar = u.Owner.Avatar,
+                        Ownername = u.Owner.Ownername,
+                        OwnerId = u.Owner.Ownerid
+                    },
+                    Picks = new List<OverUnderPickDTO>()
+                })
+                .ToListAsync();
+            return Ok(unpaid);
+        }
+
+        [HttpPost("pools/{poolId}/admin/mark-paid")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> MarkPoolUsersAsPaid([Path] int poolId, [FromBody] List<int> poolUserIds, [FromQuery] string user = "")
+        {
+            user = DecodeUserParam(user);
+            var authResult = await _adminAuthService.AuthorizeAdminAsync(user);
+            if (!authResult.IsAuthenticated)
+                return Unauthorized(new ErrorResponse("Authentication required."));
+            if (!authResult.IsAuthorized)
+                return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponse("Admin privileges required for this action."));
+
+            var editPoolUsers = await _db.PoolUsers
+                .Where(p => p.PoolId == poolId && poolUserIds.Contains(p.Id))
+                .ToListAsync();
+
+            if (!editPoolUsers.Any())
+                return BadRequest(new ErrorResponse("No pool users found with the provided IDs."));
+
+            editPoolUsers.ForEach(p => p.IsPaid = true);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { markedPaid = editPoolUsers.Count });
         }
 
         [HttpGet("pools/{poolId}/ou-users")]

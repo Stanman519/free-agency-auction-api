@@ -8,6 +8,7 @@ using FreeAgencyAuctionAPI.Models;
 using FreeAgencyAuctionAPI.OverUnders;
 using FreeAgencyAuctionAPI.Repos;
 using FreeAgencyAuctionAPI.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -57,7 +58,7 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
             new MapperConfiguration(cfg => cfg.AddProfile<OverUnderPickProfile>())
                 .CreateMapper();
 
-        private OverUnderController BuildController(AuctionContext db)
+        private OverUnderController BuildController(AuctionContext db, IAdminAuthorizationService adminAuthService = null)
         {
             var options = new Mock<IOptionsSnapshot<AppConfig>>();
             options.SetupGet(o => o.Value).Returns(new AppConfig());
@@ -66,7 +67,8 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
                 BuildMapper(),
                 new Mock<ILogger<OverUnderController>>().Object,
                 new Mock<ISportsDataApi>().Object,
-                options.Object);
+                options.Object,
+                adminAuthService ?? new Mock<IAdminAuthorizationService>().Object);
         }
 
         private static List<OverUnderPickDTO> Picks(int poolId) => new()
@@ -120,6 +122,122 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
             var result = await controller.GetAllUsersAndPicksForPool(9999);
 
             Assert.IsType<NotFoundObjectResult>(result);
+        }
+
+        private static void AddOwner(AuctionContext db, int ownerId, string authId = null, bool premium = false)
+        {
+            db.Owners.Add(new OwnerEntity
+            {
+                Ownerid = ownerId,
+                Ownername = $"owner{ownerId}",
+                Displayname = $"Owner {ownerId}",
+                authid = authId,
+                Premium = premium,
+                Avatar = "",
+                istest = false,
+            });
+            db.SaveChanges();
+        }
+
+        private static Mock<IAdminAuthorizationService> AdminAuthMock(bool authenticated, bool authorized, OwnerEntity owner = null)
+        {
+            var mock = new Mock<IAdminAuthorizationService>();
+            var result = !authenticated
+                ? AdminAuthResult.Unauthenticated()
+                : authorized
+                    ? AdminAuthResult.Authorized(owner)
+                    : AdminAuthResult.Unauthorized(owner);
+            mock.Setup(m => m.AuthorizeAdminAsync(It.IsAny<string>())).ReturnsAsync(result);
+            return mock;
+        }
+
+        [Fact]
+        public async Task GetUnpaidPoolUsers_ReturnsUnauthorized_WhenNotAuthenticated()
+        {
+            var db = BuildDb(nameof(GetUnpaidPoolUsers_ReturnsUnauthorized_WhenNotAuthenticated));
+            var controller = BuildController(db, AdminAuthMock(authenticated: false, authorized: false).Object);
+
+            var result = await controller.GetUnpaidPoolUsers(OpenPoolId);
+
+            Assert.IsType<UnauthorizedObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task GetUnpaidPoolUsers_ReturnsForbidden_WhenNotAdmin()
+        {
+            var db = BuildDb(nameof(GetUnpaidPoolUsers_ReturnsForbidden_WhenNotAdmin));
+            var nonAdmin = new OwnerEntity { Ownerid = 1, Premium = false };
+            var controller = BuildController(db, AdminAuthMock(authenticated: true, authorized: false, nonAdmin).Object);
+
+            var result = await controller.GetUnpaidPoolUsers(OpenPoolId);
+
+            var status = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetUnpaidPoolUsers_ReturnsOnlyUnpaidPoolUsers_ForThatPool()
+        {
+            var db = BuildDb(nameof(GetUnpaidPoolUsers_ReturnsOnlyUnpaidPoolUsers_ForThatPool));
+            AddOwner(db, OwnerId);
+            AddOwner(db, OwnerId + 1);
+            db.PoolUsers.Add(new PoolUser { Id = 1, PoolId = OpenPoolId, OwnerId = OwnerId, IsPaid = false });
+            db.PoolUsers.Add(new PoolUser { Id = 2, PoolId = OpenPoolId, OwnerId = OwnerId + 1, IsPaid = true });
+            db.PoolUsers.Add(new PoolUser { Id = 3, PoolId = ClosedPoolId, OwnerId = OwnerId, IsPaid = false });
+            db.SaveChanges();
+            var admin = new OwnerEntity { Ownerid = 99, Premium = true };
+            var controller = BuildController(db, AdminAuthMock(authenticated: true, authorized: true, admin).Object);
+
+            var result = await controller.GetUnpaidPoolUsers(OpenPoolId);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var unpaid = Assert.IsAssignableFrom<List<OverUnderController.PoolUserDTO>>(ok.Value);
+            var single = Assert.Single(unpaid);
+            Assert.Equal(1, single.Id);
+        }
+
+        [Fact]
+        public async Task MarkPoolUsersAsPaid_ReturnsForbidden_WhenNotAdmin()
+        {
+            var db = BuildDb(nameof(MarkPoolUsersAsPaid_ReturnsForbidden_WhenNotAdmin));
+            var nonAdmin = new OwnerEntity { Ownerid = 1, Premium = false };
+            var controller = BuildController(db, AdminAuthMock(authenticated: true, authorized: false, nonAdmin).Object);
+
+            var result = await controller.MarkPoolUsersAsPaid(OpenPoolId, new List<int> { 1 });
+
+            var status = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
+        }
+
+        [Fact]
+        public async Task MarkPoolUsersAsPaid_ReturnsBadRequest_WhenNoMatchingPoolUsers()
+        {
+            var db = BuildDb(nameof(MarkPoolUsersAsPaid_ReturnsBadRequest_WhenNoMatchingPoolUsers));
+            var admin = new OwnerEntity { Ownerid = 99, Premium = true };
+            var controller = BuildController(db, AdminAuthMock(authenticated: true, authorized: true, admin).Object);
+
+            var result = await controller.MarkPoolUsersAsPaid(OpenPoolId, new List<int> { 12345 });
+
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task MarkPoolUsersAsPaid_SetsIsPaid_ForMatchingPoolUsersInThatPoolOnly()
+        {
+            var db = BuildDb(nameof(MarkPoolUsersAsPaid_SetsIsPaid_ForMatchingPoolUsersInThatPoolOnly));
+            AddOwner(db, OwnerId);
+            AddOwner(db, OwnerId + 1);
+            db.PoolUsers.Add(new PoolUser { Id = 1, PoolId = OpenPoolId, OwnerId = OwnerId, IsPaid = false });
+            db.PoolUsers.Add(new PoolUser { Id = 2, PoolId = ClosedPoolId, OwnerId = OwnerId + 1, IsPaid = false });
+            db.SaveChanges();
+            var admin = new OwnerEntity { Ownerid = 99, Premium = true };
+            var controller = BuildController(db, AdminAuthMock(authenticated: true, authorized: true, admin).Object);
+
+            var result = await controller.MarkPoolUsersAsPaid(OpenPoolId, new List<int> { 1, 2 });
+
+            Assert.IsType<OkObjectResult>(result);
+            Assert.True(db.PoolUsers.Single(p => p.Id == 1).IsPaid);
+            Assert.False(db.PoolUsers.Single(p => p.Id == 2).IsPaid);
         }
     }
 }
