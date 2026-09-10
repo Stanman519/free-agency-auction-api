@@ -86,7 +86,7 @@ namespace FreeAgencyAuctionAPI
             leagueMfl.cookie = appConfig.Mfl.CommishCookie;
             services.AddSingleton(leagueMfl);
             services.AddSingleton(RestClient.For<ISharkApi>("https://www.fantasysharks.com/apps/Projections"));
-            services.AddSingleton(RestClient.For<ISportsDataApi>("https://api.sportsdata.io/v3"));
+            services.AddSingleton(RestClient.For<IEspnApi>("https://site.api.espn.com/apis/v2/sports/football/nfl"));
             services.AddSingleton(_ => streamFactory.GetMessageClient());
             services.AddSingleton(_ => streamFactory.GetUserClient());
             services.AddScoped<IPlayerService, PlayerService>();

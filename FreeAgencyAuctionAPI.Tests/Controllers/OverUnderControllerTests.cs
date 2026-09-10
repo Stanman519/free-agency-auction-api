@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using AutoMapper;
 using FreeAgencyAuctionAPI.Mapping;
@@ -58,16 +59,16 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
             new MapperConfiguration(cfg => cfg.AddProfile<OverUnderPickProfile>())
                 .CreateMapper();
 
-        private OverUnderController BuildController(AuctionContext db, IAdminAuthorizationService adminAuthService = null)
+        private OverUnderController BuildController(
+            AuctionContext db,
+            IAdminAuthorizationService adminAuthService = null,
+            IEspnApi espnApi = null)
         {
-            var options = new Mock<IOptionsSnapshot<AppConfig>>();
-            options.SetupGet(o => o.Value).Returns(new AppConfig());
             return new OverUnderController(
                 db,
                 BuildMapper(),
                 new Mock<ILogger<OverUnderController>>().Object,
-                new Mock<ISportsDataApi>().Object,
-                options.Object,
+                espnApi ?? new Mock<IEspnApi>().Object,
                 adminAuthService ?? new Mock<IAdminAuthorizationService>().Object);
         }
 
@@ -238,6 +239,77 @@ namespace FreeAgencyAuctionAPI.Tests.Controllers
             Assert.IsType<OkObjectResult>(result);
             Assert.True(db.PoolUsers.Single(p => p.Id == 1).IsPaid);
             Assert.False(db.PoolUsers.Single(p => p.Id == 2).IsPaid);
+        }
+
+        private static int CurrentSeasonYear() =>
+            DateTime.UtcNow.Month < 4 ? DateTime.UtcNow.Year - 1 : DateTime.UtcNow.Year;
+
+        private static EspnStandingsResponse EspnResponse(params (string abbreviation, double wins, double losses, double ties)[] teams) =>
+            new()
+            {
+                Children = new List<EspnConference>
+                {
+                    new EspnConference
+                    {
+                        Standings = new EspnStandings
+                        {
+                            Entries = teams.Select(t => new EspnStandingEntry
+                            {
+                                Team = new EspnTeam { Abbreviation = t.abbreviation },
+                                Stats = new List<EspnStat>
+                                {
+                                    new EspnStat { Name = "wins", Value = t.wins },
+                                    new EspnStat { Name = "losses", Value = t.losses },
+                                    new EspnStat { Name = "ties", Value = t.ties },
+                                },
+                            }).ToList(),
+                        },
+                    },
+                },
+            };
+
+        [Fact]
+        public async Task UpdateNFLTeamWins_MapsEspnAbbreviationsToTricodes_AndUpdatesRealWins()
+        {
+            var db = BuildDb(nameof(UpdateNFLTeamWins_MapsEspnAbbreviationsToTricodes_AndUpdatesRealWins));
+            var year = CurrentSeasonYear();
+            var packers = new NflTeam { Id = 1, Tricode = "GBP" };
+            var commanders = new NflTeam { Id = 2, Tricode = "WAS" };
+            db.NflTeams.AddRange(packers, commanders);
+            db.SeasonWins.Add(new SeasonWins { Id = 1, FranchiseId = 1, Year = year, RealWins = 0, GamesRemaining = 17 });
+            db.SeasonWins.Add(new SeasonWins { Id = 2, FranchiseId = 2, Year = year, RealWins = 0, GamesRemaining = 17 });
+            db.SaveChanges();
+
+            var espnApi = new Mock<IEspnApi>();
+            espnApi
+                .Setup(a => a.GetNflStandingsByYear(year))
+                .ReturnsAsync(EspnResponse(("GB", 10, 5, 1), ("WSH", 3, 12, 0)));
+            var controller = BuildController(db, espnApi: espnApi.Object);
+
+            var result = await controller.UpdateNFLTeamWins();
+
+            Assert.IsType<OkResult>(result);
+            var packerWins = db.SeasonWins.Single(w => w.FranchiseId == 1);
+            Assert.Equal(10, packerWins.RealWins);
+            Assert.Equal(1, packerWins.GamesRemaining); // 17 - (10+5+1)
+            var commandersWins = db.SeasonWins.Single(w => w.FranchiseId == 2);
+            Assert.Equal(3, commandersWins.RealWins);
+            Assert.Equal(2, commandersWins.GamesRemaining); // 17 - (3+12+0)
+        }
+
+        [Fact]
+        public async Task UpdateNFLTeamWins_ReturnsBadRequest_WhenEspnCallFails()
+        {
+            var db = BuildDb(nameof(UpdateNFLTeamWins_ReturnsBadRequest_WhenEspnCallFails));
+            var espnApi = new Mock<IEspnApi>();
+            espnApi
+                .Setup(a => a.GetNflStandingsByYear(It.IsAny<int>()))
+                .ThrowsAsync(new HttpRequestException("boom"));
+            var controller = BuildController(db, espnApi: espnApi.Object);
+
+            var result = await controller.UpdateNFLTeamWins();
+
+            Assert.IsType<BadRequestObjectResult>(result);
         }
     }
 }

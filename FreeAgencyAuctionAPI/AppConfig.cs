@@ -10,12 +10,7 @@ namespace FreeAgencyAuctionAPI
         public MflKeys Mfl { get; set; }
         public StreamClient StreamClient { get; set; }
         public ApplicationInsights ApplicationInsights { get; set; }
-        public SportsDataConfig SportsDataConfig { get; set; }
         public string AdminApiKey { get; set; }
-    }
-    public class SportsDataConfig
-    {
-        public string SportsDataApiKey { get; set; }
     }
     public class ApplicationInsights
     {

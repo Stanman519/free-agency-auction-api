@@ -23,18 +23,30 @@ namespace FreeAgencyAuctionAPI.OverUnders
         private readonly IMapper _mapper;
         private readonly AuctionContext _db;
         private readonly ILogger<OverUnderController> _logger;
-        private readonly ISportsDataApi _sportsDataApi;
-        private readonly IOptionsSnapshot<AppConfig> _options;
+        private readonly IEspnApi _espnApi;
         private readonly IAdminAuthorizationService _adminAuthService;
         private readonly int DEFAULT_POOL_ID_TEMP = 1;
 
-        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger, ISportsDataApi sportsDateApi, IOptionsSnapshot<AppConfig> options, IAdminAuthorizationService adminAuthService)
+        // ESPN's free standings API returns its own team abbreviations, which don't always
+        // match this app's NflTeam.Tricode (sourced from MFL's team codes) — e.g. ESPN "GB" vs MFL "GBP".
+        private static readonly Dictionary<string, string> EspnAbbreviationToTricode = new()
+        {
+            ["ARI"] = "ARI", ["ATL"] = "ATL", ["BAL"] = "BAL", ["BUF"] = "BUF",
+            ["CAR"] = "CAR", ["CHI"] = "CHI", ["CIN"] = "CIN", ["CLE"] = "CLE",
+            ["DAL"] = "DAL", ["DEN"] = "DEN", ["DET"] = "DET", ["GB"] = "GBP",
+            ["HOU"] = "HOU", ["IND"] = "IND", ["JAX"] = "JAC", ["KC"] = "KCC",
+            ["LAC"] = "LAC", ["LAR"] = "LAR", ["LV"] = "LVR", ["MIA"] = "MIA",
+            ["MIN"] = "MIN", ["NE"] = "NEP", ["NO"] = "NOS", ["NYG"] = "NYG",
+            ["NYJ"] = "NYJ", ["PHI"] = "PHI", ["PIT"] = "PIT", ["SEA"] = "SEA",
+            ["SF"] = "SFO", ["TB"] = "TBB", ["TEN"] = "TEN", ["WSH"] = "WAS",
+        };
+
+        public OverUnderController(AuctionContext db, IMapper mapper, ILogger<OverUnderController> logger, IEspnApi espnApi, IAdminAuthorizationService adminAuthService)
         {
             _mapper = mapper;
             _db = db;
             _logger = logger;
-            _sportsDataApi = sportsDateApi;
-            _options = options;
+            _espnApi = espnApi;
             _adminAuthService = adminAuthService;
         }
 
@@ -324,25 +336,31 @@ namespace FreeAgencyAuctionAPI.OverUnders
         {
             var thisYear = DateTime.UtcNow.Month < 4 ? DateTime.UtcNow.Year - 1 : DateTime.UtcNow.Year; //dealing with games after the new year
 
-            var key = _options.Value.SportsDataConfig.SportsDataApiKey;
-
-
             try
             {
-                var teams = await _sportsDataApi.GetNflStandingsByYear(thisYear, key);
+                var standings = await _espnApi.GetNflStandingsByYear(thisYear);
                 var dbTeams = _db.SeasonWins.Where(_ => _.Year == thisYear).ToList();
-                teams.ToList().ForEach(t =>
+                var entries = standings.Children?
+                    .SelectMany(c => c.Standings?.Entries ?? new List<EspnStandingEntry>())
+                    ?? Enumerable.Empty<EspnStandingEntry>();
+
+                foreach (var entry in entries)
                 {
-                    var foundDbTeam = dbTeams.Find(db => db.Franchise.SportsDataId == t.TeamID);
-                    if (foundDbTeam != null)
-                    {
-                        foundDbTeam.RealWins = t.Wins;
-                        foundDbTeam.GamesRemaining = 17 - (t.Wins + t.Losses + t.Ties);
-                    }
-                });
+                    if (!EspnAbbreviationToTricode.TryGetValue(entry.Team?.Abbreviation ?? "", out var tricode))
+                        continue;
+                    var foundDbTeam = dbTeams.Find(db => db.Franchise.Tricode == tricode);
+                    if (foundDbTeam == null)
+                        continue;
+
+                    var wins = (int)(entry.Stats?.FirstOrDefault(s => s.Name == "wins")?.Value ?? 0);
+                    var losses = (int)(entry.Stats?.FirstOrDefault(s => s.Name == "losses")?.Value ?? 0);
+                    var ties = (int)(entry.Stats?.FirstOrDefault(s => s.Name == "ties")?.Value ?? 0);
+                    foundDbTeam.RealWins = wins;
+                    foundDbTeam.GamesRemaining = 17 - (wins + losses + ties);
+                }
                 await _db.SaveChangesAsync();
                 return Ok();
-            } 
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
