@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -104,6 +105,126 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Single(result);
             Assert.Equal(1, result[0].Mflfranchiseid);
             Assert.Equal(365, result[0].Caproom);
+        }
+
+        [Fact]
+        public async Task GetMflLeagueRootAndAssets_IncludesContractStatusOnPlayers()
+        {
+            var leagueId = 13894;
+            var franchiseId = 1;
+            _leagueApiMock.Setup(x => x.GetBigLeagueObject(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new LeagueRoot
+            {
+                league = new League2
+                {
+                    name = "Test League",
+                    franchises = new Franchises
+                    {
+                        franchise = new List<FranchisePlusAssets>
+                        {
+                            new FranchisePlusAssets { id = "0001", salaryCapAmount = "500" }
+                        }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetFranchiseAssets(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new MflAssetsRoot
+            {
+                assets = new Assets
+                {
+                    franchise = new List<MflAssetsFranchise>
+                    {
+                        new MflAssetsFranchise { id = "0001", players = new Players { player = new List<Player> { new() { id = "900" } } } }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new MflSalariesParent
+            {
+                Salaries = new MflSalaries
+                {
+                    LeagueUnit = new MflLeagueUnit
+                    {
+                        Player = new List<Player> { new() { id = "900", salary = "24", contractYear = "1", contractStatus = "R1-2023|HOLDOUT" } }
+                    }
+                }
+            });
+
+            var result = await _service.GetMflLeagueRootAndAssets(leagueId, 2026, franchiseId);
+
+            var player = Assert.Single(result.Franchises.Single(f => f.id == "0001").assets.Players);
+            Assert.Equal("R1-2023|HOLDOUT", player.ContractStatus);
+        }
+
+        [Fact]
+        public async Task GetMyPendingTrades_IncludesContractStatusOnReceivingAndSendingAssets()
+        {
+            var leagueId = 13894;
+            var franchiseId = 1;
+            _optionsMock.Setup(x => x.Value).Returns(new AppConfig
+            {
+                Mfl = new MflKeys { MflApiKey = new List<MflApiKey> { new() { id = leagueId, key = "key" } } }
+            });
+            _leagueApiMock.Setup(x => x.GetPendingTrades(leagueId, It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new MflPendingTradesListRoot
+                {
+                    pendingTrades = new MflPendingTradesListParent
+                    {
+                        pendingTrade = new List<MflPendingTrade>
+                        {
+                            new()
+                            {
+                                trade_id = "55",
+                                offeredTo = "0001",
+                                offeringTeam = "0002",
+                                will_receive = "900",
+                                will_give_up = "901",
+                                expires = "123"
+                            }
+                        }
+                    }
+                });
+            _leagueApiMock.Setup(x => x.GetMflPlayerDetails(leagueId, It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new MflPlayerDetailsRoot
+                {
+                    players = new MflPlayerDetailsParent
+                    {
+                        player = new List<MflPlayerDetails>
+                        {
+                            new() { id = "900", first_name = "Receiving", last_name = "Player", name = "Player, Receiving", position = "RB", team = "MIA" },
+                            new() { id = "901", first_name = "Sending", last_name = "Player", name = "Player, Sending", position = "WR", team = "DAL" }
+                        }
+                    }
+                });
+            _leagueApiMock.Setup(x => x.GetFranchiseAssets(leagueId, It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new MflAssetsRoot { assets = new Assets { franchise = new List<MflAssetsFranchise>() } });
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new RostersRoot
+                {
+                    rosters = new Rosters
+                    {
+                        franchise = new List<FranchiseRoster>
+                        {
+                            new()
+                            {
+                                id = "0001",
+                                player = new List<Player> { new() { id = "900", salary = "24", contractYear = "1", contractStatus = "R1-2023" } }
+                            },
+                            new()
+                            {
+                                id = "0002",
+                                player = new List<Player> { new() { id = "901", salary = "30", contractYear = "2", contractStatus = "TAG-1" } }
+                            }
+                        }
+                    }
+                });
+            _db.Players.AddRange(
+                new PlayerEntity { Mflid = 900, Fullname = "Receiving Player" },
+                new PlayerEntity { Mflid = 901, Fullname = "Sending Player" });
+            await _db.SaveChangesAsync();
+
+            var result = await _service.GetMyPendingTrades(leagueId, franchiseId);
+
+            var trade = Assert.Single(result.tradeRequests);
+            Assert.Equal("R1-2023", trade.ReceivingAssets.Single().PlayerDetails.ContractStatus);
+            Assert.Equal("TAG-1", trade.SendingAssets.Single().PlayerDetails.ContractStatus);
         }
 
         [Fact]

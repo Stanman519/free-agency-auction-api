@@ -201,6 +201,7 @@ namespace FreeAgencyAuctionAPI.Services
                                 Length = int.TryParse(foundPlayerSalary.contractYear, out var cY) ? cY : 0,
                                 Salary = int.TryParse(foundPlayerSalary.salary, out var s) ? s : 0,
                                 MflId = int.TryParse(foundPlayerSalary.id, out var id) ? id : 0,
+                                ContractStatus = foundPlayerSalary.contractStatus,
                             };
                           // if my player get more details
                             if (isMyFranchise && myPlayers != null)
@@ -1589,9 +1590,10 @@ namespace FreeAgencyAuctionAPI.Services
                                     Salary = int.TryParse(contract.salary, out var s) ? s : 0,
                                     MflId = int.Parse(a),
                                     Position = found.position,
-                                    Team = found.team
+                                    Team = found.team,
+                                    ContractStatus = contract.contractStatus
                                 };
-                                }).FirstOrDefault(), 
+                                }).FirstOrDefault(),
                         CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeredTo, out var to) ? to : 0)) && capEat.MflPlayerId.ToString() == a).Select(capEat => new CapEat
                         {
                             Amount = capEat.CapAdjustment,
@@ -1621,7 +1623,8 @@ namespace FreeAgencyAuctionAPI.Services
                                 Salary = int.TryParse(contract.salary, out var s) ? s : 0,
                                 MflId = int.Parse(a),
                                 Position = found.position,
-                                Team = found.team
+                                Team = found.team,
+                                ContractStatus = contract.contractStatus
                             };
                         }).FirstOrDefault(),
                         CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeringTeam, out var to) ? to : 0) && capEat.MflPlayerId.ToString() == a)).Select(capEat => new CapEat
