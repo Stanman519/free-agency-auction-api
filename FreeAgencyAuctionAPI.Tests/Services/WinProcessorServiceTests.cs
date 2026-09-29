@@ -82,7 +82,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             Assert.Equal(175, updatedOwner.Caproom);
             mflMock.Verify(m => m.GetMflRosters(It.IsAny<int>()), Times.Never);
             mflMock.Verify(m => m.AddPlayerToTeam(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
-            mflMock.Verify(m => m.GiveNewContractToPlayer(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+            mflMock.Verify(m => m.GiveNewContractToPlayer(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
         }
 
         [Fact]

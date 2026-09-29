@@ -177,6 +177,11 @@ namespace FreeAgencyAuctionAPI.Services
         }
         public async Task PostNewBidChangesToGroup(int leagueId)
         {
+            if (!await _repo.IsAuctioning(leagueId))
+            {
+                _logger.LogDebug("Skipping bid-updates for league {leagueId} (not auctioning)", leagueId);
+                return;
+            }
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
             var strForBot = "Players with new bids in the last hour:\n";
             var bidsFromLastHour = await _repo.GetNewBidsFromTheLastHour(leagueId);

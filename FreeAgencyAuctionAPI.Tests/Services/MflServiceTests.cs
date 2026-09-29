@@ -249,6 +249,144 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
         }
 
+        [Fact]
+        public async Task GiveNewContractToPlayer_WithContractStatus_IncludesAttributeInXml()
+        {
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            Dictionary<string, string> capturedData = null;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .Callback<int, Dictionary<string, string>, int>((_, data, __) => capturedData = data)
+                .ReturnsAsync(okResponse);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, true, "Test Player", contractStatus: "TAG-2");
+
+            Assert.Contains("contractStatus=\"TAG-2\"", capturedData["DATA"]);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_NoContractStatus_OmitsAttributeFromXml()
+        {
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            Dictionary<string, string> capturedData = null;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .Callback<int, Dictionary<string, string>, int>((_, data, __) => capturedData = data)
+                .ReturnsAsync(okResponse);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, true, "Test Player");
+
+            Assert.DoesNotContain("contractStatus", capturedData["DATA"]);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_5ArgOverload_EditPlayerSalaryThrows_NotifiesMflErrorAndRethrows()
+        {
+            // Regression: this overload (holdout/5th-year-option) used to have no try/catch
+            // around the network call at all — a thrown exception propagated with no GroupMe ping.
+            var leagueId = 13894;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ThrowsAsync(new System.Net.Http.HttpRequestException("network down"));
+            _gmMock.Setup(x => x.NotifyMflError(It.IsAny<BotMessage>())).Returns(Task.CompletedTask);
+
+            await Assert.ThrowsAsync<System.Net.Http.HttpRequestException>(
+                () => _service.GiveNewContractToPlayer(leagueId, 12345, 30, 1, "msg"));
+
+            _gmMock.Verify(x => x.NotifyMflError(It.Is<BotMessage>(m => m.Message.Contains("threw"))), Times.Once);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_5ArgOverload_SendBotNotificationThrows_DoesNotMaskSuccessfulWrite()
+        {
+            // Regression: a flaky GroupMe post used to make a SUCCESSFUL MFL contract update
+            // look like a failure to the caller (holdout-response would 400 the frontend even
+            // though the contract was already updated) because SendBotNotification wasn't
+            // guarded the way the other overload's TrySendGm already guards it.
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ReturnsAsync(okResponse);
+            _gmMock.Setup(x => x.SendBotNotification(It.IsAny<BotMessage>()))
+                .ThrowsAsync(new System.Net.Http.HttpRequestException("groupme down"));
+            _gmMock.Setup(x => x.NotifyMflError(It.IsAny<BotMessage>())).Returns(Task.CompletedTask);
+
+            // Should NOT throw — the contract update itself succeeded.
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, 1, "msg");
+
+            _gmMock.Verify(x => x.NotifyMflError(It.Is<BotMessage>(m => m.Message.Contains("announcement failed"))), Times.Once);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_AnnounceOnSuccessFalse_SkipsGroupMeAnnouncement()
+        {
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ReturnsAsync(okResponse);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, 1, "msg", contractStatus: "TAG-1", announceOnSuccess: false);
+
+            _gmMock.Verify(x => x.SendBotNotification(It.IsAny<BotMessage>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetPlayerContractStatusFromMfl_ReturnsContractStatusFromRoster()
+        {
+            var leagueId = 13894;
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new RostersRoot
+                {
+                    rosters = new Rosters
+                    {
+                        franchise = new List<FranchiseRoster>
+                        {
+                            new() { id = "1", player = new List<Player> { new() { id = "900", contractStatus = "TAG-1" } } }
+                        }
+                    }
+                });
+
+            var result = await _service.GetPlayerContractStatusFromMfl(leagueId, 900);
+
+            Assert.Equal("TAG-1", result);
+        }
+
+        [Fact]
+        public async Task GetPlayerContractStatusFromMfl_SettingDisabled_ReturnsNull()
+        {
+            var leagueId = 13894;
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(new RostersRoot
+                {
+                    rosters = new Rosters
+                    {
+                        franchise = new List<FranchiseRoster>
+                        {
+                            new() { id = "1", player = new List<Player> { new() { id = "900", contractStatus = null } } }
+                        }
+                    }
+                });
+
+            var result = await _service.GetPlayerContractStatusFromMfl(leagueId, 900);
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_ContractStatusWithSpecialChars_IsXmlEscaped()
+        {
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            Dictionary<string, string> capturedData = null;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .Callback<int, Dictionary<string, string>, int>((_, data, __) => capturedData = data)
+                .ReturnsAsync(okResponse);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, 1, "msg", contractStatus: "R1 & \"rookie\"");
+
+            Assert.DoesNotContain("R1 & \"rookie\"", capturedData["DATA"]);
+            Assert.Contains("&amp;", capturedData["DATA"]);
+        }
+
         // -------- 5th year option candidate filter tests --------
 
         private const int FifthYrLeagueId = 13894;

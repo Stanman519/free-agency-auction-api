@@ -95,6 +95,44 @@ namespace FreeAgencyAuctionAPI.Models
         public int DraftPick { get; set; }
     }
 
+    /// <summary>
+    /// One row in the contractStatus audit report — a player who should carry a
+    /// short MFL contractStatus tag (rookie deal, tag count, waiver extension,
+    /// holdout) but doesn't yet, or whose tag should be updated.
+    /// </summary>
+    public class ContractStatusAuditEntry
+    {
+        public int MflPlayerId { get; set; }
+        public string PlayerName { get; set; }
+        public string Team { get; set; }
+        public string Tag { get; set; }
+        public string Reason { get; set; }
+        /// <summary>Current MFL salary/contractYear, captured at audit time so applying
+        /// the tag later reuses these exact values instead of re-deriving them —
+        /// the apply step should only ever add the status label, never change terms.</summary>
+        public int CurrentSalary { get; set; }
+        public int CurrentContractYear { get; set; }
+    }
+
+    public class ApplyContractStatusBody
+    {
+        public string ContractStatus { get; set; }
+        public int Salary { get; set; }
+        public int ContractYear { get; set; }
+    }
+
+    /// <summary>Full-roster snapshot (every player, not just audit matches) — a before/after
+    /// safety net for batch contractStatus writes, to confirm salary/contractYear never moved.</summary>
+    public class PlayerSnapshotEntry
+    {
+        public int MflPlayerId { get; set; }
+        public string PlayerName { get; set; }
+        public string Team { get; set; }
+        public int Salary { get; set; }
+        public int ContractYear { get; set; }
+        public string ContractStatus { get; set; }
+    }
+
     public class FranchiseTagRequestBody
     {
         public int leagueId { get; set; }

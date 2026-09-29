@@ -21,8 +21,8 @@ namespace FreeAgencyAuctionAPI.Services
     {
         Task AddPlayerToTeam(int leaugeId, int playerId, int franchiseId, string playerName = null);
         
-        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName);
-        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName, string contractStatus = null);
+        Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage, string contractStatus = null, bool announceOnSuccess = true);
         Task FreeDropTaxiPlayer(CutRequestBody request);
         Task BuyoutPlayer(CutRequestBody request);
         Task<List<FranchiseRoster>> GetMflRosters(int leagueId);
@@ -49,6 +49,12 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<TradeBaitDTO>> GetTradeBaitForLeague(int leagueId);
         Task<Dictionary<string, List<FutureDraftPickDTO>>> GetFutureDraftPicksForLeague(int leagueId);
         Task<List<RecentMoveDTO>> GetRecentMoves(int leagueId, int limit = 20);
+        Task<List<ContractStatusAuditEntry>> GetContractStatusAudit(int leagueId);
+        Task<string> GetPlayerContractStatusFromMfl(int leagueId, int mflPlayerId);
+        Task<List<PlayerSnapshotEntry>> GetLeagueRosterSnapshot(int leagueId);
+        Task<List<PlayerSnapshotEntry>> GetLeagueRosterSnapshotForYear(int leagueId, int year);
+        Task<object> GetDraftPickDiagnostics(int leagueId, int draftYear, int mflPlayerId);
+        Task<object> GetRound1PicksDiagnostics(int leagueId, int draftYear);
     }
 
     public class MflService : IMflService
@@ -335,11 +341,12 @@ namespace FreeAgencyAuctionAPI.Services
 
         }
 
-        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName)
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, bool isFranchiseTag, string playerName, string contractStatus = null)
         {
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
-            var data = CreateBodyDataForNewContract(mflPlayerId, salary);
+            var data = CreateBodyDataForNewContract(mflPlayerId, salary, 1, contractStatus);
             var botMsg = isFranchiseTag ? $"{playerName} got franchise tagged for ${salary}." : $"{playerName} was given a waiver extension of 1 year, $25";
+            LogContractStatusAttempt(leagueId, mflPlayerId, contractStatus);
             HttpResponseMessage resp;
             string respString;
             try
@@ -382,26 +389,59 @@ namespace FreeAgencyAuctionAPI.Services
             }
         }
 
+        // contractStatus depends on the "Contract Status" field being enabled on the
+        // league's Salary Cap Setup page in MFL — if it's off, MFL silently drops the
+        // attribute with no error, so a successful response here does NOT guarantee
+        // the status actually landed. Logged explicitly so that's traceable later.
+        private void LogContractStatusAttempt(int leagueId, int mflPlayerId, string contractStatus)
+        {
+            if (string.IsNullOrEmpty(contractStatus)) return;
+            _logger.LogInformation(
+                "Attempting MFL contractStatus={contractStatus} for league {leagueId} player {mflPlayerId} " +
+                "(requires the league's Contract Status salary-cap setting to be enabled, or MFL silently ignores it)",
+                contractStatus, leagueId, mflPlayerId);
+        }
+
         // Overload: Accept custom bot message and contract length for holdout and other scenarios
-        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage)
+        public async Task GiveNewContractToPlayer(int leagueId, int mflPlayerId, int salary, int contractLength, string botMessage, string contractStatus = null, bool announceOnSuccess = true)
         {
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
-            var data = CreateBodyDataForNewContract(mflPlayerId, salary, contractLength);
-            var resp = await _leagueApi.EditPlayerSalary(leagueId, data, Utils.CurrentYear);
-            var respString = await resp.Content.ReadAsStringAsync();
-            _logger.LogInformation("MFL salary import raw response: {respString}", respString);
+            var data = CreateBodyDataForNewContract(mflPlayerId, salary, contractLength, contractStatus);
+            LogContractStatusAttempt(leagueId, mflPlayerId, contractStatus);
+
+            HttpResponseMessage resp;
+            string respString;
+            try
+            {
+                resp = await _leagueApi.EditPlayerSalary(leagueId, data, Utils.CurrentYear);
+                respString = await resp.Content.ReadAsStringAsync();
+                _logger.LogInformation("MFL salary import raw response: {respString}", respString);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "MFL salary import threw for league {leagueId} player {mflPlayerId}", leagueId, mflPlayerId);
+                await TrySendGm(() => _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract update threw: {e.Message}", botId)), "NotifyMflError(threw)");
+                throw;
+            }
+
             if (!resp.IsSuccessStatusCode || respString.ToUpper().Contains("ERROR"))
             {
                 string errorMsg = respString;
                 try { errorMsg = respString.XmlDeserializeFromString<MflXmlError>().ErrorMsg; } catch { }
                 _logger.LogError("MFL contract update failed. Status: {status} Body: {body}", resp.StatusCode, respString);
-                await _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId));
+                await TrySendGm(() => _gm.NotifyMflError(new BotMessage($"league: {leagueId} player:{mflPlayerId} contract was not updated in mfl. \n\n{errorMsg}", botId)), "NotifyMflError(badResp)");
                 throw new Exception($"MFL contract update failed for player {mflPlayerId}: {errorMsg}");
             }
-            else
-            {
-                await _gm.SendBotNotification(message: new BotMessage(botMessage, botId));
-            }
+
+            if (!announceOnSuccess) return; // e.g. a silent contractStatus backfill — no league-chat spam
+
+            // GroupMe being flaky here must never look like the MFL write itself failed —
+            // TrySendGm swallows+logs instead of throwing, so callers only see an exception
+            // when the actual contract update failed.
+            await TrySendGm(
+                () => _gm.SendBotNotification(new BotMessage(botMessage, botId)),
+                "SendBotNotification(contract)",
+                fallback: () => _gm.NotifyMflError(new BotMessage($"announcement failed to post: {botMessage}", botId)));
         }
         public async Task<List<FranchiseRoster>> GetMflRosters(int leagueId)
         {
@@ -684,6 +724,422 @@ namespace FreeAgencyAuctionAPI.Services
             }
 
             return optionCandidates;
+        }
+
+        // contractStatus can carry more than one tag at once (e.g. a rookie who is also
+        // currently holding out: "R1-2024|HOLDOUT"). These helpers do read-modify-write
+        // set operations on that pipe-delimited string rather than blindly overwriting it.
+        public static List<string> ParseTags(string contractStatus) =>
+            string.IsNullOrWhiteSpace(contractStatus)
+                ? new List<string>()
+                : contractStatus.Split('|').Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
+
+        public static string JoinTags(IEnumerable<string> tags)
+        {
+            var joined = string.Join("|", tags.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct());
+            return string.IsNullOrEmpty(joined) ? null : joined;
+        }
+
+        public static string AddTag(string existingContractStatus, string tag)
+        {
+            var tags = ParseTags(existingContractStatus);
+            if (!tags.Contains(tag)) tags.Add(tag);
+            return JoinTags(tags);
+        }
+
+        public static string RemoveTag(string existingContractStatus, string tag) =>
+            JoinTags(ParseTags(existingContractStatus).Where(t => t != tag));
+
+        // Strips any tag starting with `prefix` (e.g. "R" for a rookie-round tag being
+        // superseded by a 5th-year option) before adding the replacement.
+        public static string ReplaceTagsWithPrefix(string existingContractStatus, string prefix, string newTag)
+        {
+            var tags = ParseTags(existingContractStatus).Where(t => !t.StartsWith(prefix)).ToList();
+            tags.Add(newTag);
+            return JoinTags(tags);
+        }
+
+        // MFL's "name" field comes back as "Last, First" — convert to "First Last".
+        private static string NameFromMflFullName(string mflName)
+        {
+            if (string.IsNullOrWhiteSpace(mflName)) return mflName ?? "";
+            var parts = mflName.Split(",");
+            return parts.Length == 2 ? $"{parts[1].Trim()} {parts[0].Trim()}" : mflName;
+        }
+
+        // Read-only report: every currently-rostered player who should carry a short
+        // MFL contractStatus tag (rookie deal, franchise tag count, waiver extension,
+        // accepted holdout) but doesn't yet. Never writes to MFL — for manual review.
+        public async Task<List<ContractStatusAuditEntry>> GetContractStatusAudit(int leagueId)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var entries = new List<ContractStatusAuditEntry>();
+
+            // GroupBy + First (not ToDictionaryAsync) — some leagues have co-owned franchises
+            // sharing one Mflfranchiseid across two LeagueOwner rows, which throws on a
+            // straight ToDictionary. Duplicates just pick whichever owner's name comes first.
+            var leagueOwners = await _db.LeagueOwners.Where(lo => lo.Leagueid == leagueId).ToListAsync();
+            var teamNameByFranchiseId = leagueOwners
+                .GroupBy(lo => lo.Mflfranchiseid)
+                .ToDictionary(g => g.Key, g => g.First().Teamname);
+            var teamNameByLeagueOwnerId = leagueOwners
+                .GroupBy(lo => lo.Leagueownerid)
+                .ToDictionary(g => g.Key, g => g.First().Teamname);
+
+            string TeamNameForFranchise(string franchiseIdStr) =>
+                int.TryParse(franchiseIdStr, out var fid) && teamNameByFranchiseId.TryGetValue(fid, out var name) ? name : franchiseIdStr;
+            string TeamNameForOwner(int leagueOwnerId) =>
+                teamNameByLeagueOwnerId.TryGetValue(leagueOwnerId, out var name) ? name : leagueOwnerId.ToString();
+
+            var currentRosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, apiKey);
+            var allFranchises = currentRosterRoot?.error == null
+                ? currentRosterRoot.rosters?.franchise ?? new List<FranchiseRoster>()
+                : new List<FranchiseRoster>();
+            var rosterByPlayerId = allFranchises
+                .SelectMany(f => (f.player ?? new List<Player>()).Select(p => (Franchise: f, Player: p)))
+                .GroupBy(x => x.Player.id)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // Accepted holdouts (any year) — a player's current salary may reflect a past
+            // holdout raise on top of their rookie-scale/option salary, which would otherwise
+            // make them fall through the exact-match checks below and get no tag at all.
+            var acceptedHoldoutsByPlayer = (await _db.Holdouts
+                    .Where(h => h.LeagueId == leagueId && h.Status == "Accepted")
+                    .ToListAsync())
+                .GroupBy(h => h.PlayerId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // ---- Rookie deal / 5th-year option — round-1 picks from the last 5 draft classes,
+            // including THIS year's own rookie class (off-by-one here previously excluded it) ----
+            for (var draftYear = Utils.CurrentYear; draftYear >= Utils.CurrentYear - 4; draftYear--)
+            {
+                var draftResultsRoot = await _leagueApi.GetDraftResults(leagueId, draftYear, apiKey);
+                var firstRoundPicks = draftResultsRoot?.draftResults?.draftUnit?.draftPick?
+                    .Where(d => d.round == "01")
+                    .ToList() ?? new List<MflDraftPick>();
+                var pickIds = firstRoundPicks
+                    .Where(p => rosterByPlayerId.ContainsKey(p.player))
+                    .Select(p => p.player)
+                    .ToList();
+                if (pickIds.Count == 0) continue;
+
+                var mflPlayers = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', pickIds), Utils.CurrentYear, apiKey);
+
+                foreach (var pick in firstRoundPicks)
+                {
+                    if (!rosterByPlayerId.TryGetValue(pick.player, out var rosterEntry)) continue;
+                    var mflPlayer = mflPlayers?.players?.player?.FirstOrDefault(p => p.id == pick.player);
+                    if (mflPlayer == null) continue;
+                    if (!int.TryParse(pick.pick, out var pickNumber) || pickNumber == 0) continue;
+
+                    var isRB = mflPlayer.position == "RB";
+                    var originalSalary = isRB
+                        ? Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0)
+                        : Utils.draftPicks.GetValueOrDefault(pickNumber, 0);
+                    if (originalSalary == 0) continue;
+
+                    var currentSalary = int.TryParse(rosterEntry.Player.salary, out var cs) ? cs : 0;
+                    var optionSalary = (int)Math.Round(originalSalary * 1.3);
+                    var team = TeamNameForFranchise(rosterEntry.Franchise.id);
+                    // GetMflPlayerDetails often returns first_name/last_name blank for this
+                    // endpoint shape — same MFL quirk GetMflPlayerById already works around.
+                    var playerName = !string.IsNullOrWhiteSpace(mflPlayer.first_name) || !string.IsNullOrWhiteSpace(mflPlayer.last_name)
+                        ? $"{mflPlayer.first_name} {mflPlayer.last_name}".Trim()
+                        : NameFromMflFullName(mflPlayer.name);
+
+                    var currentContractYear = int.TryParse(rosterEntry.Player.contractYear, out var cy) ? cy : 0;
+
+                    // A player's current salary may not exactly match the clean rookie-scale or
+                    // option number if an accepted holdout raised it since — check whether an
+                    // accepted holdout explains the gap (its pre-raise salary equals what we
+                    // expected, and its post-raise salary equals what they're on today) before
+                    // concluding they're off this tier entirely.
+                    var matchesRookieScale = currentSalary == originalSalary;
+                    var matchesOptionScale = currentSalary == optionSalary;
+                    var explainingHoldout = (!matchesRookieScale && !matchesOptionScale) && acceptedHoldoutsByPlayer.TryGetValue(int.Parse(pick.player), out var playerHoldouts)
+                        ? playerHoldouts.FirstOrDefault(h => h.HoldoutSalary == currentSalary && (h.OriginalSalary == originalSalary || h.OriginalSalary == optionSalary))
+                        : null;
+                    if (explainingHoldout != null)
+                    {
+                        matchesRookieScale = explainingHoldout.OriginalSalary == originalSalary;
+                        matchesOptionScale = explainingHoldout.OriginalSalary == optionSalary;
+                    }
+                    var holdoutSuffix = explainingHoldout != null
+                        ? $", raised to ${currentSalary} via an accepted holdout ({explainingHoldout.Year})"
+                        : "";
+
+                    if (matchesRookieScale)
+                    {
+                        entries.Add(new ContractStatusAuditEntry
+                        {
+                            MflPlayerId = int.Parse(pick.player),
+                            PlayerName = playerName,
+                            Team = team,
+                            Tag = $"R1-{draftYear}",
+                            Reason = $"Round 1, {draftYear} draft, on rookie-scale salary (${originalSalary}){holdoutSuffix}",
+                            CurrentSalary = currentSalary,
+                            CurrentContractYear = currentContractYear
+                        });
+                    }
+                    // 5th-year options are only ever eligible the year after a 4-year rookie
+                    // deal expires — i.e. exactly the year-4 draft class. Checking this across
+                    // all 5 lookback years risked mislabeling a coincidental salary match from
+                    // a different class (e.g. a year-2 raise that happens to equal 1.3x scale).
+                    else if (draftYear == Utils.CurrentYear - 4 && matchesOptionScale)
+                    {
+                        entries.Add(new ContractStatusAuditEntry
+                        {
+                            MflPlayerId = int.Parse(pick.player),
+                            PlayerName = playerName,
+                            Team = team,
+                            Tag = "5YO",
+                            Reason = $"Round 1, {draftYear} draft, on 5th-year option salary (${optionSalary}){holdoutSuffix}",
+                            CurrentSalary = currentSalary,
+                            CurrentContractYear = currentContractYear
+                        });
+                    }
+                }
+            }
+
+            // ---- Franchise tags — currently on an active tag contract this year ----
+            var allTags = _pRepo.GetAllTagsForLeague(leagueId) ?? new List<FranchiseTagPlayer>();
+            foreach (var tag in allTags.Where(t => t.Year == Utils.CurrentYear))
+            {
+                var tagCount = allTags.Count(t => t.Mflplayerid == tag.Mflplayerid);
+                var tagPlayerName = tag.Fullname;
+                if (string.IsNullOrWhiteSpace(tagPlayerName))
+                {
+                    // The name stored at tag-time was blank (same MFL first_name/last_name
+                    // quirk as the rookie section) — re-resolve it now rather than show a
+                    // blank row the commissioner can't act on.
+                    var tagMflPlayer = (await _leagueApi.GetMflPlayerDetails(leagueId, tag.Mflplayerid.ToString(), Utils.CurrentYear, apiKey))
+                        ?.players?.player?.FirstOrDefault();
+                    tagPlayerName = tagMflPlayer != null
+                        ? (!string.IsNullOrWhiteSpace(tagMflPlayer.first_name) || !string.IsNullOrWhiteSpace(tagMflPlayer.last_name)
+                            ? $"{tagMflPlayer.first_name} {tagMflPlayer.last_name}".Trim()
+                            : NameFromMflFullName(tagMflPlayer.name))
+                        : tag.Mflplayerid.ToString();
+                }
+                entries.Add(new ContractStatusAuditEntry
+                {
+                    MflPlayerId = tag.Mflplayerid,
+                    PlayerName = tagPlayerName,
+                    Team = TeamNameForOwner(tag.Leagueownerid),
+                    Tag = $"TAG-{tagCount}",
+                    Reason = $"Franchise tag #{tagCount} ({tag.Year})"
+                });
+            }
+
+            // ---- Waiver extensions — signed this year ----
+            var waiverExtensions = await _db.WaiverExtensions
+                .Where(w => w.LeagueId == leagueId && w.Year == Utils.CurrentYear)
+                .ToListAsync();
+            foreach (var w in waiverExtensions)
+            {
+                var player = await _pRepo.GetPlayerById(w.PlayerId);
+                entries.Add(new ContractStatusAuditEntry
+                {
+                    MflPlayerId = w.PlayerId,
+                    PlayerName = player?.Fullname ?? w.PlayerId.ToString(),
+                    Team = TeamNameForOwner(w.LeagueOwnerId),
+                    Tag = "WVR-EXT",
+                    Reason = $"Waiver extension ({w.Year})"
+                });
+            }
+
+            // ---- Currently holding out (Pending only — Accepted means it's resolved and
+            // the player is no longer holding out, so HOLDOUT must not apply anymore) ----
+            var holdouts = await _pRepo.GetHoldoutsForLeague(leagueId, Utils.CurrentYear) ?? new List<Holdout>();
+            foreach (var h in holdouts.Where(h => h.Status == "Pending"))
+            {
+                var player = await _pRepo.GetPlayerById(h.PlayerId);
+                entries.Add(new ContractStatusAuditEntry
+                {
+                    MflPlayerId = h.PlayerId,
+                    PlayerName = player?.Fullname ?? h.PlayerId.ToString(),
+                    Team = TeamNameForOwner(h.LeagueOwnerId),
+                    Tag = "HOLDOUT",
+                    Reason = $"Currently holding out ({Utils.CurrentYear})"
+                });
+            }
+
+            // Tag/waiver/holdout entries didn't have a roster lookup in hand when built above —
+            // backfill current salary/contractYear here so apply-contract-status always has
+            // the real current terms to preserve, not a derived/assumed value.
+            foreach (var entry in entries)
+            {
+                if (entry.CurrentSalary != 0 || entry.CurrentContractYear != 0) continue;
+                if (!rosterByPlayerId.TryGetValue(entry.MflPlayerId.ToString(), out var rosterEntry)) continue;
+                entry.CurrentSalary = int.TryParse(rosterEntry.Player.salary, out var s) ? s : 0;
+                entry.CurrentContractYear = int.TryParse(rosterEntry.Player.contractYear, out var cy) ? cy : 0;
+            }
+
+            // Combine every category into one row per player — a player can legitimately match
+            // more than one (e.g. a round-1 rookie who is also currently holding out), and the
+            // live write paths now build combined tags too, so the audit must match that shape.
+            var combined = entries
+                .GroupBy(e => e.MflPlayerId)
+                .Select(g => new ContractStatusAuditEntry
+                {
+                    MflPlayerId = g.Key,
+                    PlayerName = g.First().PlayerName,
+                    Team = g.First().Team,
+                    Tag = JoinTags(g.Select(e => e.Tag)),
+                    Reason = string.Join("; ", g.Select(e => e.Reason)),
+                    CurrentSalary = g.First().CurrentSalary,
+                    CurrentContractYear = g.First().CurrentContractYear
+                })
+                .OrderBy(e => e.PlayerName)
+                .ToList();
+
+            return combined;
+        }
+
+        // Full-roster snapshot — every player, every franchise, current salary/contractYear/
+        // contractStatus. A before/after safety net for batch contractStatus writes.
+        public Task<List<PlayerSnapshotEntry>> GetLeagueRosterSnapshot(int leagueId) =>
+            GetLeagueRosterSnapshotForYear(leagueId, Utils.CurrentYear);
+
+        // Same as above, for an arbitrary (e.g. historical) year — used to trace exactly
+        // when/where a contract-length or salary discrepancy originated.
+        public async Task<List<PlayerSnapshotEntry>> GetLeagueRosterSnapshotForYear(int leagueId, int year)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var teamNameByFranchiseId = (await _db.LeagueOwners.Where(lo => lo.Leagueid == leagueId).ToListAsync())
+                .GroupBy(lo => lo.Mflfranchiseid)
+                .ToDictionary(g => g.Key, g => g.First().Teamname);
+
+            var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, apiKey);
+            var allFranchises = rosterRoot?.error == null ? rosterRoot.rosters?.franchise ?? new List<FranchiseRoster>() : new List<FranchiseRoster>();
+            var allPlayers = allFranchises.SelectMany(f => (f.player ?? new List<Player>()).Select(p => (Franchise: f, Player: p))).ToList();
+            if (allPlayers.Count == 0) return new List<PlayerSnapshotEntry>();
+
+            var ids = allPlayers.Select(p => p.Player.id).Distinct().ToList();
+            var namesByPlayerId = new Dictionary<string, string>();
+            // MFL's player-details endpoint has a practical URL-length limit — batch the lookup.
+            foreach (var batch in ids.Select((id, i) => (id, i)).GroupBy(x => x.i / 200).Select(g => g.Select(x => x.id).ToList()))
+            {
+                var details = await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', batch), year, apiKey);
+                foreach (var p in details?.players?.player ?? new List<MflPlayerDetails>())
+                {
+                    namesByPlayerId[p.id] = !string.IsNullOrWhiteSpace(p.first_name) || !string.IsNullOrWhiteSpace(p.last_name)
+                        ? $"{p.first_name} {p.last_name}".Trim()
+                        : NameFromMflFullName(p.name);
+                }
+            }
+
+            return allPlayers.Select(x => new PlayerSnapshotEntry
+            {
+                MflPlayerId = int.TryParse(x.Player.id, out var id) ? id : 0,
+                PlayerName = namesByPlayerId.GetValueOrDefault(x.Player.id, x.Player.id),
+                Team = int.TryParse(x.Franchise.id, out var fid) && teamNameByFranchiseId.TryGetValue(fid, out var name) ? name : x.Franchise.id,
+                Salary = int.TryParse(x.Player.salary, out var sal) ? sal : 0,
+                ContractYear = int.TryParse(x.Player.contractYear, out var cy) ? cy : 0,
+                ContractStatus = x.Player.contractStatus
+            }).OrderBy(p => p.PlayerName).ToList();
+        }
+
+        public async Task<object> GetDraftPickDiagnostics(int leagueId, int draftYear, int mflPlayerId)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var draftResultsRoot = await _leagueApi.GetDraftResults(leagueId, draftYear, apiKey);
+            var pick = draftResultsRoot?.draftResults?.draftUnit?.draftPick?.FirstOrDefault(p => p.player == mflPlayerId.ToString());
+            if (pick == null) return new { found = false };
+
+            var playerDetails = await _leagueApi.GetMflPlayerDetails(leagueId, mflPlayerId.ToString(), draftYear, apiKey);
+            var mflPlayer = playerDetails?.players?.player?.FirstOrDefault();
+            var pickNumber = int.TryParse(pick.pick, out var pn) ? pn : 0;
+            var isRB = mflPlayer?.position == "RB";
+
+            return new
+            {
+                found = true,
+                round = pick.round,
+                pick = pick.pick,
+                pickNumber,
+                position = mflPlayer?.position,
+                isRB,
+                computedOriginalSalary = isRB ? Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0) : Utils.draftPicks.GetValueOrDefault(pickNumber, 0),
+                rbTableValueAtThisPick = Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0),
+                nonRbTableValueAtThisPick = Utils.draftPicks.GetValueOrDefault(pickNumber, 0)
+            };
+        }
+
+        public async Task<object> GetRound1PicksDiagnostics(int leagueId, int draftYear)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var draftResultsRoot = await _leagueApi.GetDraftResults(leagueId, draftYear, apiKey);
+            var firstRoundPicks = draftResultsRoot?.draftResults?.draftUnit?.draftPick?
+                .Where(d => d.round == "01")
+                .ToList() ?? new List<MflDraftPick>();
+
+            var currentRosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, apiKey);
+            var allFranchises = currentRosterRoot?.error == null
+                ? currentRosterRoot.rosters?.franchise ?? new List<FranchiseRoster>()
+                : new List<FranchiseRoster>();
+            var rosterByPlayerId = allFranchises
+                .SelectMany(f => (f.player ?? new List<Player>()).Select(p => (Franchise: f, Player: p)))
+                .GroupBy(x => x.Player.id)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var pickIds = firstRoundPicks.Select(p => p.player).ToList();
+            var mflPlayers = pickIds.Count > 0
+                ? await _leagueApi.GetMflPlayerDetails(leagueId, string.Join(',', pickIds), Utils.CurrentYear, apiKey)
+                : null;
+
+            var results = new List<object>();
+            foreach (var pick in firstRoundPicks)
+            {
+                var mflPlayer = mflPlayers?.players?.player?.FirstOrDefault(p => p.id == pick.player);
+                var stillRostered = rosterByPlayerId.TryGetValue(pick.player, out var rosterEntry);
+                int.TryParse(pick.pick, out var pickNumber);
+                var isRB = mflPlayer?.position == "RB";
+                var originalSalary = isRB
+                    ? Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0)
+                    : Utils.draftPicks.GetValueOrDefault(pickNumber, 0);
+                var optionSalary = (int)Math.Round(originalSalary * 1.3);
+                var currentSalary = stillRostered && int.TryParse(rosterEntry.Player.salary, out var cs) ? cs : (int?)null;
+                var currentContractYear = stillRostered && int.TryParse(rosterEntry.Player.contractYear, out var cy) ? cy : (int?)null;
+                var playerName = mflPlayer != null
+                    ? (!string.IsNullOrWhiteSpace(mflPlayer.first_name) || !string.IsNullOrWhiteSpace(mflPlayer.last_name)
+                        ? $"{mflPlayer.first_name} {mflPlayer.last_name}".Trim()
+                        : NameFromMflFullName(mflPlayer.name))
+                    : null;
+
+                results.Add(new
+                {
+                    mflPlayerId = pick.player,
+                    playerName,
+                    position = mflPlayer?.position,
+                    isRB,
+                    pickNumber,
+                    stillRostered,
+                    currentTeam = stillRostered ? rosterEntry.Franchise.id : null,
+                    currentSalary,
+                    currentContractYear,
+                    currentContractStatus = stillRostered ? rosterEntry.Player.contractStatus : null,
+                    computedOriginalSalary = originalSalary,
+                    computedOptionSalary = optionSalary,
+                    matchesRookieScale = currentSalary == originalSalary,
+                    matchesOptionScale = currentSalary == optionSalary
+                });
+            }
+
+            return results;
+        }
+
+        // Re-reads a single player's contractStatus straight from MFL after a write, since a
+        // 200 response never proves the attribute actually landed (MFL silently drops it if
+        // the league's Contract Status salary-cap setting is off).
+        public async Task<string> GetPlayerContractStatusFromMfl(int leagueId, int mflPlayerId)
+        {
+            var apiKey = GetApiKey(leagueId);
+            var rosterRoot = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, Utils.CurrentYear, apiKey);
+            if (rosterRoot?.error != null) return null;
+            return rosterRoot?.rosters?.franchise
+                ?.SelectMany(f => f.player ?? new List<Player>())
+                ?.FirstOrDefault(p => p.id == mflPlayerId.ToString())
+                ?.contractStatus;
         }
 
         public async Task<List<PlayerDTO>> GetBuyoutCandidates(int leagueId, int leagueOwnerId, int mflFranchiseId)
@@ -1284,9 +1740,10 @@ namespace FreeAgencyAuctionAPI.Services
                 // Get years remaining from MFL roster data
                 var roster = await _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, GetApiKey(leagueId));
                 var franchiseRoster = roster.rosters.franchise.FirstOrDefault(f => int.Parse(f.id) == player.FranchiseId);
+                Player playerContract = null;
                 if (franchiseRoster != null)
                 {
-                    var playerContract = franchiseRoster.player.FirstOrDefault(p => p.id == player.PlayerId);
+                    playerContract = franchiseRoster.player.FirstOrDefault(p => p.id == player.PlayerId);
                     if (playerContract != null)
                     {
                         holdout.YearsRemaining = int.TryParse(playerContract.contractYear, out var years) ? Math.Max(0, years - 1) : 0;
@@ -1294,6 +1751,25 @@ namespace FreeAgencyAuctionAPI.Services
                 }
 
                 await _pRepo.AddHoldout(holdout);
+
+                // Flag on MFL that this player is now on the holdout clock — a pure
+                // annotation, so salary/length are preserved exactly as they are today.
+                // One player's tag failing must not stop the rest of the batch.
+                if (playerContract != null)
+                {
+                    try
+                    {
+                        var combinedTags = AddTag(playerContract.contractStatus, "HOLDOUT");
+                        var preservedSalary = int.TryParse(playerContract.salary, out var sal) ? sal : holdout.OriginalSalary;
+                        var preservedContractYear = int.TryParse(playerContract.contractYear, out var cy) ? cy : holdout.YearsRemaining + 1;
+                        await GiveNewContractToPlayer(leagueId, holdout.PlayerId, preservedSalary, preservedContractYear,
+                            $"[holdout generated] {dbPlayer.Fullname} -> {combinedTags}", contractStatus: combinedTags, announceOnSuccess: false);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Failed to tag HOLDOUT contractStatus for league {leagueId} player {playerId}", leagueId, holdout.PlayerId);
+                    }
+                }
 
                 savedHoldouts.Add(new HoldoutDTO
                 {
@@ -1375,13 +1851,16 @@ namespace FreeAgencyAuctionAPI.Services
         //    };
         //    return ret;
         //}
-        private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1)
+        private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1, string contractStatus = null)
         {
+            var statusAttr = string.IsNullOrEmpty(contractStatus)
+                ? ""
+                : $" contractStatus=\"{System.Security.SecurityElement.Escape(contractStatus)}\"";
             var ret = new Dictionary<string, string>()
             {
                 {
                     "DATA",
-                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{playerId}\" salary=\"{salary}\" contractYear=\"{length}\"/></leagueUnit></salaries>"
+                    $"<?xml version='1.0' encoding='UTF-8' ?><salaries><leagueUnit unit=\"LEAGUE\"><player id=\"{playerId}\" salary=\"{salary}\" contractYear=\"{length}\"{statusAttr}/></leagueUnit></salaries>"
                 }
             };
             return ret;

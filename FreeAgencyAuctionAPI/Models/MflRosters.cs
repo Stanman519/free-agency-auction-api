@@ -8,6 +8,10 @@ namespace FreeAgencyAuctionAPI.Models
         public string status { get; set; }
         public string id { get; set; }
         public string salary { get; set; }
+        // Only populated by MFL if the league's "Contract Status" salary-cap setting is
+        // enabled — otherwise null even after a successful write. Used to verify a
+        // contractStatus write actually landed rather than being silently dropped.
+        public string contractStatus { get; set; }
     }
 
     public class FranchiseRoster

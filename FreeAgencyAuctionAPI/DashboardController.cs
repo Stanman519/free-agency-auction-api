@@ -278,8 +278,10 @@ namespace FreeAgencyAuctionAPI
                 PlayerId = body.mflPlayerId
             };
             await _pRepo.AddWaiverExtensionForTeam(waiver);
+            var existingTags = await _mfl.GetPlayerContractStatusFromMfl(body.leagueId, body.mflPlayerId);
+            var combinedTags = MflService.AddTag(existingTags, "WVR-EXT");
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId, playerName);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, playerName);
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, false, playerName, contractStatus: combinedTags);
             return NoContent();
         }
 
@@ -298,8 +300,21 @@ namespace FreeAgencyAuctionAPI
             var player = await _mfl.GetMflPlayerById(body.leagueId, body.mflPlayerId);
             var fullName = $"{player.first_name} {player.last_name}";
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId, fullName);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, match.OptionSalary, 1,
-                $"{fullName} signed to a 5th year option: 1 yr, ${match.OptionSalary}");
+            try
+            {
+                // The expiring rookie-scale tag (R1-2022, etc.) is superseded by the option
+                // year — replace it rather than stack alongside a now-inaccurate rookie tag.
+                var existingTags = await _mfl.GetPlayerContractStatusFromMfl(body.leagueId, body.mflPlayerId);
+                var combinedTags = MflService.ReplaceTagsWithPrefix(existingTags, "R", "5YO");
+                await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, match.OptionSalary, 1,
+                    $"{fullName} signed to a 5th year option: 1 yr, ${match.OptionSalary}", contractStatus: combinedTags);
+            }
+            catch (Exception e)
+            {
+                // GiveNewContractToPlayer already logged + posted to the GroupMe error bot before rethrowing.
+                _logger.LogError(e, "5th year option MFL write failed for league {leagueId} player {mflPlayerId}", body.leagueId, body.mflPlayerId);
+                return BadRequest(new ErrorResponse(e.Message));
+            }
 
             var capSpace = await _mfl.GetSalaryCapRoom(body.leagueId);
             var capList = capSpace.OrderBy(c => c.Mflfranchiseid).Select(c => c.Caproom ?? 0).ToList();
@@ -341,8 +356,13 @@ namespace FreeAgencyAuctionAPI
                 Mflplayerid = body.mflPlayerId
             };
             await _pRepo.AddFranchiseTagForTeam(tag);
+            var tagCount = _pRepo.GetAllTagsForLeague(body.leagueId).Count(t => t.Mflplayerid == body.mflPlayerId);
+            // A prior tag (TAG-1) is superseded by this one (TAG-2) — replace, don't stack —
+            // but any unrelated tag the player carries (e.g. a rookie tag, unlikely but possible) stays.
+            var existingTags = await _mfl.GetPlayerContractStatusFromMfl(body.leagueId, body.mflPlayerId);
+            var combinedTags = MflService.ReplaceTagsWithPrefix(existingTags, "TAG-", $"TAG-{tagCount}");
             await _mfl.AddPlayerToTeam(body.leagueId, body.mflPlayerId, body.mflFranchiseId);
-            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, true, $"{player.first_name} {player.last_name}");
+            await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, body.tagSalary, true, $"{player.first_name} {player.last_name}", contractStatus: combinedTags);
             return NoContent();
         }
         [HttpPost("taxi-cut")]
@@ -616,8 +636,12 @@ namespace FreeAgencyAuctionAPI
                         ? cy
                         : holdout.YearsRemaining;
 
+                    // Accepting resolves the holdout — HOLDOUT no longer applies, but any other
+                    // tag the player carries (e.g. a rookie-scale tag) must be preserved.
+                    var remainingTags = MflService.RemoveTag(playerRosterEntry?.contractStatus, "HOLDOUT");
+
                     var holdoutMessage = $"{holdout.LeagueOwner.Teamname} accepted {playerName}'s holdout - contract updated from ${holdout.OriginalSalary} to ${holdout.HoldoutSalary}";
-                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, currentContractYears, holdoutMessage);
+                    await _mfl.GiveNewContractToPlayer(body.leagueId, body.mflPlayerId, holdout.HoldoutSalary, currentContractYears, holdoutMessage, contractStatus: remainingTags);
                 }
 
                 await _pRepo.UpdateHoldoutStatus(body.holdoutId, body.status);
@@ -676,12 +700,151 @@ namespace FreeAgencyAuctionAPI
             }
         }
 
+        // Diagnostic: every round-1 pick from a given draft year, whether they're still
+        // rostered, their computed rookie/option salary vs their actual current salary —
+        // used to see why an entire draft class isn't showing expected tags.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/years/{draftYear}/round1-picks")]
+        public async Task<IActionResult> GetRound1PicksDiagnostics([FromRoute] int leagueId, [FromRoute] int draftYear)
+        {
+            var result = await _mfl.GetRound1PicksDiagnostics(leagueId, draftYear);
+            return Ok(result);
+        }
+
+        // Diagnostic: exact draft-pick info + position for one player in one draft year —
+        // used to verify the rookie-scale salary table lookup the audit relies on.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/years/{draftYear}/players/{mflPlayerId}/draft-pick-info")]
+        public async Task<IActionResult> GetDraftPickInfo([FromRoute] int leagueId, [FromRoute] int draftYear, [FromRoute] int mflPlayerId)
+        {
+            var info = await _mfl.GetDraftPickDiagnostics(leagueId, draftYear, mflPlayerId);
+            return Ok(info);
+        }
+
+        // Diagnostic: one player's raw MFL contractYear/salary for an arbitrary historical
+        // year — used to trace exactly when/where a contract-length discrepancy originated.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/years/{year}/players/{mflPlayerId}/historical-contract")]
+        public async Task<IActionResult> GetHistoricalContract([FromRoute] int leagueId, [FromRoute] int year, [FromRoute] int mflPlayerId)
+        {
+            var snapshot = await _mfl.GetLeagueRosterSnapshotForYear(leagueId, year);
+            var player = snapshot.FirstOrDefault(p => p.MflPlayerId == mflPlayerId);
+            return Ok(player);
+        }
+
         [AllowAnonymous]
         [AdminApiKey]
         [HttpPost("admin/leagues/{leagueId}/years/{year}/generate-franchise-tag-values")]
         public async Task<IActionResult> GenerateFranchiseTagValues([FromRoute] int leagueId, [FromRoute] int year)
         {
             var result = await _mfl.GenerateFranchiseTagValues(leagueId, year);
+            return Ok(result);
+        }
+
+        // Read-only report — never writes to MFL. Lists players who should carry a
+        // short contractStatus tag (rookie deal, franchise tag count, waiver extension,
+        // accepted holdout) but don't yet, for manual review before any backfill.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/contract-status-audit")]
+        public async Task<IActionResult> GetContractStatusAudit([FromRoute] int leagueId)
+        {
+            var result = await _mfl.GetContractStatusAudit(leagueId);
+            return Ok(result);
+        }
+
+        // Applies one contractStatus backfill from the audit list above. Preserves the
+        // player's existing salary/contractYear exactly as supplied — this must only ever
+        // annotate a contract, never change its terms. Silent on success (no GroupMe post,
+        // this isn't a real transaction), but re-reads MFL afterward to confirm the
+        // attribute actually landed, since MFL silently drops it if the league's Contract
+        // Status salary-cap setting is off.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpPost("admin/leagues/{leagueId}/players/{mflPlayerId}/apply-contract-status")]
+        public async Task<IActionResult> ApplyContractStatus([FromRoute] int leagueId, [FromRoute] int mflPlayerId, [FromBody] ApplyContractStatusBody body)
+        {
+            try
+            {
+                await _mfl.GiveNewContractToPlayer(leagueId, mflPlayerId, body.Salary, body.ContractYear,
+                    $"[contract-status backfill] {mflPlayerId} -> {body.ContractStatus}",
+                    contractStatus: body.ContractStatus, announceOnSuccess: false);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "apply-contract-status failed for league {leagueId} player {mflPlayerId}", leagueId, mflPlayerId);
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+
+            // The write above already succeeded — a failure here (e.g. MFL rate-limiting the
+            // very next request) must not be reported as a write failure. Surface it as
+            // "couldn't verify" instead of throwing, so the caller knows to re-check later
+            // rather than assuming the contractStatus was never set.
+            string confirmed;
+            try
+            {
+                confirmed = await _mfl.GetPlayerContractStatusFromMfl(leagueId, mflPlayerId);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "apply-contract-status write succeeded but verification read failed for league {leagueId} player {mflPlayerId}", leagueId, mflPlayerId);
+                return Ok(new { applied = body.ContractStatus, confirmedOnMfl = (string)null, matched = (bool?)null, verificationError = e.Message });
+            }
+
+            var matched = confirmed == body.ContractStatus;
+            if (!matched)
+            {
+                _logger.LogWarning(
+                    "contractStatus write for league {leagueId} player {mflPlayerId} did not verify — sent {sent}, MFL now shows {confirmed}. " +
+                    "Check that the league's Contract Status salary-cap setting is enabled.",
+                    leagueId, mflPlayerId, body.ContractStatus, confirmed ?? "(null)");
+            }
+
+            return Ok(new { applied = body.ContractStatus, confirmedOnMfl = confirmed, matched });
+        }
+
+        // Diagnostic: full holdout history for one player, across all years — useful for
+        // figuring out why the contract-status audit did or didn't flag someone.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/players/{mflPlayerId}/holdout-history")]
+        public async Task<IActionResult> GetPlayerHoldoutHistory([FromRoute] int leagueId, [FromRoute] int mflPlayerId)
+        {
+            var holdouts = await _db.Holdouts
+                .Where(h => h.LeagueId == leagueId && h.PlayerId == mflPlayerId)
+                .OrderBy(h => h.Year)
+                .Select(h => new { h.Year, h.Status, h.OriginalSalary, h.HoldoutSalary, h.YearsRemaining })
+                .ToListAsync();
+            return Ok(holdouts);
+        }
+
+        // Diagnostic: every ACCEPTED holdout ever recorded for the league, any year —
+        // used to size up how many players the audit's exact-salary-match logic silently
+        // misses because a past holdout raise moved them off the clean rookie-scale number.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/all-accepted-holdouts")]
+        public async Task<IActionResult> GetAllAcceptedHoldouts([FromRoute] int leagueId)
+        {
+            var holdouts = await _db.Holdouts
+                .Where(h => h.LeagueId == leagueId && h.Status == "Accepted")
+                .OrderBy(h => h.Year)
+                .Select(h => new { h.PlayerId, h.Year, h.OriginalSalary, h.HoldoutSalary })
+                .ToListAsync();
+            return Ok(holdouts);
+        }
+
+        // Read-only full-roster snapshot (salary/contractYear/contractStatus for every
+        // player) — a before/after safety check around batch contractStatus writes.
+        [AllowAnonymous]
+        [AdminApiKey]
+        [HttpGet("admin/leagues/{leagueId}/roster-snapshot")]
+        public async Task<IActionResult> GetLeagueRosterSnapshot([FromRoute] int leagueId)
+        {
+            var result = await _mfl.GetLeagueRosterSnapshot(leagueId);
             return Ok(result);
         }
 

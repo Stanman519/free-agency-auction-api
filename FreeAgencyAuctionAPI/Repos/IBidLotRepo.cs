@@ -22,6 +22,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<BidDTO> GetCurrentBidForLotId(int lotId);
         Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId);
         Task<List<BidDTO>> ExtendActiveBidExpirations(int leagueId, int hours);
+        Task<bool> IsAuctioning(int leagueId);
     }
 
     public class BidLotRepo : IBidLotRepo
@@ -200,6 +201,10 @@ namespace FreeAgencyAuctionAPI.Repos
                 _logger.LogError(e, "latest bid verify error");
                 return false;
             }
+        }
+        public async Task<bool> IsAuctioning(int leagueId)
+        {
+            return await _db.Leagues.AnyAsync(l => l.Mflid == leagueId && l.Isauctioning);
         }
         public async Task<List<BidDTO>> GetNewBidsFromTheLastHour(int leagueId)
         {
