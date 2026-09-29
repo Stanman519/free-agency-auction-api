@@ -147,8 +147,14 @@ namespace FreeAgencyAuctionAPI.Services
             var bigRet = new DashboardTradeLeagueDTO();
             var bigLeagueTask = _leagueApi.GetBigLeagueObject(leagueId, year, GetApiKey(leagueId));
             var assetsTask = _leagueApi.GetFranchiseAssets(leagueId, year, GetApiKey(leagueId));
-            var salariesTask = _leagueApi.GetSalaries(leagueId, year, GetApiKey(leagueId));
-            await Task.WhenAll(bigLeagueTask, assetsTask, salariesTask);
+            // Use the rosters export, not the salaries export, for contract length/status.
+            // The salaries export silently omits the contractYear attribute for players on
+            // exactly a 1-year deal (confirmed empirically), which showed up as trades listing
+            // otherwise-normal players as "0YR" — as if they'd be off the roster, which they
+            // aren't. The rosters export (same source the roster page and GetMyPendingTrades
+            // already use) doesn't have this gap.
+            var rostersTask = _leagueApi.GetMflRostersForPlayerSalaries(leagueId, year, GetApiKey(leagueId));
+            await Task.WhenAll(bigLeagueTask, assetsTask, rostersTask);
             var myPlayerIds = assetsTask.Result.assets.franchise
                 .FirstOrDefault(f => f.id == franchiseId.ToString("0000"))
                 .players.player
@@ -161,7 +167,13 @@ namespace FreeAgencyAuctionAPI.Services
             }
             var mflLeague = bigLeagueTask.Result.league;
             bigRet.Name = mflLeague.name;
-            var playerSalaries = salariesTask.Result.Salaries.LeagueUnit.Player;
+            var playerContracts = rostersTask.Result?.error == null
+                ? rostersTask.Result.rosters.franchise.SelectMany(f => f.player).ToList()
+                : new List<Player>();
+            // Trade screens should show the same speculative 5th-year-option projection the
+            // roster page does, so a team doesn't unknowingly trade away/for an option-year risk.
+            var projectedFifthYearOptions = await GetProjectedFifthYearOptionSalaries(leagueId,
+                new List<FranchiseRoster> { new FranchiseRoster { player = playerContracts } });
 
 
             mflLeague.franchises.franchise.ForEach(f =>
@@ -193,15 +205,16 @@ namespace FreeAgencyAuctionAPI.Services
                     assetsDTO.currentYearDraftPicks = foundAssets.currentYearDraftPicks?.draftPick ?? new List<DraftPick>();
                     foundAssets.players.player.ForEach(p =>
                     {
-                        var foundPlayerSalary = playerSalaries.FirstOrDefault(s => s.id == p.id);
-                        if (foundPlayerSalary != null)
+                        var foundPlayerContract = playerContracts.FirstOrDefault(s => s.id == p.id);
+                        if (foundPlayerContract != null)
                         {
                             var playerDTO = new PlayerDTO
                             {
-                                Length = int.TryParse(foundPlayerSalary.contractYear, out var cY) ? cY : 0,
-                                Salary = int.TryParse(foundPlayerSalary.salary, out var s) ? s : 0,
-                                MflId = int.TryParse(foundPlayerSalary.id, out var id) ? id : 0,
-                                ContractStatus = foundPlayerSalary.contractStatus,
+                                Length = int.TryParse(foundPlayerContract.contractYear, out var cY) ? cY : 0,
+                                Salary = int.TryParse(foundPlayerContract.salary, out var s) ? s : 0,
+                                MflId = int.TryParse(foundPlayerContract.id, out var id) ? id : 0,
+                                ContractStatus = foundPlayerContract.contractStatus,
+                                ProjectedFifthYearOptionSalary = projectedFifthYearOptions.TryGetValue(foundPlayerContract.id, out var opt) ? opt : (int?)null,
                             };
                           // if my player get more details
                             if (isMyFranchise && myPlayers != null)
@@ -1556,9 +1569,10 @@ namespace FreeAgencyAuctionAPI.Services
             var pickAssets = assetsTask.Result.assets.franchise.SelectMany(f => f.futureYearDraftPicks.draftPick)
                 .Concat(assetsTask.Result.assets.franchise.SelectMany(f => f.currentYearDraftPicks.draftPick));
             var playerContracts = rostersTask.Result.rosters.franchise.SelectMany(f => f.player);
+            var projectedFifthYearOptions = await GetProjectedFifthYearOptionSalaries(leagueId, rostersTask.Result.rosters.franchise);
 
 
-            var returnList = pendingTrades.GroupJoin(dbCapEatsTask.Result, 
+            var returnList = pendingTrades.GroupJoin(dbCapEatsTask.Result,
                 mfl => new { mfl.expires, mfl.offeringTeam }, 
                 db => new { expires = db.Proposal.Expires.ToString(), offeringTeam = db.Proposal.SenderId.ToString("D4") }, 
                 (mfl, db) => new TradeRequest
@@ -1591,7 +1605,8 @@ namespace FreeAgencyAuctionAPI.Services
                                     MflId = int.Parse(a),
                                     Position = found.position,
                                     Team = found.team,
-                                    ContractStatus = contract.contractStatus
+                                    ContractStatus = contract.contractStatus,
+                                    ProjectedFifthYearOptionSalary = projectedFifthYearOptions.TryGetValue(a, out var opt) ? opt : (int?)null
                                 };
                                 }).FirstOrDefault(),
                         CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeredTo, out var to) ? to : 0)) && capEat.MflPlayerId.ToString() == a).Select(capEat => new CapEat
@@ -1624,7 +1639,8 @@ namespace FreeAgencyAuctionAPI.Services
                                 MflId = int.Parse(a),
                                 Position = found.position,
                                 Team = found.team,
-                                ContractStatus = contract.contractStatus
+                                ContractStatus = contract.contractStatus,
+                                ProjectedFifthYearOptionSalary = projectedFifthYearOptions.TryGetValue(a, out var opt) ? opt : (int?)null
                             };
                         }).FirstOrDefault(),
                         CapEats = db.Where(capEat => (capEat.EaterId == (int.TryParse(mfl.offeringTeam, out var to) ? to : 0) && capEat.MflPlayerId.ToString() == a)).Select(capEat => new CapEat

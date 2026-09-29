@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -136,13 +137,13 @@ namespace FreeAgencyAuctionAPI.Tests.Services
                     }
                 }
             });
-            _leagueApiMock.Setup(x => x.GetSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new MflSalariesParent
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new RostersRoot
             {
-                Salaries = new MflSalaries
+                rosters = new Rosters
                 {
-                    LeagueUnit = new MflLeagueUnit
+                    franchise = new List<FranchiseRoster>
                     {
-                        Player = new List<Player> { new() { id = "900", salary = "24", contractYear = "1", contractStatus = "R1-2023|HOLDOUT" } }
+                        new() { id = "0001", player = new List<Player> { new() { id = "900", salary = "24", contractYear = "1", contractStatus = "R1-2023|HOLDOUT" } } }
                     }
                 }
             });
@@ -151,6 +152,56 @@ namespace FreeAgencyAuctionAPI.Tests.Services
 
             var player = Assert.Single(result.Franchises.Single(f => f.id == "0001").assets.Players);
             Assert.Equal("R1-2023|HOLDOUT", player.ContractStatus);
+            Assert.Equal((int)Math.Round(24 * 1.3), player.ProjectedFifthYearOptionSalary);
+            Assert.Equal(1, player.Length);
+        }
+
+        [Fact]
+        public async Task GetMflLeagueRootAndAssets_OneYearContract_DoesNotShowAsZeroYears()
+        {
+            // Regression: MFL's TYPE=salaries export silently drops the contractYear attribute
+            // for players on exactly a 1-year deal, which used to make trade screens show a
+            // perfectly normal player as "0YR" — as if they were about to be cut, which they
+            // weren't. Fixed by sourcing contract length from the rosters export instead
+            // (confirmed via live data: rosters export always has the real value).
+            var leagueId = 13894;
+            var franchiseId = 1;
+            _leagueApiMock.Setup(x => x.GetBigLeagueObject(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new LeagueRoot
+            {
+                league = new League2
+                {
+                    franchises = new Franchises
+                    {
+                        franchise = new List<FranchisePlusAssets> { new() { id = "0001", salaryCapAmount = "500" } }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetFranchiseAssets(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new MflAssetsRoot
+            {
+                assets = new Assets
+                {
+                    franchise = new List<MflAssetsFranchise>
+                    {
+                        new() { id = "0001", players = new Players { player = new List<Player> { new() { id = "901" } } } }
+                    }
+                }
+            });
+            _leagueApiMock.Setup(x => x.GetMflRostersForPlayerSalaries(leagueId, It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(new RostersRoot
+            {
+                rosters = new Rosters
+                {
+                    franchise = new List<FranchiseRoster>
+                    {
+                        new() { id = "0001", player = new List<Player> { new() { id = "901", salary = "5", contractYear = "1" } } }
+                    }
+                }
+            });
+
+            var result = await _service.GetMflLeagueRootAndAssets(leagueId, 2026, franchiseId);
+
+            var player = Assert.Single(result.Franchises.Single(f => f.id == "0001").assets.Players);
+            Assert.Equal(1, player.Length);
+            _leagueApiMock.Verify(x => x.GetSalaries(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
@@ -225,6 +276,8 @@ namespace FreeAgencyAuctionAPI.Tests.Services
             var trade = Assert.Single(result.tradeRequests);
             Assert.Equal("R1-2023", trade.ReceivingAssets.Single().PlayerDetails.ContractStatus);
             Assert.Equal("TAG-1", trade.SendingAssets.Single().PlayerDetails.ContractStatus);
+            Assert.Equal((int)Math.Round(24 * 1.3), trade.ReceivingAssets.Single().PlayerDetails.ProjectedFifthYearOptionSalary);
+            Assert.Null(trade.SendingAssets.Single().PlayerDetails.ProjectedFifthYearOptionSalary);
         }
 
         [Fact]
