@@ -722,7 +722,14 @@ namespace FreeAgencyAuctionAPI.Services
 
                 if (salaryToCompare == originalSalary)
                 {
-                    var optionSalary = (int)Math.Round(originalSalary * 1.3);
+                    // The option is always +30% over whatever the player is actually being paid
+                    // right now (lastYearSalary) — never the draft-slot table value or a
+                    // pre-holdout reconstruction. The table/holdout-adjusted salaryToCompare above
+                    // is only for confirming eligibility (still on an untouched rookie deal); a
+                    // holdout-raised player's option must be based on their real current salary,
+                    // and the RB draft-pick table can be off by a dollar or two on real historical
+                    // picks (confirmed this session), so it must never drive the dollar amount.
+                    var optionSalary = (int)Math.Round(lastYearSalary * 1.3);
 
                     optionCandidates.Add(new FifthYearOptionCandidate
                     {
@@ -735,7 +742,7 @@ namespace FreeAgencyAuctionAPI.Services
                             Position = mflPlayer.position,
                             Team = mflPlayer.team,
                             Age = GetAgeInt(mflPlayer.birthdate),
-                            Salary = salaryToCompare,
+                            Salary = lastYearSalary,
                             Length = int.TryParse(lastYearPlayerData.contractYear, out var l) ? l : 0
                         },
                         OriginalRookieSalary = originalSalary,
@@ -1105,12 +1112,6 @@ namespace FreeAgencyAuctionAPI.Services
 
             if (candidates.Count == 0) return result;
 
-            var acceptedHoldoutsByPlayer = (await _db.Holdouts
-                    .Where(h => h.LeagueId == leagueId && h.Status == "Accepted")
-                    .ToListAsync())
-                .GroupBy(h => h.PlayerId)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
             foreach (var c in candidates)
             {
                 if (!int.TryParse(c.RookieTag.Split('-')[1], out var draftYear)) continue;
@@ -1119,16 +1120,13 @@ namespace FreeAgencyAuctionAPI.Services
                 var yearsAway = draftYear + 4 - Utils.CurrentYear;
                 if (yearsAway < 0 || yearsAway > 3) continue;
 
+                // Always +30% over whatever they're actually being paid right now — never a
+                // reconstructed pre-holdout or draft-slot-table figure. A holdout-raised rookie's
+                // option is 30% on top of the raised amount, full stop.
                 var currentSalary = int.TryParse(c.Player.salary, out var s) ? s : 0;
-                var baseSalary = currentSalary;
-                if (int.TryParse(c.Player.id, out var pid) && acceptedHoldoutsByPlayer.TryGetValue(pid, out var holdouts))
-                {
-                    var matchingHoldout = holdouts.FirstOrDefault(h => h.HoldoutSalary == currentSalary);
-                    if (matchingHoldout != null) baseSalary = matchingHoldout.OriginalSalary;
-                }
-                if (baseSalary == 0) continue;
+                if (currentSalary == 0) continue;
 
-                result[c.Player.id] = (int)Math.Round(baseSalary * 1.3);
+                result[c.Player.id] = (int)Math.Round(currentSalary * 1.3);
             }
 
             return result;

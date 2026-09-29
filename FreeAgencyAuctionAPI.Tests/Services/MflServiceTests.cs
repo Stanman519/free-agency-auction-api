@@ -712,10 +712,12 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
-        public async Task GetFifthYearOptionCandidates_HoldoutPrecedence_LastYearSalaryAboveRookieButHoldoutOriginalMatches_Included()
+        public async Task GetFifthYearOptionCandidates_HoldoutPrecedence_EligibleViaPreHoldoutMatch_ButOptionBasedOnRaisedSalary()
         {
             // Pick 1 rookie = 30. Last-year roster shows 36 (post-holdout raise). Holdout's OriginalSalary = 30.
-            // Holdout precedence: comparison runs against pre-holdout original → included.
+            // Eligibility check runs against the pre-holdout original (30 == 30) → included. But the
+            // option dollar amount must be +30% over what they're actually paid now (36), not the
+            // rookie-scale table value — a past holdout raise is never unwound for this calculation.
             var holdouts = new List<Holdout>
             {
                 new Holdout { LeagueId = FifthYrLeagueId, Year = Utils.CurrentYear, PlayerId = 1005, OriginalSalary = 30, HoldoutSalary = 36, Status = "Accepted" }
@@ -726,7 +728,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
 
             Assert.Single(result);
             Assert.Equal(30, result[0].OriginalRookieSalary);
-            Assert.Equal(39, result[0].OptionSalary);
+            Assert.Equal((int)Math.Round(36 * 1.3), result[0].OptionSalary);
         }
 
         [Theory]

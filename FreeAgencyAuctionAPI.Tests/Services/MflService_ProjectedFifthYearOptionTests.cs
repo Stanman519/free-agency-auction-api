@@ -126,8 +126,10 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
-        public async Task AcceptedHoldoutRaisedSalary_ProjectsOffOriginalScaleNotHoldoutSalary()
+        public async Task AcceptedHoldoutRaisedSalary_ProjectsOffCurrentRaisedSalaryNotOriginal()
         {
+            // The option is always +30% over whatever the player is actually being paid right
+            // now — a past holdout raise doesn't get unwound for this calculation.
             using var db = NewDb();
             var draftYear = DraftYearWithOptionDecisionThisYear();
             db.Holdouts.Add(new Holdout
@@ -156,7 +158,7 @@ namespace FreeAgencyAuctionAPI.Tests.Services
 
             var result = await NewService(db).GetProjectedFifthYearOptionSalaries(LeagueId, rosters);
 
-            Assert.Equal((int)Math.Round(24 * 1.3), result["900"]);
+            Assert.Equal((int)Math.Round(29 * 1.3), result["900"]);
         }
     }
 }
