@@ -280,6 +280,43 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
+        public async Task GiveNewContractToPlayer_EmptyStringContractStatus_WritesExplicitEmptyAttribute()
+        {
+            // "" is a deliberate clear (e.g. a fresh veteran signing wiping a stale rookie/tag
+            // marker) — distinct from omitting the parameter entirely (null = leave untouched).
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            Dictionary<string, string> capturedData = null;
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .Callback<int, Dictionary<string, string>, int>((_, data, __) => capturedData = data)
+                .ReturnsAsync(okResponse);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 30, 1, "msg", contractStatus: "");
+
+            Assert.Contains("contractStatus=\"\"", capturedData["DATA"]);
+        }
+
+        [Fact]
+        public async Task GiveNewContractToPlayer_WaiverExtension_MessageUsesActualSalaryNotHardcoded()
+        {
+            // Regression: the waiver-extension GroupMe message used to hardcode "$25"
+            // regardless of the salary actually written to MFL.
+            var leagueId = 13894;
+            var okResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<salaries></salaries>") };
+            _leagueApiMock.Setup(x => x.EditPlayerSalary(leagueId, It.IsAny<Dictionary<string, string>>(), It.IsAny<int>()))
+                .ReturnsAsync(okResponse);
+            string posted = null;
+            _gmMock.Setup(x => x.SendBotNotification(It.IsAny<BotMessage>()))
+                .Callback<BotMessage>(m => posted = m.Message)
+                .Returns(Task.CompletedTask);
+
+            await _service.GiveNewContractToPlayer(leagueId, 12345, 42, false, "Test Player");
+
+            Assert.Contains("$42", posted);
+            Assert.DoesNotContain("$25", posted);
+        }
+
+        [Fact]
         public async Task GiveNewContractToPlayer_5ArgOverload_EditPlayerSalaryThrows_NotifiesMflErrorAndRethrows()
         {
             // Regression: this overload (holdout/5th-year-option) used to have no try/catch

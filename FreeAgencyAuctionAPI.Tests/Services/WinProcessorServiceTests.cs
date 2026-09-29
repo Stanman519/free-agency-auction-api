@@ -86,6 +86,58 @@ namespace FreeAgencyAuctionAPI.Tests.Services
         }
 
         [Fact]
+        public async Task ProcessWin_RealLeague_ClearsContractStatusOnFreshSigning()
+        {
+            // A won auction is a brand-new market contract — the write must explicitly clear
+            // any stale contractStatus tag (pass "", not omit it) left over from a prior deal
+            // on this player (e.g. a rookie tag or franchise tag from a previous team).
+            const int leagueId = 13894;
+            var db = BuildDb("WinProc_RealLeague_Clear");
+            db.LeagueOwners.Add(new LeagueOwnerEntity { Leagueownerid = 10, Leagueid = leagueId, Mflfranchiseid = 1, Caproom = 200 });
+            var bid = new BidEntity
+            {
+                Bidid = 1,
+                Mflid = 99,
+                Leagueid = leagueId,
+                Ownerid = 10,
+                Bidsalary = 25,
+                Bidlength = 2,
+                Expires = DateTime.UtcNow.AddSeconds(-1)
+            };
+            db.Bids.Add(bid);
+            await db.SaveChangesAsync();
+
+            var mflMock = new Mock<IMflService>();
+            mflMock.Setup(m => m.GetMflRosters(leagueId)).ReturnsAsync(new List<FranchiseRoster>());
+            mflMock.Setup(m => m.GetSalaryCapRoom(leagueId)).ReturnsAsync(new List<LeagueOwnerEntity>());
+            string capturedContractStatus = "not set";
+            mflMock.Setup(m => m.GiveNewContractToPlayer(leagueId, 99, 25, 2, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<int, int, int, int, string, string, bool>((_, __, ___, ____, _____, status, ______) => capturedContractStatus = status)
+                .Returns(Task.CompletedTask);
+            var ownerRepoMock = new Mock<IOwnerRepo>();
+            var gmBotMock = new Mock<IGMBot>();
+            var logger = new Mock<ILogger<WinProcessorService>>();
+
+            var factory = BuildScopeFactory(db, mflMock.Object, ownerRepoMock.Object, gmBotMock.Object);
+            var service = new WinProcessorService(factory, logger.Object);
+
+            var bidDto = new BidDTO
+            {
+                BidId = 1,
+                BidSalary = 25,
+                BidLength = 2,
+                OwnerId = 10,
+                LeagueId = leagueId,
+                Expires = bid.Expires,
+                Player = new PlayerDTO { MflId = 99, FirstName = "Test", LastName = "Player" }
+            };
+
+            await service.ProcessWin(bidDto);
+
+            Assert.Equal("", capturedContractStatus);
+        }
+
+        [Fact]
         public async Task ProcessWin_DemoLeague_NotLatestBid_DoesNothing()
         {
             var db = BuildDb("WinProc_Demo_NotLatest");

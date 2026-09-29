@@ -20,6 +20,13 @@ namespace FreeAgencyAuctionAPI.Models
         public decimal? Adp { get; set; }
         public decimal? LastSeasonPts { get; set; }
         public string? RosterStatus { get; set; }
+        // Pipe-delimited MFL tags (e.g. "R1-2024|HOLDOUT"). Null when the league's "Contract
+        // Status" salary-cap setting is off or the player carries no tags.
+        public string? ContractStatus { get; set; }
+        // Only set for round-1 rookies still on their original rookie-scale deal who haven't
+        // had a 5th-year option exercised yet, when that option year falls within the roster
+        // page's visible year window. Represents a projection, not a signed contract.
+        public int? ProjectedFifthYearOptionSalary { get; set; }
     }
     
     public class PlayerBioDTO 

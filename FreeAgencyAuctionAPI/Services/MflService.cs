@@ -55,6 +55,7 @@ namespace FreeAgencyAuctionAPI.Services
         Task<List<PlayerSnapshotEntry>> GetLeagueRosterSnapshotForYear(int leagueId, int year);
         Task<object> GetDraftPickDiagnostics(int leagueId, int draftYear, int mflPlayerId);
         Task<object> GetRound1PicksDiagnostics(int leagueId, int draftYear);
+        Task<Dictionary<string, int>> GetProjectedFifthYearOptionSalaries(int leagueId, List<FranchiseRoster> rosters);
     }
 
     public class MflService : IMflService
@@ -345,7 +346,7 @@ namespace FreeAgencyAuctionAPI.Services
         {
             var botId = Utils.leagueBotDict.TryGetValue(leagueId, out var x) ? x : string.Empty;
             var data = CreateBodyDataForNewContract(mflPlayerId, salary, 1, contractStatus);
-            var botMsg = isFranchiseTag ? $"{playerName} got franchise tagged for ${salary}." : $"{playerName} was given a waiver extension of 1 year, $25";
+            var botMsg = isFranchiseTag ? $"{playerName} got franchise tagged for ${salary}." : $"{playerName} was given a waiver extension of 1 year, ${salary}";
             LogContractStatusAttempt(leagueId, mflPlayerId, contractStatus);
             HttpResponseMessage resp;
             string respString;
@@ -395,7 +396,15 @@ namespace FreeAgencyAuctionAPI.Services
         // the status actually landed. Logged explicitly so that's traceable later.
         private void LogContractStatusAttempt(int leagueId, int mflPlayerId, string contractStatus)
         {
-            if (string.IsNullOrEmpty(contractStatus)) return;
+            // null = leave contractStatus untouched (attribute omitted from the write entirely).
+            // "" = explicitly clear it (e.g. a fresh veteran signing wiping out a stale rookie/tag).
+            if (contractStatus == null) return;
+            if (contractStatus == "")
+            {
+                _logger.LogInformation(
+                    "Clearing MFL contractStatus for league {leagueId} player {mflPlayerId}", leagueId, mflPlayerId);
+                return;
+            }
             _logger.LogInformation(
                 "Attempting MFL contractStatus={contractStatus} for league {leagueId} player {mflPlayerId} " +
                 "(requires the league's Contract Status salary-cap setting to be enabled, or MFL silently ignores it)",
@@ -1063,6 +1072,52 @@ namespace FreeAgencyAuctionAPI.Services
                 rbTableValueAtThisPick = Utils.rbDraftPicks.GetValueOrDefault(pickNumber, 0),
                 nonRbTableValueAtThisPick = Utils.draftPicks.GetValueOrDefault(pickNumber, 0)
             };
+        }
+
+        // Roster-page-facing projection: for round-1 rookies still tagged R1-{year} (option not
+        // yet exercised) whose 4-year rookie deal ends within the next few seasons, project what
+        // their 5th-year-option salary would be. Speculative — MFL is the source of truth once a
+        // team actually exercises the option (at which point the player gets tagged 5YO instead).
+        public async Task<Dictionary<string, int>> GetProjectedFifthYearOptionSalaries(int leagueId, List<FranchiseRoster> rosters)
+        {
+            var result = new Dictionary<string, int>();
+            var candidates = rosters
+                .SelectMany(f => f.player)
+                .Select(p => new { Player = p, Tags = ParseTags(p.contractStatus) })
+                .Where(x => !x.Tags.Contains("5YO"))
+                .Select(x => new { x.Player, RookieTag = x.Tags.FirstOrDefault(t => t.StartsWith("R1-")) })
+                .Where(x => x.RookieTag != null)
+                .ToList();
+
+            if (candidates.Count == 0) return result;
+
+            var acceptedHoldoutsByPlayer = (await _db.Holdouts
+                    .Where(h => h.LeagueId == leagueId && h.Status == "Accepted")
+                    .ToListAsync())
+                .GroupBy(h => h.PlayerId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var c in candidates)
+            {
+                if (!int.TryParse(c.RookieTag.Split('-')[1], out var draftYear)) continue;
+                // The option decision comes right after a 4-year rookie deal ends — only worth
+                // projecting if that falls within the roster page's visible year window.
+                var yearsAway = draftYear + 4 - Utils.CurrentYear;
+                if (yearsAway < 0 || yearsAway > 3) continue;
+
+                var currentSalary = int.TryParse(c.Player.salary, out var s) ? s : 0;
+                var baseSalary = currentSalary;
+                if (int.TryParse(c.Player.id, out var pid) && acceptedHoldoutsByPlayer.TryGetValue(pid, out var holdouts))
+                {
+                    var matchingHoldout = holdouts.FirstOrDefault(h => h.HoldoutSalary == currentSalary);
+                    if (matchingHoldout != null) baseSalary = matchingHoldout.OriginalSalary;
+                }
+                if (baseSalary == 0) continue;
+
+                result[c.Player.id] = (int)Math.Round(baseSalary * 1.3);
+            }
+
+            return result;
         }
 
         public async Task<object> GetRound1PicksDiagnostics(int leagueId, int draftYear)
@@ -1853,7 +1908,9 @@ namespace FreeAgencyAuctionAPI.Services
         //}
         private Dictionary<string, string> CreateBodyDataForNewContract(int playerId, int salary, int length = 1, string contractStatus = null)
         {
-            var statusAttr = string.IsNullOrEmpty(contractStatus)
+            // null = don't touch contractStatus at all (attribute omitted, MFL's APPEND=1 keeps
+            // whatever is already there). "" = explicitly write an empty value to clear it.
+            var statusAttr = contractStatus == null
                 ? ""
                 : $" contractStatus=\"{System.Security.SecurityElement.Escape(contractStatus)}\"";
             var ret = new Dictionary<string, string>()

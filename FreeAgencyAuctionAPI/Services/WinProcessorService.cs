@@ -102,7 +102,10 @@ namespace FreeAgencyAuctionAPI.Services
             try
             {
                 var contractMsg = $"{bid.Player.FirstName} {bid.Player.LastName} signed ${bid.BidSalary}/{bid.BidLength}yr";
-                await mflService.GiveNewContractToPlayer(bid.LeagueId, bid.Player.MflId, bid.BidSalary, bid.BidLength, contractMsg);
+                // A fresh auction signing is a brand-new market contract — clear contractStatus
+                // (pass "", not null) so a stale rookie/tag/holdout marker from a prior deal on
+                // this player doesn't linger forever under MFL's APPEND=1 semantics.
+                await mflService.GiveNewContractToPlayer(bid.LeagueId, bid.Player.MflId, bid.BidSalary, bid.BidLength, contractMsg, contractStatus: "");
             }
             catch (Exception e)
             {

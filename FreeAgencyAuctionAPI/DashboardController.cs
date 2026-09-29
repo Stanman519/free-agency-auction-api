@@ -148,6 +148,21 @@ namespace FreeAgencyAuctionAPI
             return Ok(candidates);
         }
 
+        // League-wide (not per-franchise) 5th-year-option projections — used by the
+        // dead-cap-tracker GroupMe bot's #options command. Cross-service, unauthenticated
+        // read-only call, same pattern as /free-agency/bid and /free-agency/leagues/{id}/headlines.
+        [AllowAnonymous]
+        [HttpGet("leagues/{leagueId}/fifth-year-option-projections")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetFifthYearOptionProjections([Path] int leagueId)
+        {
+            var rosters = await _mfl.GetMflRosters(leagueId);
+            var projections = await _mfl.GetProjectedFifthYearOptionSalaries(leagueId, rosters);
+            var result = projections.Select(p => new { MflPlayerId = int.Parse(p.Key), ProjectedSalary = p.Value }).ToList();
+            return Ok(result);
+        }
+
         // get league transactions and team dead caps
         [HttpGet("leagues/{leagueId}/league-caps")]
         [Produces("application/json")]

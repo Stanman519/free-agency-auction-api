@@ -120,6 +120,7 @@ namespace FreeAgencyAuctionAPI
             var mflRosters = await rostersTask;
             var picksByFranchise = await picksTask;
             var dbPlayers = await _pService.GetAllPlayers();
+            var projectedFifthYearOptions = await _mfl.GetProjectedFifthYearOptionSalaries(leagueId, mflRosters);
 
             var dbOwners = await _oService.GetAllOwners(leagueId);
             // Flatten the mflRosters to get all players with their parent FranchiseRoster ID
@@ -155,6 +156,8 @@ namespace FreeAgencyAuctionAPI
                                 dbPlayer.Length = int.TryParse(p.Player.contractYear, out var y) ? y : 0;
                                 dbPlayer.MflFranchiseId = franchiseId;
                                 dbPlayer.RosterStatus = p.Player.status;
+                                dbPlayer.ContractStatus = p.Player.contractStatus;
+                                dbPlayer.ProjectedFifthYearOptionSalary = projectedFifthYearOptions.TryGetValue(p.Player.id, out var opt) ? opt : (int?)null;
                                 return dbPlayer;
                             }
                             return null;
