@@ -36,6 +36,7 @@ namespace FreeAgencyAuctionAPI.Repos
         Task<List<Holdout>> GetHoldoutsForOwner(int leagueOwnerId, int year);
         Task<Holdout> GetHoldoutById(int holdoutId);
         Task UpdateHoldoutStatus(int holdoutId, string status);
+        Task<bool> ReassignHoldoutOwner(int leagueId, int playerId, int newFranchiseId, int year);
         Task UpsertLeagueTagInfo(FranchiseTagLeague data);
     }
 
@@ -383,6 +384,35 @@ namespace FreeAgencyAuctionAPI.Repos
             {
                 _logger.LogError(e, "error updating holdout status");
                 throw;
+            }
+        }
+
+        public async Task<bool> ReassignHoldoutOwner(int leagueId, int playerId, int newFranchiseId, int year)
+        {
+            try
+            {
+                var holdout = await _db.Holdouts.FirstOrDefaultAsync(h =>
+                    h.LeagueId == leagueId && h.PlayerId == playerId && h.Year == year && h.Status == "Pending");
+                if (holdout == null) return false;
+
+                var newOwner = await _db.LeagueOwners.FirstOrDefaultAsync(lo =>
+                    lo.Leagueid == leagueId && lo.Mflfranchiseid == newFranchiseId);
+                if (newOwner == null)
+                {
+                    _logger.LogWarning("Could not find league owner for franchise {franchiseId} reassigning holdout for player {playerId}", newFranchiseId, playerId);
+                    return false;
+                }
+
+                if (holdout.LeagueOwnerId == newOwner.Leagueownerid) return false;
+
+                holdout.LeagueOwnerId = newOwner.Leagueownerid;
+                await _db.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "error reassigning holdout owner for league {leagueId} player {playerId}", leagueId, playerId);
+                return false;
             }
         }
 

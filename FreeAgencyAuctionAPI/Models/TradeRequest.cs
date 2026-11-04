@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace FreeAgencyAuctionAPI.Models
 {
@@ -15,6 +16,23 @@ namespace FreeAgencyAuctionAPI.Models
         public int LeagueId { get; set; }
         public long Expires { get; set; }
         public string TradeId { get; set; }
+
+        // Client-sent eater/receiver ids are baked in per asset at check time and can go stale
+        // (seen: receiverId 0 → rebate posted to franchise 0000). Sender's assets are eaten by
+        // the sender, receiver's assets by the receiver, so derive both from the trade itself.
+        public void NormalizeCapEats()
+        {
+            foreach (var cap in SendingAssets?.SelectMany(a => a.CapEats) ?? Enumerable.Empty<CapEat>())
+            {
+                cap.EaterId = SenderId;
+                cap.ReceiverId = ReceiverId;
+            }
+            foreach (var cap in ReceivingAssets?.SelectMany(a => a.CapEats) ?? Enumerable.Empty<CapEat>())
+            {
+                cap.EaterId = ReceiverId;
+                cap.ReceiverId = SenderId;
+            }
+        }
     }
     public class CapEat
     {

@@ -447,6 +447,7 @@ namespace FreeAgencyAuctionAPI
             //do some verification
             // make guid
             body.CommentGuid = Guid.NewGuid();
+            body.NormalizeCapEats();
             var currentTrades = await _mfl.GetMyPendingTrades(body.LeagueId, body.SenderId);
             //check if there are any trades out there where all the assets are the same to cancel them.
             var potentialDupeTrades = currentTrades.tradeRequests
@@ -669,7 +670,22 @@ namespace FreeAgencyAuctionAPI
                 return BadRequest(new ErrorResponse(e.Message));
             }
         }
-        
+
+        // Called by dead-cap-tracker's completed-trade poll (hits MFL's actual transaction
+        // log, so it catches trades accepted in-app, commish-forced, or made directly on
+        // MFL) — moves a Pending holdout's LeagueOwnerId to whichever franchise now has the
+        // player, so the new owner (not the old one) sees and can pay it. Cross-service,
+        // unauthenticated write, same pattern as /free-agency/bid.
+        [AllowAnonymous]
+        [HttpPost("leagues/{leagueId}/holdouts/reassign-owner")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> ReassignHoldoutOwner([FromRoute] int leagueId, [FromBody] HoldoutReassignOwnerBody body)
+        {
+            var reassigned = await _pRepo.ReassignHoldoutOwner(leagueId, body.mflPlayerId, body.newMflFranchiseId, Utils.CurrentYear);
+            return Ok(new { reassigned });
+        }
+
         [HttpPost("admin/leagues/{leagueId}/true-up-salary-caps")]
         public async Task<IActionResult> TrueUpSalaryCaps([FromRoute] int leagueId)
         {

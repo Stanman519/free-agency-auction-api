@@ -180,4 +180,10 @@ namespace FreeAgencyAuctionAPI.Models
         public int mflPlayerId { get; set; }
         public int mflFranchiseId { get; set; }
     }
+
+    public class HoldoutReassignOwnerBody
+    {
+        public int mflPlayerId { get; set; }
+        public int newMflFranchiseId { get; set; }
+    }
 }
