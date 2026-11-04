@@ -1,4 +1,4 @@
-using FreeAgencyAuctionAPI;
+﻿using FreeAgencyAuctionAPI;
 using FreeAgencyAuctionAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
@@ -15,6 +15,7 @@ namespace FreeAgencyAuctionAPI
         public DbSet<PlayerEntity> Players { get; set; }
         public DbSet<BidEntity> Bids { get; set; }
         public DbSet<OwnerEntity> Owners { get; set; }
+        public DbSet<OwnerIdentityEntity> OwnerIdentities { get; set; }
         public DbSet<LotEntity> Lots { get; set; }
         public DbSet<SuggestionEntity> Suggestions { get; set; }
         public DbSet<LeagueOwnerEntity> LeagueOwners { get; set; }
@@ -333,6 +334,21 @@ namespace FreeAgencyAuctionAPI
                     .HasColumnName("streamtoken");
                 entity.Property(e => e.Premium).HasColumnName("premium");
                 entity.Property(e => e.Avatar).HasColumnName("avatar");
+            });
+
+            modelBuilder.Entity<OwnerIdentityEntity>(entity =>
+            {
+                entity.ToTable("owneridentity");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd().HasColumnName("id");
+                entity.Property(e => e.OwnerId).HasColumnName("ownerid");
+                entity.Property(e => e.AuthId).IsRequired().HasColumnName("authid");
+                entity.Property(e => e.CreatedAt).HasColumnName("createdat");
+                entity.HasIndex(e => e.AuthId).IsUnique();
+                entity.HasOne(e => e.Owner).WithMany(o => o.Identities)
+                    .HasForeignKey(e => e.OwnerId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_owneridentity_owner");
             });
 
             modelBuilder.Entity<PlayerEntity>(entity =>

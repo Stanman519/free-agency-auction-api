@@ -23,6 +23,7 @@ namespace FreeAgencyAuctionAPI.Models
         public List<int> ConfidenceTitleList =>
             JsonSerializer.Deserialize<List<int>>(ConfidenceTitles) ?? new();
         public bool ConfidencePaid { get; set; }
+        public virtual ICollection<OwnerIdentityEntity> Identities { get; } = new List<OwnerIdentityEntity>();
         public virtual ICollection<LeagueOwnerEntity> Leagueowners { get; } = new List<LeagueOwnerEntity>();
         public virtual ICollection<PoolUser> PoolUsers { get; } = new List<PoolUser>();
         public virtual ICollection<Pick> ConfidencePicks { get; } = new List<Pick>();

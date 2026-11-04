@@ -1,4 +1,5 @@
-using FreeAgencyAuctionAPI.Models;
+﻿using FreeAgencyAuctionAPI.Models;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
@@ -28,7 +29,7 @@ namespace FreeAgencyAuctionAPI.Services
                 return AdminAuthResult.Unauthenticated();
             }
 
-            var owner = await _db.Owners.FirstOrDefaultAsync(o => o.authid == authId);
+            var owner = await _db.Owners.FirstOrDefaultAsync(o => o.authid == authId || o.Identities.Any(i => i.AuthId == authId));
 
             if (owner == null)
             {

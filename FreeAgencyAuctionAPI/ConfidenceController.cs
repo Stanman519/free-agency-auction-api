@@ -117,11 +117,11 @@
 
                 if (!string.IsNullOrEmpty(user))
                 {
-                    var userPicks = _db.NflPicks.Where(p => p.Owner.authid == user && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
+                    var userPicks = _db.NflPicks.Where(p => (p.Owner.authid == user || p.Owner.Identities.Any(i => i.AuthId == user)) && thisWeek.Select(w => w.Id).Contains(p.NflTeamMatchup.Id)).OrderByDescending(p => p.Points).ToList();
 
                     // Only query user props if there are props this week
                     var userProps = propsThisWeek != null && propsThisWeek.Any()
-                        ? _db.ExtraPicks.Where(p => p.Owner.authid == user && propsThisWeek.Select(w => w.Id).Contains(p.PropId)).ToList()
+                        ? _db.ExtraPicks.Where(p => (p.Owner.authid == user || p.Owner.Identities.Any(i => i.AuthId == user)) && propsThisWeek.Select(w => w.Id).Contains(p.PropId)).ToList()
                         : new List<ExtraPick>();
 
                     thisWeek.ForEach(mat =>
@@ -586,7 +586,7 @@
                 }
 
                 // Verify the user exists in the database
-                var authenticatedOwner = await _db.Owners.FirstOrDefaultAsync(o => o.authid == user);
+                var authenticatedOwner = await _db.Owners.FirstOrDefaultAsync(o => o.authid == user || o.Identities.Any(i => i.AuthId == user));
                 if (authenticatedOwner == null)
                 {
                     _logger.LogWarning("Pick submission attempted with invalid user: {User}", user);

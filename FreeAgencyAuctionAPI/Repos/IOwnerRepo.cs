@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,6 +23,22 @@ namespace FreeAgencyAuctionAPI.Repos
         public Task UpdateOwnerStreamToken(OwnerDTO owner, string token);
         public Task MakeTestLeague();
         public Task<OwnerEntity> Register(OwnerEntity newUser);
+        public Task<OwnerMergeResult> MergeOwners(int keepOwnerId, int dropOwnerId);
+    }
+
+    public class OwnerMergeResult
+    {
+        public int IdentitiesMoved { get; set; }
+        public int LeagueOwnersMoved { get; set; }
+        public int LeagueOwnersMerged { get; set; }
+        public int PicksMoved { get; set; }
+        public int PicksDropped { get; set; }
+        public int ExtraPicksMoved { get; set; }
+        public int ExtraPicksDropped { get; set; }
+        public int PoolUsersMoved { get; set; }
+        public int PoolUsersMerged { get; set; }
+        public int OverUnderPicksMoved { get; set; }
+        public int OverUnderPicksDropped { get; set; }
     }
 
     public class OwnerRepo : IOwnerRepo
@@ -62,7 +78,7 @@ namespace FreeAgencyAuctionAPI.Repos
 
                 // Main owner + leagues projection — no Pools/OUPicks subqueries here
                 var ownerDto = await _db.Owners.AsNoTracking()
-                    .Where(o => o.authid == sub)
+                    .Where(o => o.authid == sub || o.Identities.Any(i => i.AuthId == sub))
                     .Select(o => new OwnerDTO
                     {
                         OwnerId = o.Ownerid,
@@ -250,13 +266,122 @@ namespace FreeAgencyAuctionAPI.Repos
             var existingOwner = await _db.Owners.FirstOrDefaultAsync(o => o.Ownerid == ownerId);
             if (existingOwner == null) return null;
 
-            existingOwner.authid = user.Sub;
+            await AddIdentityIfMissing(existingOwner, user.Sub);
+            if (string.IsNullOrEmpty(existingOwner.authid)) existingOwner.authid = user.Sub;
             if (!string.IsNullOrEmpty(user.Picture)) existingOwner.Avatar = user.Picture;
             if (string.IsNullOrWhiteSpace(existingOwner.Displayname))
                 existingOwner.Displayname = user.Name ?? user.Nickname ?? user.Email;
             await _db.SaveChangesAsync();
 
             return await GetOwnerByAuthId(user.Sub);
+        }
+
+        // Adds the sub as an identity of this owner unless some owner already has it (unique on authid).
+        private async Task AddIdentityIfMissing(OwnerEntity owner, string sub)
+        {
+            if (string.IsNullOrEmpty(sub)) return;
+            if (await _db.OwnerIdentities.AnyAsync(i => i.AuthId == sub)) return;
+            owner.Identities.Add(new OwnerIdentityEntity { AuthId = sub, CreatedAt = DateTime.UtcNow });
+        }
+
+        // Folds dropOwner into keepOwner (same person, two Auth0 accounts). Everything is changed on tracked
+        // entities and saved with a single SaveChanges, so it lands all-or-nothing.
+        public async Task<OwnerMergeResult> MergeOwners(int keepOwnerId, int dropOwnerId)
+        {
+            if (keepOwnerId == dropOwnerId) throw new ArgumentException("keep and drop owner are the same");
+            var keep = await _db.Owners.Include(o => o.Identities).FirstOrDefaultAsync(o => o.Ownerid == keepOwnerId)
+                ?? throw new KeyNotFoundException($"owner {keepOwnerId} not found");
+            var drop = await _db.Owners.Include(o => o.Identities).FirstOrDefaultAsync(o => o.Ownerid == dropOwnerId)
+                ?? throw new KeyNotFoundException($"owner {dropOwnerId} not found");
+            var result = new OwnerMergeResult();
+
+            // identities (+ drop's legacy authid if it never made it into the table)
+            var knownSubs = keep.Identities.Select(i => i.AuthId).Concat(drop.Identities.Select(i => i.AuthId)).ToHashSet();
+            foreach (var identity in drop.Identities.ToList())
+            {
+                identity.OwnerId = keepOwnerId;
+                result.IdentitiesMoved++;
+            }
+            if (!string.IsNullOrEmpty(drop.authid) && !knownSubs.Contains(drop.authid)
+                && !await _db.OwnerIdentities.AnyAsync(i => i.AuthId == drop.authid))
+            {
+                keep.Identities.Add(new OwnerIdentityEntity { AuthId = drop.authid, CreatedAt = DateTime.UtcNow });
+                result.IdentitiesMoved++;
+            }
+            if (string.IsNullOrEmpty(keep.authid)) keep.authid = drop.authid;
+
+            // flags: keep whatever either account had earned
+            keep.Premium = (keep.Premium ?? false) || (drop.Premium ?? false);
+            keep.ConfidencePaid = keep.ConfidencePaid || drop.ConfidencePaid;
+            keep.ConfidenceTitles = System.Text.Json.JsonSerializer.Serialize(
+                keep.ConfidenceTitleList.Concat(drop.ConfidenceTitleList).Distinct().OrderBy(x => x).ToList());
+
+            // league ownership: same (league, franchise) on both -> fold the dropped row's children into the keeper's row
+            var keepLos = await _db.LeagueOwners.Where(lo => lo.Ownerid == keepOwnerId).ToListAsync();
+            var dropLos = await _db.LeagueOwners
+                .Include(lo => lo.Bids).Include(lo => lo.Lots).Include(lo => lo.Contracts)
+                .Include(lo => lo.FranchiseTags).Include(lo => lo.Buyouts)
+                .Include(lo => lo.WaiverExtensions).Include(lo => lo.Holdouts)
+                .Where(lo => lo.Ownerid == dropOwnerId).ToListAsync();
+            foreach (var dlo in dropLos)
+            {
+                var match = keepLos.FirstOrDefault(k => k.Leagueid == dlo.Leagueid && k.Mflfranchiseid == dlo.Mflfranchiseid);
+                if (match == null)
+                {
+                    dlo.Ownerid = keepOwnerId;
+                    result.LeagueOwnersMoved++;
+                    continue;
+                }
+                foreach (var x in dlo.Bids.ToList()) x.Ownerid = match.Leagueownerid;
+                foreach (var x in dlo.Lots.ToList()) x.Nominatedby = match.Leagueownerid;
+                foreach (var x in dlo.Contracts.ToList()) x.Ownerid = match.Leagueownerid;
+                foreach (var x in dlo.FranchiseTags.ToList()) x.Leagueownerid = match.Leagueownerid;
+                foreach (var x in dlo.Buyouts.ToList()) x.LeagueOwnerId = match.Leagueownerid;
+                foreach (var x in dlo.WaiverExtensions.ToList()) x.LeagueOwnerId = match.Leagueownerid;
+                foreach (var x in dlo.Holdouts.ToList()) x.LeagueOwnerId = match.Leagueownerid;
+                _db.LeagueOwners.Remove(dlo);
+                result.LeagueOwnersMerged++;
+            }
+
+            // confidence picks: one pick per matchup / prop per owner -> keeper's wins on overlap
+            var keepMatchups = (await _db.NflPicks.Where(p => p.OwnerId == keepOwnerId).Select(p => p.MatchupId).ToListAsync()).ToHashSet();
+            foreach (var pick in await _db.NflPicks.Where(p => p.OwnerId == dropOwnerId).ToListAsync())
+            {
+                if (keepMatchups.Contains(pick.MatchupId)) { _db.NflPicks.Remove(pick); result.PicksDropped++; }
+                else { pick.OwnerId = keepOwnerId; result.PicksMoved++; }
+            }
+            var keepProps = (await _db.ExtraPicks.Where(p => p.OwnerId == keepOwnerId).Select(p => p.PropId).ToListAsync()).ToHashSet();
+            foreach (var pick in await _db.ExtraPicks.Where(p => p.OwnerId == dropOwnerId).ToListAsync())
+            {
+                if (keepProps.Contains(pick.PropId)) { _db.ExtraPicks.Remove(pick); result.ExtraPicksDropped++; }
+                else { pick.OwnerId = keepOwnerId; result.ExtraPicksMoved++; }
+            }
+
+            // over/under pools: one pooluser per (pool, owner); picks hang off pooluser.Id
+            var keepPus = await _db.PoolUsers.Where(pu => pu.OwnerId == keepOwnerId).ToListAsync();
+            foreach (var dpu in await _db.PoolUsers.Where(pu => pu.OwnerId == dropOwnerId).ToListAsync())
+            {
+                var kpu = keepPus.FirstOrDefault(k => k.PoolId == dpu.PoolId);
+                if (kpu == null) { dpu.OwnerId = keepOwnerId; result.PoolUsersMoved++; continue; }
+
+                kpu.IsPaid = kpu.IsPaid || dpu.IsPaid;
+                var keepLines = (await _db.OverUnderPicks.Where(p => p.UserId == kpu.Id).Select(p => p.LineId).ToListAsync()).ToHashSet();
+                foreach (var pick in await _db.OverUnderPicks.Where(p => p.UserId == dpu.Id).ToListAsync())
+                {
+                    if (keepLines.Contains(pick.LineId)) { _db.OverUnderPicks.Remove(pick); result.OverUnderPicksDropped++; }
+                    else { pick.UserId = kpu.Id; result.OverUnderPicksMoved++; }
+                }
+                _db.PoolUsers.Remove(dpu);
+                result.PoolUsersMerged++;
+            }
+
+            // loose ends keyed straight on ownerid
+            foreach (var q in await _db.OwnerQuotes.Where(q => q.Ownerid == dropOwnerId).ToListAsync()) q.Ownerid = keepOwnerId;
+            foreach (var sg in await _db.Suggestions.Where(sg => sg.Ownerid == dropOwnerId).ToListAsync()) sg.Ownerid = keepOwnerId;
+
+            _db.Owners.Remove(drop);
+            await _db.SaveChangesAsync();
+            return result;
         }
 
         public async Task<OwnerDTO> AddOwnerAndRelatedLeagues(AuthUser user, List<FranchisePlusAssets> franchises)
@@ -288,6 +413,7 @@ namespace FreeAgencyAuctionAPI.Repos
                     (franchises.Count > 0 && !string.IsNullOrEmpty(franchises[0].username)) ? franchises[0].username :
                     user.Email
             };
+            owner.Identities.Add(new OwnerIdentityEntity { AuthId = user.Sub, CreatedAt = DateTime.UtcNow });
             await _db.Owners.AddAsync(owner);
             await _db.SaveChangesAsync();
             var ownerId = owner.Ownerid;

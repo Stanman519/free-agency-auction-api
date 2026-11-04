@@ -686,6 +686,25 @@ namespace FreeAgencyAuctionAPI
             return Ok(new { reassigned });
         }
 
+        // Same person, two Auth0 accounts (e.g. Google then email/password): fold drop into keep.
+        [AdminApiKey]
+        [HttpPost("admin/owners/{keepOwnerId}/merge/{dropOwnerId}")]
+        public async Task<IActionResult> MergeOwners([FromRoute] int keepOwnerId, [FromRoute] int dropOwnerId)
+        {
+            try
+            {
+                return Ok(await _oRepo.MergeOwners(keepOwnerId, dropOwnerId));
+            }
+            catch (KeyNotFoundException e)
+            {
+                return NotFound(new ErrorResponse(e.Message));
+            }
+            catch (ArgumentException e)
+            {
+                return BadRequest(new ErrorResponse(e.Message));
+            }
+        }
+
         [HttpPost("admin/leagues/{leagueId}/true-up-salary-caps")]
         public async Task<IActionResult> TrueUpSalaryCaps([FromRoute] int leagueId)
         {
